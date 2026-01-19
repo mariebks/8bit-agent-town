@@ -276,48 +276,120 @@ score = 0.5 * recency + 0.3 * importance + 0.2 * relevance
 
 ## Implementation phases (revised)
 
+Each phase has a goal, a set of explicit tasks, and an end state. Do not move to the next phase until the end state is met.
+
 ### Phase 1: World rendering and movement
 
-- Vite + Phaser setup, render static map.
-- Tilemap import from Tiled and collision setup.
-- Basic agent sprites and pathfinding.
-- Camera pan and zoom.
+Goal: show the town and agents moving in a controllable camera without any server or AI dependencies.
+
+Tasks:
+- Create a Vite + Phaser client that boots to a single `TownScene` and renders a blank canvas with a visible background color so it is obvious the render loop is alive.
+- Import a Tiled JSON tilemap and tileset from `assets/tiles/`, render ground + object layers, and verify tile alignment (16x16) with nearest-neighbor scaling.
+- Add a temporary "debug agents" array in the client that spawns 3-5 sprites at known tile coordinates with unique colors or tint.
+- Implement basic pathfinding on the client (A* on a grid from the collision layer) and a simple "click to move" path for one debug agent.
+- Add camera pan (click-drag or WASD) and zoom (mouse wheel) with bounds so the camera never shows outside the map.
+- Add a lightweight frame-time overlay (text in the corner) to confirm stable FPS during movement.
+
+End state:
+- Running the client shows the full map, tiles are crisp and aligned, and at least one agent follows a path across walkable tiles.
+- Camera pan and zoom work smoothly without showing outside the map bounds.
+- No server process is required; everything runs from `npm run dev` with a static client.
 
 ### Phase 2: Simulation loop and scheduling
 
-- Implement tick scheduler and time manager.
-- Add agent state machine (Idle, Walking, Activity).
-- Staggered decision scheduling (no LLM yet).
+Goal: move authority to the server and drive movement from a deterministic tick loop.
+
+Tasks:
+- Create a Node server with a tick loop at 200 ms and a `TimeManager` that converts real time to game minutes.
+- Implement `Simulation` state that owns agent positions, statuses, and a simple state machine (Idle, Walking, Activity).
+- Add a WebSocket server with a join handshake that sends a full snapshot on connect.
+- Send delta updates each tick with agent positions and state changes; the client interpolates between ticks.
+- Implement staggered decision scheduling (per-agent `nextDecisionAt`) with rule-based choices only, no LLM.
+- Mirror time controls in the client (pause, 1x, 2x, 4x, 10x) and send controls to the server.
+
+End state:
+- With both client and server running, agents move based on server decisions and the client only renders.
+- Pausing and changing speed takes effect within one tick and stays consistent across reconnects.
+- The same seed produces the same agent movements for a 10-minute simulated run.
 
 ### Phase 3: LLM integration and action selection
 
-- Build Ollama client, request queue, and JSON parsing.
-- Add action selection prompt and fallback heuristics.
-- Limit to 3-5 agents for initial tests.
+Goal: connect local LLM inference and use it for high-level action selection with safe fallbacks.
+
+Tasks:
+- Implement `OllamaClient` with timeout, retries, and a request queue that enforces single concurrency.
+- Define JSON response schemas for action selection and validate with zod; reject invalid JSON and log failures.
+- Add prompt templates for action selection that include agent profile, current status, and local context only.
+- Gate LLM calls to only trigger when a rule-based decision cannot pick a reasonable action.
+- Limit LLM-enabled agents to 3-5 and keep others on rules to protect performance during early tests.
+- Add a "last LLM response" debug entry in the server log for quick inspection.
+
+End state:
+- At least 3 agents can request actions from the LLM and execute them without crashing on invalid outputs.
+- When the LLM is unavailable or times out, agents fall back to rule-based actions and continue moving.
+- LLM request rate stays below 1 concurrent call and does not stall the simulation loop.
 
 ### Phase 4: Memory, reflection, and planning
 
-- Memory stream and retrieval scoring.
-- Reflection generation and daily planning.
-- Summarization and pruning.
+Goal: give agents persistent cognition via memory streams, reflection, and daily planning.
+
+Tasks:
+- Implement `MemoryStream` per agent with observation, reflection, and plan types plus metadata.
+- Add retrieval scoring (recency, importance, relevance) and a function to fetch top K memories for prompts.
+- Implement daily planning at the morning boundary with a stored plan queue.
+- Implement reflection every N in-game hours and store reflections as high-importance memories.
+- Add summarization and pruning rules to cap memory growth without deleting high-importance items.
+
+End state:
+- Agents generate a daily plan once per in-game day and reference it in action selection.
+- Reflection entries appear in the memory stream and can alter future actions.
+- Memory counts stay within the configured limits during a 3-day simulation.
 
 ### Phase 5: Conversations and relationships
 
-- Dialogue manager with turn-based logic.
-- Relationship tracking and social propagation.
-- Speech bubbles and log integration.
+Goal: enable agents to talk, update relationships, and propagate information.
+
+Tasks:
+- Build a `ConversationManager` that locks two agents into a turn-based dialogue with a max turn limit.
+- Add dialogue prompts and JSON schema for LLM turns, plus rule-based fallback for short replies.
+- Update relationship weights based on sentiment or conversation outcomes.
+- Implement social propagation: when A tells B a fact, B stores it as an observation memory.
+- Render speech bubbles in the client and append dialogue to the log panel.
+
+End state:
+- Agents can start and finish conversations without blocking movement or decision scheduling.
+- Relationship weights change measurably after conversations and are visible in the inspector.
+- Dialogue appears both as bubbles in the world and in the log panel with timestamps.
 
 ### Phase 6: Full town and scale
 
-- Expand to 15+ locations.
-- Add generated agents (20+).
-- Performance tuning for request queue and update rates.
+Goal: scale to a lively town with 20+ agents and multiple locations without degrading performance.
+
+Tasks:
+- Expand the tilemap to include 15+ named locations with bounds and metadata.
+- Generate 20+ agents with unique profiles, homes, and a small relationship graph.
+- Tune decision cadence, pathfinding caching, and render culling for smooth performance.
+- Stress test the LLM queue by running a 10-day simulation with logging enabled.
+
+End state:
+- 20+ agents navigate the town and maintain stable tick timing for at least 10 in-game days.
+- LLM queue backlog stays bounded and the simulation does not stall under load.
+- Client renders smoothly with off-screen culling enabled and no major FPS drops.
 
 ### Phase 7: UI polish and debug
 
-- Inspector, filters, time controls.
-- Debug overlays and log export.
-- Asset pass for sprites and tiles.
+Goal: provide an observer-friendly UI with inspection tools and debugging support.
+
+Tasks:
+- Implement log filters, agent inspector, and time controls as HTML/CSS overlays.
+- Add debug overlays for paths, perception radius, and tick/queue stats.
+- Implement log export to JSON and a compact prompt/response viewer for the selected agent.
+- Final asset pass on sprites and tiles to match the 8-bit aesthetic.
+
+End state:
+- The UI surfaces current plans, memories, and relationships for any agent with minimal clicks.
+- Debug overlays can be toggled on/off and provide accurate, low-latency information.
+- The scene looks cohesive with pixel art assets and consistent scaling.
 
 ## Dependencies (baseline)
 
@@ -364,179 +436,386 @@ npm run dev
 
 ## Component Task List (for worker agents)
 
+Each task below is intended to be handed to an individual worker. Include a short status note and a brief demo or evidence when marking complete.
+
 ### 1. Repo and tooling
 
-- Create `src/client`, `src/server`, `src/shared` structure.
-- Add TypeScript configs for client and server.
-- Add Vite config for Phaser client build.
-- Add server dev runner (`tsx`) and `concurrently` scripts.
+Goal: set up a consistent build and dev environment for client and server.
+
+Instructions:
+- Create the `src/client`, `src/server`, and `src/shared` folders exactly as laid out in the project structure.
+- Add `tsconfig` files for client and server with module resolution that supports path aliases in `src/shared`.
+- Configure Vite to build the Phaser client and serve assets from `public/`.
+- Add `npm` scripts for `dev` (client + server), `dev:client`, and `dev:server` using `tsx` or `nodemon`.
+
+End state:
+- `npm run dev` starts both processes with hot reload, and type checking works in both.
+- `npm run dev:client` serves the Phaser app without server errors.
+- `npm run dev:server` boots a Node server and logs a listening port.
 
 ### 2. Shared types and events
 
-- Define shared `AgentId`, `LocationId`, `GameTime` types.
-- Define WebSocket event schemas (snapshot, delta, log, control).
-- Add zod schemas for runtime validation of events.
+Goal: define stable shared types and event contracts across client and server.
+
+Instructions:
+- Define `AgentId`, `LocationId`, `GameTime`, and any core enums in `src/shared/Types.ts`.
+- Define WebSocket event types for snapshot, delta, log, and control in `src/shared/Events.ts`.
+- Add zod schemas for each event type and expose `parse` helpers for runtime validation.
+
+End state:
+- Client and server compile against the same shared types with no duplicate definitions.
+- A malformed event payload fails schema validation with a clear error message.
 
 ### 3. WebSocket transport
 
-- Implement WS server and client connection flow.
-- Add join handshake and initial world snapshot.
-- Add delta updates per tick.
-- Add client control messages (pause, speed, inspect).
+Goal: establish a reliable, versioned WebSocket protocol between client and server.
+
+Instructions:
+- Implement a WS server in `src/server/transport/WsServer.ts` that accepts connections and assigns session IDs.
+- Define a join handshake where the client sends a version and the server responds with a full snapshot.
+- Emit delta updates every tick and include a monotonically increasing `tickId`.
+- Support control messages (pause, speed, inspect) and acknowledge them in a server response.
+
+End state:
+- A fresh client receives a snapshot within 1 second of connecting.
+- Deltas apply cleanly without missed ticks (client logs any skipped tick).
+- Control messages change server state and are reflected in subsequent deltas.
 
 ### 4. Time manager
 
-- Implement `TimeManager` with tick scale and speed controls.
-- Add conversion helpers (real ms <-> game minutes).
-- Add day boundary events for planning and reflection.
+Goal: provide consistent game time tracking and speed control on the server.
+
+Instructions:
+- Implement `TimeManager` in `src/server/simulation/TimeManager.ts` with tick duration and game-minute conversion.
+- Add helpers to convert real milliseconds to game minutes and to format a clock string.
+- Emit day boundary events and expose hooks for daily planning and reflection triggers.
+
+End state:
+- Changing speed updates the game clock rate immediately without resetting the time.
+- A day boundary event fires exactly once per simulated day.
 
 ### 5. Tick scheduler
 
-- Build a tick loop with fixed timestep and drift correction.
-- Maintain per-agent `nextDecisionAt` schedule.
-- Add hooks for per-tick movement and event emission.
+Goal: run a stable tick loop and schedule per-agent decisions.
+
+Instructions:
+- Build a fixed timestep loop with drift correction (accumulate delta and process multiple ticks if needed).
+- Maintain per-agent `nextDecisionAt` timestamps and skip decisions until due.
+- Add hooks for per-tick movement updates and event emission to the log.
+
+End state:
+- The tick loop runs within 10 percent of the target interval over 5 minutes.
+- No agent makes decisions more frequently than its configured cadence.
 
 ### 6. World map and navigation
 
-- Import tilemap from Tiled (JSON).
-- Build collision and walkable grids.
-- Implement A* pathfinding with caching.
-- Add location bounds, tags, and spawn points.
+Goal: import the town map and enable pathfinding on walkable tiles.
+
+Instructions:
+- Load the Tiled JSON map and tileset into a `Town` class in `src/server/world/`.
+- Parse collision layers into a walkable grid and cache the result on startup.
+- Implement A* pathfinding in `Pathfinding.ts` and cache common routes when start/end repeat.
+- Define location bounds, tags, and spawn points in a dedicated object layer.
+
+End state:
+- A test path from any spawn to any location returns a valid route or a clear "no path" result.
+- The server can query location metadata by ID and list all locations.
 
 ### 7. Agent data model
 
-- Create `AgentState` with identity, status, and position.
-- Add `AgentProfile` and generated traits.
-- Add status meters (energy, hunger, mood) for behavior gating.
+Goal: define the in-memory representation of agents and their statuses.
+
+Instructions:
+- Create `AgentState` with identity, position, status meters, current action, and plan queue.
+- Add `AgentProfile` fields for name, age, occupation, traits, and bio.
+- Implement status meter updates over time (energy, hunger, mood) with min/max clamps.
+
+End state:
+- The server can serialize a complete `AgentState` into a snapshot event.
+- Status meters change predictably across ticks and never exceed 0-100.
 
 ### 8. Agent generator
 
-- Build seeded RNG for reproducible agents.
-- Generate names, occupations, traits, and home locations.
-- Create initial relationship graph (2-4 edges per agent).
+Goal: generate reproducible agents with consistent profiles and relationships.
+
+Instructions:
+- Implement a seeded RNG utility in `src/server/agents/AgentGenerator.ts`.
+- Generate names, occupations, traits, and home locations using fixed datasets in code or JSON.
+- Create an initial relationship graph with 2-4 edges per agent and non-zero weights.
+
+End state:
+- The same seed yields identical agents and relationship graphs across runs.
+- At least 20 agents can be generated without missing data fields.
 
 ### 9. Behavior tree and heuristics
 
-- Implement a light behavior tree for default actions.
-- Add rules for sleeping, eating, working, relaxing.
-- Integrate with schedules and status meters.
+Goal: provide rule-based behavior that works without the LLM.
+
+Instructions:
+- Implement a lightweight behavior tree in `src/server/agents/behaviors/BehaviorTree.ts`.
+- Add rules for sleeping, eating, working, relaxing based on time of day and status meters.
+- Ensure the tree produces deterministic actions for identical inputs.
+
+End state:
+- Agents follow reasonable daily routines without any LLM calls.
+- The behavior tree returns a valid action for every agent every decision cycle.
 
 ### 10. LLM client
 
-- Implement Ollama HTTP client with retries and timeout.
-- Add request queue with priority scheduling.
-- Support `format: "json"` responses.
+Goal: integrate local LLM inference with safe defaults and limits.
+
+Instructions:
+- Implement `OllamaClient` with HTTP calls, timeouts, and retry logic in `src/server/llm/`.
+- Add a request queue that supports priorities and enforces concurrency of 1.
+- Support `format: "json"` and provide a debug flag to log raw responses.
+
+End state:
+- A simple test prompt returns valid JSON within the timeout.
+- Multiple queued requests are processed in priority order without overlap.
 
 ### 11. Prompt templates
 
-- Create prompts for action selection, dialogue, reflection, planning.
-- Keep prompts short and consistent across models.
-- Add system prompt for agent persona and constraints.
+Goal: create consistent prompts that fit small local models.
+
+Instructions:
+- Implement prompt builders for action selection, dialogue, reflection, and planning in `PromptTemplates.ts`.
+- Keep prompts under a fixed token budget (define a target character count).
+- Include a system prompt defining agent persona, constraints, and JSON-only output.
+
+End state:
+- Each prompt type produces a complete JSON response on the default model in most cases.
+- Prompts do not exceed the target size when used with a typical memory set.
 
 ### 12. LLM response parsing
 
-- Define zod schemas for each response type.
-- Add strict parser with fallback behavior.
-- Log invalid responses for debugging.
+Goal: safely parse LLM JSON responses into typed structures.
+
+Instructions:
+- Define zod schemas for each response type in `ResponseSchemas.ts`.
+- Implement a strict parser that rejects extra keys and invalid enums.
+- Provide a fallback action when parsing fails and log the error with context.
+
+End state:
+- Invalid LLM outputs never crash the server.
+- Parsing failures are logged with enough detail to reproduce the prompt.
 
 ### 13. Memory stream
 
-- Implement memory storage with observation, reflection, plan types.
-- Add metadata: time, location, subjects, importance.
-- Add write APIs for perception and conversation summaries.
+Goal: store and retrieve agent memories with enough metadata for reasoning.
+
+Instructions:
+- Implement `MemoryStream` with separate arrays for observations, reflections, and plans.
+- Attach metadata: timestamp, location, subjects, importance score, and source (perception, dialogue).
+- Add write APIs for perception events and conversation summaries.
+
+End state:
+- New memories are appended with the correct metadata.
+- Memory writes are cheap enough to call on every tick without noticeable slowdown.
 
 ### 14. Memory scoring and retrieval
 
-- Implement recency decay function.
-- Add BM25 keyword relevance scoring.
-- Combine scores to return top K memories.
+Goal: retrieve the most relevant memories for a given context.
+
+Instructions:
+- Implement a recency decay function that takes in-game time and returns a 0-1 score.
+- Add BM25 keyword relevance scoring using local tokens only (no embeddings).
+- Combine recency, importance, and relevance into a final score and return top K.
+
+End state:
+- A query returns a stable, ordered list of memories with scores.
+- The top K list changes logically as time advances and new memories appear.
 
 ### 15. Memory summarization and pruning
 
-- Add summarizer to compress old conversations.
-- Implement pruning rules for low-importance memories.
-- Add memory size limits per agent.
+Goal: control memory growth while preserving key information.
+
+Instructions:
+- Implement a summarizer that compresses long conversations into a single memory entry.
+- Add pruning rules to drop low-importance observations beyond a threshold.
+- Enforce per-agent memory limits and trigger pruning at safe intervals.
+
+End state:
+- Memory counts remain under the configured cap after a 3-day run.
+- Summaries retain the main facts from the source conversation.
 
 ### 16. Perception system
 
-- Define perception radius and line-of-sight rules.
-- Generate observation events from nearby agents and locations.
-- Add filters for relevant events only.
+Goal: generate observations from the world in a realistic way.
+
+Instructions:
+- Define a perception radius and simple line-of-sight rules in `Perceive.ts`.
+- Emit observation events when agents or locations enter the radius.
+- Filter out noisy or duplicate events within a short time window.
+
+End state:
+- Agents record nearby activity without flooding the memory stream.
+- Observation events include correct time and location metadata.
 
 ### 17. Planning system
 
-- Daily plan generation at morning boundary.
-- Hourly plan updates and plan queue.
-- Plan to action conversion (locations and activities).
+Goal: convert high-level plans into actionable sequences.
+
+Instructions:
+- Trigger daily plan generation at the morning boundary and store it as a plan memory.
+- Implement hourly plan adjustments when status meters drift or events occur.
+- Convert plan items into concrete actions (move to location, start activity).
+
+End state:
+- Each agent maintains a plan queue with at least 3-5 items per day.
+- Agents follow plan items unless interrupted by higher-priority needs.
 
 ### 18. Reflection system
 
-- Reflection scheduling every N game hours.
-- Reflection output stored as high-importance memory.
-- Reflection results affect relationship weights and plan updates.
+Goal: allow agents to form insights that affect behavior and relationships.
+
+Instructions:
+- Schedule reflections every N in-game hours via the time manager.
+- Generate a reflection entry from recent memories and store it as high-importance.
+- Apply reflection effects to relationship weights or plan priorities.
+
+End state:
+- Reflection entries appear at the expected cadence and influence future actions.
+- Relationship changes caused by reflection are visible in the inspector.
 
 ### 19. Conversation manager
 
-- Start conversations based on proximity and relationship weights.
-- Manage turn-based dialogue and max turn limits.
-- Emit speech bubble events and log entries.
+Goal: coordinate multi-turn dialogues without blocking other systems.
+
+Instructions:
+- Start conversations based on proximity, relationship weight, and schedule overlap.
+- Use turn-based logic with a maximum turn limit and per-turn timeouts.
+- Emit speech bubble events and log entries for each turn.
+
+End state:
+- Agents can talk while others continue their activities.
+- Conversations end gracefully on timeout or when the LLM signals completion.
 
 ### 20. Relationship system
 
-- Relationship graph with weights and tags.
-- Update rules based on conversation sentiment and shared events.
-- Provide summary data for inspector UI.
+Goal: model social connections and update them over time.
+
+Instructions:
+- Implement a relationship graph with weights and tags per agent.
+- Update weights after conversations and shared events using explicit rules.
+- Expose relationship summaries for UI inspection (top 5 strongest ties).
+
+End state:
+- Relationship weights change over time and never exceed defined bounds.
+- The inspector can show accurate relationship summaries for any agent.
 
 ### 21. Event log system
 
-- Server-side log event model (action, dialogue, reflection).
-- Client log panel rendering and filters.
-- Optional export to JSON for debugging.
+Goal: provide a structured log for observer UI and debugging.
+
+Instructions:
+- Define log event types for actions, dialogue, reflections, and system events.
+- Store the log on the server with a rolling window and timestamp.
+- Render the log on the client with filters by agent and event type.
+
+End state:
+- The log panel shows new events in near real time.
+- Exporting the log produces valid JSON with timestamps and IDs.
 
 ### 22. Client map rendering
 
-- Phaser scene with tilemap layers.
-- Sprite rendering for agents with animations.
-- Camera pan, zoom, and bounds.
+Goal: render the world map accurately and efficiently in Phaser.
+
+Instructions:
+- Create a Phaser scene that loads the tilemap, tileset, and layers.
+- Render ground and objects with correct depth ordering and sorting.
+- Set up camera bounds, zoom limits, and pixel-perfect scaling.
+
+End state:
+- The map renders exactly as it appears in Tiled.
+- Camera movement never shows outside the map bounds.
 
 ### 23. Client agent rendering
 
-- Agent sprite manager with pooling.
-- Interpolate positions between server ticks.
-- Show speech bubbles near agents.
+Goal: render and animate agents smoothly based on server updates.
+
+Instructions:
+- Implement an agent sprite manager with pooling to avoid allocations.
+- Interpolate positions between ticks and snap to grid on large corrections.
+- Display speech bubbles anchored to agent sprites with culling off-screen.
+
+End state:
+- Agents move smoothly without jitter during normal tick updates.
+- No more than a fixed maximum number of sprites exist after 10 minutes.
 
 ### 24. UI overlay
 
-- HTML/CSS log panel with filters.
-- Inspector panel on agent click (plan, memories, relationships).
-- Time controls with pause and speed.
+Goal: deliver a clear observer UI on top of the canvas.
+
+Instructions:
+- Build log, inspector, and time control panels as HTML/CSS overlays.
+- Wire agent selection to populate inspector fields (plan, memories, relationships).
+- Implement keyboard shortcuts for pause and speed changes.
+
+End state:
+- The UI updates within one tick of state changes.
+- Selecting an agent shows their current plan and latest memories.
 
 ### 25. Debug overlays
 
-- Toggle for path and perception radius.
-- Show last LLM prompt and response for selected agent.
-- Show tick rate and queue length.
+Goal: expose internal state for debugging and tuning.
+
+Instructions:
+- Add toggles for path visualization and perception radius in the client.
+- Show last LLM prompt/response in a debug panel for the selected agent.
+- Display tick rate and LLM queue length in a small HUD.
+
+End state:
+- Debug overlays can be toggled without restarting the app.
+- The HUD displays accurate metrics updated at least once per second.
 
 ### 26. Asset pipeline
 
-- Define tileset and sprite sheet format.
-- Add placeholder AI-generated assets.
-- Ensure pixel-perfect scaling and alignment.
+Goal: ensure assets are consistent, pixel-perfect, and easy to swap.
+
+Instructions:
+- Define tileset and sprite sheet dimensions, naming, and folder structure.
+- Add placeholder assets that respect palette and 16x16 grid constraints.
+- Configure Phaser to use nearest-neighbor scaling and no smoothing.
+
+End state:
+- Assets load without scaling artifacts.
+- Replacing a sprite sheet does not require code changes.
 
 ### 27. Performance tuning
 
-- Reduce update frequency for UI panels.
-- Cull off-screen agents and bubbles.
-- Tune LLM queue delays and decision cadence.
+Goal: keep simulation and rendering responsive under load.
+
+Instructions:
+- Reduce UI update frequency for heavy panels and use batched DOM updates.
+- Cull off-screen agents and speech bubbles in the client renderer.
+- Tune LLM queue delay and decision cadence to keep the tick loop stable.
+
+End state:
+- The tick loop remains within 10 percent of target interval with 20+ agents.
+- Client frame rate stays smooth with culling enabled.
 
 ### 28. Testing
 
-- Unit tests for time manager and memory scoring.
-- Integration tests for LLM parsing and action flow.
-- Manual test checklist for 10+ in-game days.
+Goal: validate critical systems with automated and manual checks.
+
+Instructions:
+- Add unit tests for time manager conversions and memory scoring functions.
+- Add integration tests for LLM parsing and action flow with mock responses.
+- Create a manual test checklist for 10+ in-game days and log failures.
+
+End state:
+- Tests pass locally and cover the most failure-prone logic.
+- The manual checklist captures reproducible steps and expected outcomes.
 
 ### 29. Documentation
 
-- README with setup, Ollama model choices, and controls.
-- Developer notes on prompt tuning and memory limits.
-- Troubleshooting guide for slow LLM responses.
+Goal: provide clear setup and troubleshooting guidance for contributors.
+
+Instructions:
+- Update README with setup steps, model choices, and runtime controls.
+- Add developer notes on prompt tuning, memory limits, and performance tradeoffs.
+- Write a troubleshooting section for common Ollama errors and slow inference.
+
+End state:
+- A new developer can run the project from README alone.
+- Troubleshooting guidance covers the top 3 failure cases.
