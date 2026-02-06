@@ -8,6 +8,10 @@ import { AgentSprite } from '../sprites/AgentSprite';
 export class TownScene extends Phaser.Scene {
   private map!: Phaser.Tilemaps.Tilemap;
   private astar!: AStar;
+  private pathGraphics!: Phaser.GameObjects.Graphics;
+  private infoText!: Phaser.GameObjects.Text;
+  private blockedMarker!: Phaser.GameObjects.Rectangle;
+  private blockedMarkerTimerMs = 0;
 
   private readonly agents: AgentSprite[] = [];
   private selectedAgent: AgentSprite | null = null;
@@ -32,15 +36,26 @@ export class TownScene extends Phaser.Scene {
 
     this.createMap();
     this.spawnDebugAgents();
+    this.createOverlays();
 
-    this.selectedAgent = this.agents[0] ?? null;
+    this.selectAgent(this.agents[0] ?? null);
 
     this.cameraController = new CameraController(this, this.map.widthInPixels, this.map.heightInPixels);
     this.cameras.main.centerOn(this.map.widthInPixels / 2, this.map.heightInPixels / 2);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.cameraController.destroy());
 
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-      if (pointer.button !== 0 || this.spacePanKey.isDown || !this.selectedAgent) {
+      if (pointer.button !== 0 || this.spacePanKey.isDown) {
+        return;
+      }
+
+      const clickedAgent = this.findAgentAtWorld(pointer.worldX, pointer.worldY);
+      if (clickedAgent) {
+        this.selectAgent(clickedAgent);
+        return;
+      }
+
+      if (!this.selectedAgent) {
         return;
       }
 
@@ -49,6 +64,7 @@ export class TownScene extends Phaser.Scene {
       const path = this.astar.findPath(this.selectedAgent.currentTile, { tileX, tileY });
 
       if (!path || path.length === 0) {
+        this.showBlockedMarker(tileX, tileY);
         return;
       }
 
@@ -62,6 +78,8 @@ export class TownScene extends Phaser.Scene {
     for (const agent of this.agents) {
       agent.updateMovement(delta);
     }
+    this.renderSelectedPath();
+    this.updateBlockedMarker(delta);
 
     this.fpsTimerMs += delta;
     if (this.fpsTimerMs >= 250) {
@@ -109,6 +127,89 @@ export class TownScene extends Phaser.Scene {
 
     for (const agentData of data) {
       this.agents.push(new AgentSprite(this, agentData));
+    }
+  }
+
+  private createOverlays(): void {
+    this.pathGraphics = this.add.graphics();
+    this.pathGraphics.setDepth(90);
+
+    this.blockedMarker = this.add.rectangle(0, 0, TILE_SIZE - 2, TILE_SIZE - 2);
+    this.blockedMarker.setStrokeStyle(2, 0xff4444);
+    this.blockedMarker.setFillStyle(0xff4444, 0.2);
+    this.blockedMarker.setVisible(false);
+    this.blockedMarker.setDepth(95);
+
+    this.infoText = this.add.text(10, 36, '', {
+      color: '#ffffff',
+      fontFamily: 'monospace',
+      fontSize: '12px',
+      backgroundColor: 'rgba(0,0,0,0.55)',
+      padding: { left: 6, right: 6, top: 4, bottom: 4 },
+    });
+    this.infoText.setScrollFactor(0);
+    this.infoText.setDepth(1000);
+  }
+
+  private selectAgent(agent: AgentSprite | null): void {
+    this.selectedAgent?.setSelected(false);
+    this.selectedAgent = agent;
+    this.selectedAgent?.setSelected(true);
+    this.updateInfoText();
+  }
+
+  private updateInfoText(): void {
+    const selected = this.selectedAgent?.agentName ?? 'None';
+    this.infoText?.setText(`Selected: ${selected} | Click agent to select | Click tile to move | Hold Space + Drag to pan`);
+  }
+
+  private findAgentAtWorld(worldX: number, worldY: number): AgentSprite | null {
+    for (let i = this.agents.length - 1; i >= 0; i -= 1) {
+      if (this.agents[i].containsWorldPoint(worldX, worldY)) {
+        return this.agents[i];
+      }
+    }
+    return null;
+  }
+
+  private renderSelectedPath(): void {
+    this.pathGraphics.clear();
+    if (!this.selectedAgent) {
+      return;
+    }
+
+    const path = this.selectedAgent.getRemainingPath();
+    if (path.length === 0) {
+      return;
+    }
+
+    this.pathGraphics.lineStyle(2, 0x8ec9ff, 0.9);
+    this.pathGraphics.beginPath();
+    this.pathGraphics.moveTo(this.selectedAgent.x, this.selectedAgent.y);
+
+    for (const tile of path) {
+      const x = tile.tileX * TILE_SIZE + TILE_SIZE / 2;
+      const y = tile.tileY * TILE_SIZE + TILE_SIZE / 2;
+      this.pathGraphics.lineTo(x, y);
+    }
+
+    this.pathGraphics.strokePath();
+  }
+
+  private showBlockedMarker(tileX: number, tileY: number): void {
+    this.blockedMarker.setPosition(tileX * TILE_SIZE + TILE_SIZE / 2, tileY * TILE_SIZE + TILE_SIZE / 2);
+    this.blockedMarker.setVisible(true);
+    this.blockedMarkerTimerMs = 350;
+  }
+
+  private updateBlockedMarker(deltaMs: number): void {
+    if (!this.blockedMarker.visible) {
+      return;
+    }
+
+    this.blockedMarkerTimerMs -= deltaMs;
+    if (this.blockedMarkerTimerMs <= 0) {
+      this.blockedMarker.setVisible(false);
     }
   }
 

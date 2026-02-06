@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { AStar } from '../pathfinding/AStar';
 
 interface TiledLayer {
   name: string;
@@ -99,5 +100,34 @@ describe('Phase 1 map assets', () => {
 
     const pngSignature = '89504e470d0a1a0a';
     expect(bytes.subarray(0, 8).toString('hex')).toBe(pngSignature);
+  });
+
+  it('keeps debug spawn points mutually reachable on collision grid', () => {
+    const map = readMap();
+    const collision = map.layers.find((layer) => layer.name === 'collision');
+    expect(collision).toBeDefined();
+
+    const walkable: boolean[][] = [];
+    for (let y = 0; y < map.height; y += 1) {
+      walkable[y] = [];
+      for (let x = 0; x < map.width; x += 1) {
+        walkable[y][x] = collision!.data[y * map.width + x] <= 0;
+      }
+    }
+
+    const astar = new AStar(walkable);
+    const spawns = [
+      { tileX: 4, tileY: 4 },
+      { tileX: 8, tileY: 18 },
+      { tileX: 19, tileY: 10 },
+      { tileX: 30, tileY: 7 },
+      { tileX: 35, tileY: 24 },
+    ];
+
+    for (let i = 1; i < spawns.length; i += 1) {
+      const path = astar.findPath(spawns[0], spawns[i]);
+      expect(path).not.toBeNull();
+      expect(path?.length).toBeGreaterThan(0);
+    }
   });
 });

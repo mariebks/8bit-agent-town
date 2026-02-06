@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { CAMERA_ZOOM_MAX, CAMERA_ZOOM_MIN, CAMERA_ZOOM_STEP } from '@shared/Constants';
+import { computePan, computeZoom, canStartDragPan } from './CameraMath';
 
 export class CameraController {
   private readonly scene: Phaser.Scene;
@@ -49,21 +49,24 @@ export class CameraController {
   }
 
   update(deltaMs: number): void {
-    let dx = 0;
-    let dy = 0;
+    const pan = computePan(
+      {
+        left: this.cursors.left.isDown || this.wasd.a.isDown,
+        right: this.cursors.right.isDown || this.wasd.d.isDown,
+        up: this.cursors.up.isDown || this.wasd.w.isDown,
+        down: this.cursors.down.isDown || this.wasd.s.isDown,
+      },
+      deltaMs,
+      this.panSpeedPxPerSecond,
+      this.camera.zoom,
+    );
 
-    if (this.cursors.left.isDown || this.wasd.a.isDown) dx -= 1;
-    if (this.cursors.right.isDown || this.wasd.d.isDown) dx += 1;
-    if (this.cursors.up.isDown || this.wasd.w.isDown) dy -= 1;
-    if (this.cursors.down.isDown || this.wasd.s.isDown) dy += 1;
-
-    if (dx === 0 && dy === 0) {
+    if (pan.dx === 0 && pan.dy === 0) {
       return;
     }
 
-    const speed = (this.panSpeedPxPerSecond * deltaMs) / 1000;
-    this.camera.scrollX += (dx * speed) / this.camera.zoom;
-    this.camera.scrollY += (dy * speed) / this.camera.zoom;
+    this.camera.scrollX += pan.dx;
+    this.camera.scrollY += pan.dy;
   }
 
   isPanModifierPressed(): boolean {
@@ -78,10 +81,16 @@ export class CameraController {
   }
 
   private onPointerDown(pointer: Phaser.Input.Pointer): void {
-    const canPanWithLeft = pointer.leftButtonDown() && this.spaceKey.isDown;
-    const canPanWithAltButton = pointer.middleButtonDown() || pointer.rightButtonDown();
+    const button =
+      pointer.middleButtonDown()
+        ? 'middle'
+        : pointer.rightButtonDown()
+          ? 'right'
+          : pointer.leftButtonDown()
+            ? 'left'
+            : null;
 
-    if (!canPanWithLeft && !canPanWithAltButton) {
+    if (!button || !canStartDragPan(button, this.spaceKey.isDown)) {
       return;
     }
 
@@ -114,8 +123,7 @@ export class CameraController {
     _deltaX: number,
     deltaY: number,
   ): void {
-    const change = deltaY > 0 ? -CAMERA_ZOOM_STEP : CAMERA_ZOOM_STEP;
-    const zoom = Phaser.Math.Clamp(this.camera.zoom + change, CAMERA_ZOOM_MIN, CAMERA_ZOOM_MAX);
+    const zoom = computeZoom(this.camera.zoom, deltaY);
 
     const worldBefore = this.camera.getWorldPoint(pointer.x, pointer.y);
     this.camera.setZoom(zoom);
