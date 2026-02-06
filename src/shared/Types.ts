@@ -33,6 +33,10 @@ export interface AgentData {
   mood?: number;
   energy?: number;
   hunger?: number;
+  currentGoal?: string;
+  currentPlan?: string[];
+  lastReflection?: string;
+  relationshipSummary?: RelationshipSummary;
 }
 
 export interface LocationData {
@@ -73,6 +77,14 @@ export interface RelationshipEdge {
   weight: number;
   tags: string[];
   lastInteraction: number;
+}
+
+export interface RelationshipSummary {
+  friendCount: number;
+  rivalCount: number;
+  averageWeight: number;
+  strongestBondId?: AgentId;
+  weakestBondId?: AgentId;
 }
 
 export type RelationshipGraph = Record<AgentId, RelationshipEdge[]>;

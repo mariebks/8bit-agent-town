@@ -119,6 +119,10 @@ export class MemoryStream {
     return [...this.plans];
   }
 
+  getByTimeRange(startInclusive: number, endInclusive: number): Memory[] {
+    return this.getAll().filter((memory) => memory.timestamp >= startInclusive && memory.timestamp <= endInclusive);
+  }
+
   getCurrentPlan(currentGameTime: number): PlanMemory | null {
     const active = this.plans
       .filter((plan) => !plan.isArchived && plan.validUntil >= currentGameTime)

@@ -72,6 +72,10 @@ export class Agent {
     return { ...this.tilePosition };
   }
 
+  hasActivePath(): boolean {
+    return this.pathIndex < this.path.length;
+  }
+
   getState(): AgentState {
     return this.state;
   }

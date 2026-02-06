@@ -1,4 +1,4 @@
-import { AgentId, RelationshipEdge, RelationshipGraph } from '@shared/Types';
+import { AgentId, RelationshipEdge, RelationshipGraph, RelationshipSummary } from '@shared/Types';
 
 const MIN_WEIGHT = -100;
 const MAX_WEIGHT = 100;
@@ -30,6 +30,28 @@ export class RelationshipManager {
 
   getWeight(sourceId: AgentId, targetId: AgentId): number {
     return this.ensureEdge(sourceId, targetId, 0).weight;
+  }
+
+  getSummary(agentId: AgentId): RelationshipSummary {
+    const edges = [...(this.graph.get(agentId)?.values() ?? [])];
+    if (edges.length === 0) {
+      return {
+        friendCount: 0,
+        rivalCount: 0,
+        averageWeight: 0,
+      };
+    }
+
+    const sorted = [...edges].sort((a, b) => b.weight - a.weight);
+    const sum = edges.reduce((total, edge) => total + edge.weight, 0);
+
+    return {
+      friendCount: edges.filter((edge) => edge.weight >= 60).length,
+      rivalCount: edges.filter((edge) => edge.weight <= -60).length,
+      averageWeight: Math.round((sum / edges.length) * 100) / 100,
+      strongestBondId: sorted[0]?.targetId,
+      weakestBondId: sorted[sorted.length - 1]?.targetId,
+    };
   }
 
   applyConversationDelta(sourceId: AgentId, targetId: AgentId, delta: number, gameTime: number): void {

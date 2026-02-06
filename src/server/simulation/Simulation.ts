@@ -4,6 +4,8 @@ import { TICK_INTERVAL_MS } from '@shared/Constants';
 import { Agent } from '../agents/Agent';
 import { AgentGenerator } from '../agents/AgentGenerator';
 import { AgentManager } from '../agents/AgentManager';
+import { PlanningSystem } from '../agents/cognition/Plan';
+import { ReflectionSystem } from '../agents/cognition/Reflect';
 import { DecisionMaker } from '../agents/DecisionMaker';
 import { ConversationManager } from '../agents/behaviors/Conversation';
 import { RelationshipManager } from '../agents/behaviors/Relationships';
@@ -36,6 +38,8 @@ export class Simulation {
   private readonly navGrid: NavGrid;
   private readonly pathfinding: Pathfinding;
   private readonly decisionMaker: DecisionMaker;
+  private readonly planningSystem: PlanningSystem;
+  private readonly reflectionSystem: ReflectionSystem;
   private readonly conversationManager: ConversationManager;
   private readonly relationships: RelationshipManager;
   private readonly memoryByAgent = new Map<AgentId, MemoryStream>();
@@ -61,6 +65,8 @@ export class Simulation {
     this.decisionMaker = new DecisionMaker(resolvedConfig.seed + 7, {
       llmEnabledAgents: Math.min(3, resolvedConfig.agentCount),
     });
+    this.planningSystem = new PlanningSystem(resolvedConfig.seed + 17);
+    this.reflectionSystem = new ReflectionSystem(12);
     this.conversationManager = new ConversationManager();
     this.relationships = new RelationshipManager();
 
@@ -133,6 +139,7 @@ export class Simulation {
     this.timeManager.tick(1);
     const gameTime = this.timeManager.getGameTime();
 
+    this.runCognition(gameTime);
     this.agentManager.update(TICK_INTERVAL_MS);
 
     const decisionLogs = this.decisionMaker.update({
@@ -354,14 +361,44 @@ export class Simulation {
     };
   }
 
+  private runCognition(gameTime: GameTime): void {
+    for (const agent of this.agentManager.getAll()) {
+      const memory = this.memoryByAgent.get(agent.id);
+      if (!memory) {
+        continue;
+      }
+
+      const planning = this.planningSystem.ensureDailyPlan(agent, memory, gameTime, this.town.getAllLocations());
+      if (planning.log) {
+        this.enqueueServerEvent(planning.log);
+      }
+
+      const reflection = this.reflectionSystem.maybeReflect(agent, memory, gameTime);
+      if (reflection.log) {
+        this.enqueueServerEvent(reflection.log);
+      }
+    }
+  }
+
   private buildAgentDataPayload(): AgentData[] {
+    const currentGameTime = this.timeManager.getGameTime().totalMinutes;
+
     return this.agentManager.getAll().map((agent) => {
       const payload = agent.toAgentData();
       const locationId = this.town.getLocationAtPosition(payload.tilePosition)?.id;
+      const memory = this.memoryByAgent.get(agent.id);
+      const goal = memory ? this.planningSystem.getCurrentGoal(memory, currentGameTime) : null;
+      const planPreview = memory ? this.planningSystem.getPlanPreview(memory, currentGameTime, 3) : [];
+      const lastReflection = memory ? this.reflectionSystem.getLatestReflection(memory) : null;
+      const relationshipSummary = this.relationships.getSummary(agent.id);
 
       return {
         ...payload,
         currentLocationId: locationId,
+        currentGoal: goal ?? undefined,
+        currentPlan: planPreview.length > 0 ? planPreview : undefined,
+        lastReflection: lastReflection ?? undefined,
+        relationshipSummary,
       };
     });
   }

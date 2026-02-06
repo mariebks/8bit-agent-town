@@ -68,4 +68,36 @@ describe('MemoryStream', () => {
     expect(restored.getByType(MemoryType.Observation)).toHaveLength(1);
     expect(restored.getByType(MemoryType.Observation)[0].content).toContain('Read a book');
   });
+
+  test('filters memories by inclusive time range', () => {
+    const stream = new MemoryStream('agent-1');
+    stream.addObservation({
+      content: 'Early memory',
+      gameTime: 5,
+      location: 'home_1',
+      subjects: [],
+      source: MemorySource.Perception,
+      importance: 3,
+    });
+    stream.addObservation({
+      content: 'Middle memory',
+      gameTime: 15,
+      location: 'park',
+      subjects: [],
+      source: MemorySource.Perception,
+      importance: 4,
+    });
+    stream.addObservation({
+      content: 'Late memory',
+      gameTime: 25,
+      location: 'plaza',
+      subjects: [],
+      source: MemorySource.Perception,
+      importance: 5,
+    });
+
+    const filtered = stream.getByTimeRange(10, 20);
+    expect(filtered).toHaveLength(1);
+    expect(filtered[0].content).toBe('Middle memory');
+  });
 });

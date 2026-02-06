@@ -71,6 +71,11 @@ export class DecisionMaker {
         continue;
       }
 
+      if (this.applyPlannedAction(agent, context)) {
+        agent.setNextDecisionTick(this.nextDecisionTick(context.tickId));
+        continue;
+      }
+
       if (llmEnabledIds.has(agent.id) && context.llmClient && context.llmQueue && !this.pendingLlmByAgent.has(agent.id)) {
         this.enqueueLlmDecision(agent, context);
       } else {
@@ -179,6 +184,75 @@ export class DecisionMaker {
     const logs = [...this.deferredLogs];
     this.deferredLogs.length = 0;
     return logs;
+  }
+
+  private applyPlannedAction(agent: Agent, context: DecisionContext): boolean {
+    const memory = context.memoryByAgent?.get(agent.id);
+    if (!memory) {
+      return false;
+    }
+
+    const plan = memory.getCurrentPlan(context.gameTime.totalMinutes);
+    if (!plan) {
+      return false;
+    }
+
+    const currentLocationId = context.town.getLocationAtPosition(agent.getTilePosition())?.id;
+    for (const item of plan.planItems) {
+      if (item.status !== 'active' || !item.targetLocation) {
+        continue;
+      }
+
+      if (currentLocationId === item.targetLocation) {
+        item.status = 'completed';
+      }
+    }
+
+    const dueWindow = context.gameTime.totalMinutes + 30;
+    const nextItem = plan.planItems
+      .filter((item) => item.status === 'active' || item.status === 'pending')
+      .filter((item) => !item.targetTime || item.targetTime <= dueWindow)
+      .sort((left, right) => {
+        const leftStatus = left.status === 'active' ? 0 : 1;
+        const rightStatus = right.status === 'active' ? 0 : 1;
+        if (leftStatus !== rightStatus) {
+          return leftStatus - rightStatus;
+        }
+        return (left.targetTime ?? Number.MAX_SAFE_INTEGER) - (right.targetTime ?? Number.MAX_SAFE_INTEGER);
+      })[0];
+
+    if (!nextItem) {
+      return false;
+    }
+
+    if (!nextItem.targetLocation) {
+      nextItem.status = 'completed';
+      return false;
+    }
+
+    if (currentLocationId === nextItem.targetLocation) {
+      nextItem.status = 'completed';
+      agent.setCurrentAction(`plan:${nextItem.description}`);
+      return true;
+    }
+
+    const location = context.town.getLocation(nextItem.targetLocation);
+    if (!location?.spawnPoint) {
+      nextItem.status = 'cancelled';
+      return false;
+    }
+
+    if (!agent.hasActivePath() || nextItem.status !== 'active') {
+      this.assignPath(agent, context.pathfinding, location.spawnPoint);
+      if (!agent.hasActivePath()) {
+        nextItem.status = 'cancelled';
+        return false;
+      }
+      nextItem.status = 'active';
+    }
+
+    agent.setCurrentAction(`plan:${nextItem.description}`);
+    return true;
   }
 
   private applyRuleBasedDecision(agent: Agent, pathfinding: Pathfinding, waypoints: TilePosition[]): void {

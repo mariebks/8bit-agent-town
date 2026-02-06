@@ -27,6 +27,9 @@ describe('Simulation', () => {
     expect(snapshot.tickId).toBe(1);
     expect(snapshot.agents).toHaveLength(5);
     expect(snapshot.agents[0].currentLocationId).toBe('home_1');
+    expect(snapshot.agents[0].currentGoal).toBeTruthy();
+    expect(snapshot.agents[0].currentPlan?.length ?? 0).toBeGreaterThan(0);
+    expect(snapshot.agents[0].relationshipSummary).toBeDefined();
     expect(snapshot.metrics?.tickDurationMsP50).toBeGreaterThanOrEqual(0);
 
     simulation.tick(2);

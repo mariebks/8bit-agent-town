@@ -6,12 +6,18 @@ interface InspectorOptions {
 }
 
 function formatAgent(agent: AgentData): string {
+  const relationship = agent.relationshipSummary;
+
   return [
     `name: ${agent.name}`,
     `state: ${agent.state}`,
     `tile: ${agent.tilePosition.tileX},${agent.tilePosition.tileY}`,
     `action: ${agent.currentAction ?? 'n/a'}`,
     `mood/energy/hunger: ${Math.round(agent.mood ?? 0)}/${Math.round(agent.energy ?? 0)}/${Math.round(agent.hunger ?? 0)}`,
+    `goal: ${agent.currentGoal ?? 'n/a'}`,
+    `plan: ${(agent.currentPlan ?? []).join(' | ') || 'n/a'}`,
+    `reflection: ${agent.lastReflection ?? 'n/a'}`,
+    `relationships: friends ${relationship?.friendCount ?? 0}, rivals ${relationship?.rivalCount ?? 0}, avg ${relationship?.averageWeight ?? 0}`,
   ].join('\n');
 }
 

@@ -31,6 +31,18 @@ export const AgentDataSchema = z.object({
   mood: z.number().optional(),
   energy: z.number().optional(),
   hunger: z.number().optional(),
+  currentGoal: z.string().optional(),
+  currentPlan: z.array(z.string()).optional(),
+  lastReflection: z.string().optional(),
+  relationshipSummary: z
+    .object({
+      friendCount: z.number(),
+      rivalCount: z.number(),
+      averageWeight: z.number(),
+      strongestBondId: z.string().optional(),
+      weakestBondId: z.string().optional(),
+    })
+    .optional(),
 });
 
 export const SimulationMetricsSchema = z.object({
