@@ -65,6 +65,30 @@ simulationSocket.onConnection((connected) => {
   getTownScene()?.setServerConnectionState(connected);
 });
 
+simulationSocket.onJoinAck((ack) => {
+  uiState.events = [
+    ...uiState.events,
+    {
+      type: 'log',
+      level: ack.accepted ? 'info' : 'error',
+      message: ack.accepted
+        ? `joined simulation protocol v${ack.protocolVersion}`
+        : `join rejected: ${ack.reason ?? 'unknown reason'}`,
+    },
+  ];
+});
+
+simulationSocket.onControlAck((ack) => {
+  uiState.events = [
+    ...uiState.events,
+    {
+      type: 'log',
+      level: ack.accepted ? 'info' : 'warn',
+      message: ack.accepted ? `control accepted: ${ack.action}` : `control rejected: ${ack.reason ?? ack.action}`,
+    },
+  ];
+});
+
 simulationSocket.onSnapshot((event) => {
   applyServerEvent(event);
   const scene = getTownScene();

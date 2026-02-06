@@ -46,7 +46,7 @@ describe('Simulation', () => {
     const initial = simulation.timeManager.getGameTime().totalMinutes;
     const beforePause = firstAgent.toAgentData();
 
-    simulation.applyControl({ type: 'control', action: 'pause' });
+    expect(simulation.applyControl({ type: 'control', action: 'pause' })).toBe(true);
     simulation.tick(1);
     expect(simulation.timeManager.getGameTime().totalMinutes).toBe(initial);
 
@@ -56,8 +56,8 @@ describe('Simulation', () => {
     expect(whilePaused.hunger).toBe(beforePause.hunger);
     expect(whilePaused.energy).toBe(beforePause.energy);
 
-    simulation.applyControl({ type: 'control', action: 'resume' });
-    simulation.applyControl({ type: 'control', action: 'setSpeed', value: 4 });
+    expect(simulation.applyControl({ type: 'control', action: 'resume' })).toBe(true);
+    expect(simulation.applyControl({ type: 'control', action: 'setSpeed', value: 4 })).toBe(true);
     simulation.tick(2);
 
     expect(simulation.timeManager.getGameTime().totalMinutes).toBe(initial + 4);
@@ -66,5 +66,7 @@ describe('Simulation', () => {
     expect(afterResume.position).not.toEqual(beforePause.position);
     expect(afterResume.hunger).toBeGreaterThan(beforePause.hunger ?? 0);
     expect(afterResume.energy).toBeLessThan(beforePause.energy ?? 100);
+
+    expect(simulation.applyControl({ type: 'control', action: 'setSpeed', value: 3 })).toBe(false);
   });
 });

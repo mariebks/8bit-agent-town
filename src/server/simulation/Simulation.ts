@@ -97,15 +97,15 @@ export class Simulation {
     });
   }
 
-  applyControl(event: ControlEvent): void {
+  applyControl(event: ControlEvent): boolean {
     if (event.action === 'pause') {
       this.timeManager.pause();
-      return;
+      return true;
     }
 
     if (event.action === 'resume') {
       this.timeManager.resume();
-      return;
+      return true;
     }
 
     if (event.action === 'setSpeed') {
@@ -113,8 +113,13 @@ export class Simulation {
       const value = event.value ?? 1;
       if (allowed.has(value)) {
         this.timeManager.setSpeed(value as 1 | 2 | 4 | 10);
+        return true;
       }
+
+      return false;
     }
+
+    return false;
   }
 
   tick(tickId: number): void {

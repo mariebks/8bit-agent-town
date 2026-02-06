@@ -7,3 +7,4 @@ export const DEFAULT_AGENT_SPEED = 2;
 export const CAMERA_ZOOM_MIN = 0.5;
 export const CAMERA_ZOOM_MAX = 3;
 export const CAMERA_ZOOM_STEP = 0.1;
+export const WS_PROTOCOL_VERSION = 1;

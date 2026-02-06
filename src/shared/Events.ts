@@ -60,10 +60,34 @@ export const DeltaEventSchema = z.object({
   events: z.array(z.unknown()).optional(),
 });
 
+export const ControlActionSchema = z.enum(['pause', 'resume', 'setSpeed']);
+
+export const JoinEventSchema = z.object({
+  type: z.literal('join'),
+  protocolVersion: z.number().int().min(0),
+  clientBuild: z.string().optional(),
+});
+
 export const ControlEventSchema = z.object({
   type: z.literal('control'),
-  action: z.enum(['pause', 'resume', 'setSpeed']),
+  action: ControlActionSchema,
   value: z.number().optional(),
+});
+
+export const JoinAckEventSchema = z.object({
+  type: z.literal('joinAck'),
+  protocolVersion: z.number().int().min(0),
+  accepted: z.boolean(),
+  tickId: z.number(),
+  reason: z.string().optional(),
+});
+
+export const ControlAckEventSchema = z.object({
+  type: z.literal('controlAck'),
+  action: ControlActionSchema,
+  accepted: z.boolean(),
+  tickId: z.number(),
+  reason: z.string().optional(),
 });
 
 export const ConversationStartEventSchema = z.object({
@@ -104,11 +128,13 @@ export const LogEventSchema = z.object({
   gameTime: GameTimeSchema.optional(),
 });
 
-export const ClientEventSchema = z.discriminatedUnion('type', [ControlEventSchema]);
+export const ClientEventSchema = z.discriminatedUnion('type', [JoinEventSchema, ControlEventSchema]);
 
 export const ServerEventSchema = z.discriminatedUnion('type', [
   SnapshotEventSchema,
   DeltaEventSchema,
+  JoinAckEventSchema,
+  ControlAckEventSchema,
   ConversationStartEventSchema,
   ConversationTurnEventSchema,
   ConversationEndEventSchema,
@@ -118,7 +144,10 @@ export const ServerEventSchema = z.discriminatedUnion('type', [
 
 export type SnapshotEvent = z.infer<typeof SnapshotEventSchema>;
 export type DeltaEvent = z.infer<typeof DeltaEventSchema>;
+export type JoinEvent = z.infer<typeof JoinEventSchema>;
 export type ControlEvent = z.infer<typeof ControlEventSchema>;
+export type JoinAckEvent = z.infer<typeof JoinAckEventSchema>;
+export type ControlAckEvent = z.infer<typeof ControlAckEventSchema>;
 export type ConversationStartEvent = z.infer<typeof ConversationStartEventSchema>;
 export type ConversationTurnEvent = z.infer<typeof ConversationTurnEventSchema>;
 export type ConversationEndEvent = z.infer<typeof ConversationEndEventSchema>;

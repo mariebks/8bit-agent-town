@@ -26,8 +26,9 @@ const scheduler = new TickScheduler();
 const wsServer = new WsServer({
   server,
   path: '/ws',
+  getCurrentTickId: () => scheduler.getCurrentTickId(),
   onControlEvent: (event) => {
-    simulation.applyControl(event);
+    return simulation.applyControl(event);
   },
 });
 

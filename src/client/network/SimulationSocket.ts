@@ -1,8 +1,21 @@
-import { ControlEvent, DeltaEvent, SnapshotEvent, DeltaEventSchema, SnapshotEventSchema } from '@shared/Events';
+import { WS_PROTOCOL_VERSION } from '@shared/Constants';
+import {
+  ControlAckEvent,
+  ControlAckEventSchema,
+  ControlEvent,
+  DeltaEvent,
+  DeltaEventSchema,
+  JoinAckEvent,
+  JoinAckEventSchema,
+  SnapshotEvent,
+  SnapshotEventSchema,
+} from '@shared/Events';
 
 type SnapshotHandler = (event: SnapshotEvent) => void;
 type DeltaHandler = (event: DeltaEvent) => void;
 type ConnectionHandler = (connected: boolean) => void;
+type JoinAckHandler = (event: JoinAckEvent) => void;
+type ControlAckHandler = (event: ControlAckEvent) => void;
 
 interface SimulationSocketOptions {
   url?: string;
@@ -22,6 +35,8 @@ export class SimulationSocket {
   private readonly snapshotHandlers = new Set<SnapshotHandler>();
   private readonly deltaHandlers = new Set<DeltaHandler>();
   private readonly connectionHandlers = new Set<ConnectionHandler>();
+  private readonly joinAckHandlers = new Set<JoinAckHandler>();
+  private readonly controlAckHandlers = new Set<ControlAckHandler>();
 
   constructor(options: SimulationSocketOptions = {}) {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -40,7 +55,7 @@ export class SimulationSocket {
 
     this.socket.onopen = () => {
       this.reconnectAttempts = 0;
-      this.emitConnection(true);
+      this.sendJoin();
     };
 
     this.socket.onclose = () => {
@@ -63,6 +78,28 @@ export class SimulationSocket {
     this.socket.onmessage = (event) => {
       const payload = this.parse(event.data);
       if (!payload) {
+        return;
+      }
+
+      if (payload.type === 'joinAck') {
+        for (const handler of this.joinAckHandlers) {
+          handler(payload);
+        }
+
+        if (!payload.accepted) {
+          this.emitConnection(false);
+          this.socket?.close();
+          return;
+        }
+
+        this.emitConnection(true);
+        return;
+      }
+
+      if (payload.type === 'controlAck') {
+        for (const handler of this.controlAckHandlers) {
+          handler(payload);
+        }
         return;
       }
 
@@ -117,13 +154,36 @@ export class SimulationSocket {
     return () => this.connectionHandlers.delete(handler);
   }
 
+  onJoinAck(handler: JoinAckHandler): () => void {
+    this.joinAckHandlers.add(handler);
+    return () => this.joinAckHandlers.delete(handler);
+  }
+
+  onControlAck(handler: ControlAckHandler): () => void {
+    this.controlAckHandlers.add(handler);
+    return () => this.controlAckHandlers.delete(handler);
+  }
+
   private emitConnection(connected: boolean): void {
     for (const handler of this.connectionHandlers) {
       handler(connected);
     }
   }
 
-  private parse(raw: unknown): SnapshotEvent | DeltaEvent | null {
+  private sendJoin(): void {
+    if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
+      return;
+    }
+
+    this.socket.send(
+      JSON.stringify({
+        type: 'join',
+        protocolVersion: WS_PROTOCOL_VERSION,
+      }),
+    );
+  }
+
+  private parse(raw: unknown): SnapshotEvent | DeltaEvent | JoinAckEvent | ControlAckEvent | null {
     let payload: unknown;
 
     try {
@@ -146,6 +206,16 @@ export class SimulationSocket {
     const delta = DeltaEventSchema.safeParse(payload);
     if (delta.success) {
       return delta.data;
+    }
+
+    const joinAck = JoinAckEventSchema.safeParse(payload);
+    if (joinAck.success) {
+      return joinAck.data;
+    }
+
+    const controlAck = ControlAckEventSchema.safeParse(payload);
+    if (controlAck.success) {
+      return controlAck.data;
     }
 
     return null;
