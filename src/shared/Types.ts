@@ -20,6 +20,13 @@ export enum AgentState {
   Sleeping = 'sleeping',
 }
 
+export interface AgentLlmTrace {
+  lastPrompt?: string;
+  lastResponse?: string;
+  lastOutcome?: 'ok' | 'fallback' | 'error' | 'dropped';
+  updatedAtTick?: number;
+}
+
 export interface AgentData {
   id: AgentId;
   name: string;
@@ -37,6 +44,7 @@ export interface AgentData {
   currentPlan?: string[];
   lastReflection?: string;
   relationshipSummary?: RelationshipSummary;
+  llmTrace?: AgentLlmTrace;
 }
 
 export interface LocationData {

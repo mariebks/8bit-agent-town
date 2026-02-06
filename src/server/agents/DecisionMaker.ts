@@ -1,4 +1,4 @@
-import { AgentState, GameTime, TilePosition } from '@shared/Types';
+import { AgentLlmTrace, AgentState, GameTime, TilePosition } from '@shared/Types';
 import { LogEvent } from '@shared/Events';
 import { buildActionPrompt } from '../llm/PromptTemplates';
 import { OllamaClient } from '../llm/OllamaClient';
@@ -41,6 +41,7 @@ export class DecisionMaker {
   private readonly rng: SeededRng;
   private readonly config: DecisionMakerConfig;
   private readonly pendingLlmByAgent = new Set<string>();
+  private readonly llmTraceByAgent = new Map<string, AgentLlmTrace>();
   private readonly deferredLogs: LogEvent[] = [];
   private llmFallbackCount = 0;
   private llmDecisionCount = 0;
@@ -55,6 +56,10 @@ export class DecisionMaker {
       return 0;
     }
     return this.llmFallbackCount / this.llmDecisionCount;
+  }
+
+  getLlmTrace(agentId: string): AgentLlmTrace | undefined {
+    return this.llmTraceByAgent.get(agentId);
   }
 
   update(context: DecisionContext): LogEvent[] {
@@ -116,6 +121,11 @@ export class DecisionMaker {
       memorySnippets,
       gameTimeText: `day ${context.gameTime.day}, ${context.gameTime.hour}:${String(context.gameTime.minute).padStart(2, '0')}`,
     });
+    this.llmTraceByAgent.set(agent.id, {
+      ...(this.llmTraceByAgent.get(agent.id) ?? {}),
+      lastPrompt: this.truncate(prompt, 500),
+      updatedAtTick: context.tickId,
+    });
 
     void llmQueue
       .enqueue({
@@ -140,8 +150,26 @@ export class DecisionMaker {
         this.pendingLlmByAgent.delete(agent.id);
         this.llmDecisionCount += 1;
 
+        if (outcome.status === 'dropped') {
+          this.llmFallbackCount += 1;
+          this.llmTraceByAgent.set(agent.id, {
+            ...(this.llmTraceByAgent.get(agent.id) ?? {}),
+            lastOutcome: 'dropped',
+            lastResponse: outcome.error ?? 'request dropped',
+            updatedAtTick: context.tickId,
+          });
+          this.applyRuleBasedDecision(agent, context.pathfinding, context.walkableWaypoints);
+          return;
+        }
+
         if (outcome.status !== 'ok' || !outcome.value?.success) {
           this.llmFallbackCount += 1;
+          this.llmTraceByAgent.set(agent.id, {
+            ...(this.llmTraceByAgent.get(agent.id) ?? {}),
+            lastOutcome: 'fallback',
+            lastResponse: this.truncate(outcome.error ?? 'invalid model response', 300),
+            updatedAtTick: context.tickId,
+          });
           this.applyRuleBasedDecision(agent, context.pathfinding, context.walkableWaypoints);
 
           this.deferredLogs.push({
@@ -155,6 +183,12 @@ export class DecisionMaker {
         }
 
         const action = outcome.value.data;
+        this.llmTraceByAgent.set(agent.id, {
+          ...(this.llmTraceByAgent.get(agent.id) ?? {}),
+          lastOutcome: 'ok',
+          lastResponse: this.truncate(JSON.stringify(action), 300),
+          updatedAtTick: context.tickId,
+        });
         if (action.action === 'WAIT') {
           agent.clearPath();
           agent.setCurrentAction('waiting');
@@ -176,6 +210,12 @@ export class DecisionMaker {
         this.pendingLlmByAgent.delete(agent.id);
         this.llmDecisionCount += 1;
         this.llmFallbackCount += 1;
+        this.llmTraceByAgent.set(agent.id, {
+          ...(this.llmTraceByAgent.get(agent.id) ?? {}),
+          lastOutcome: 'error',
+          lastResponse: 'request failed before response',
+          updatedAtTick: context.tickId,
+        });
         this.applyRuleBasedDecision(agent, context.pathfinding, context.walkableWaypoints);
       });
   }
@@ -304,5 +344,12 @@ export class DecisionMaker {
     }
 
     return output;
+  }
+
+  private truncate(value: string, maxLength: number): string {
+    if (value.length <= maxLength) {
+      return value;
+    }
+    return `${value.slice(0, maxLength - 3)}...`;
   }
 }

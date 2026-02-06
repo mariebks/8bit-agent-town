@@ -43,6 +43,14 @@ export const AgentDataSchema = z.object({
       weakestBondId: z.string().optional(),
     })
     .optional(),
+  llmTrace: z
+    .object({
+      lastPrompt: z.string().optional(),
+      lastResponse: z.string().optional(),
+      lastOutcome: z.enum(['ok', 'fallback', 'error', 'dropped']).optional(),
+      updatedAtTick: z.number().optional(),
+    })
+    .optional(),
 });
 
 export const SimulationMetricsSchema = z.object({

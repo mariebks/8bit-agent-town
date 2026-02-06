@@ -14,6 +14,11 @@ describe('RelationshipManager', () => {
 
     manager.applyConversationDelta('a1', 'a2', 200, 101);
     expect(manager.getWeight('a1', 'a2')).toBe(100);
+
+    const summary = manager.getSummary('a1');
+    expect(summary.friendCount).toBe(1);
+    expect(summary.rivalCount).toBe(0);
+    expect(summary.strongestBondId).toBe('a2');
   });
 
   test('serializes graph structure', () => {

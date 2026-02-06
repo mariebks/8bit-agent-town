@@ -2,7 +2,9 @@ import { UIPanel, UISimulationState } from './types';
 
 interface LogEntry {
   id: string;
+  tickId: number;
   text: string;
+  event: unknown;
 }
 
 function summarizeEvent(event: unknown): string {
@@ -37,9 +39,20 @@ export class LogPanel implements UIPanel {
     this.element = document.createElement('section');
     this.element.className = 'ui-panel log-panel';
 
+    const headerRow = document.createElement('div');
+    headerRow.className = 'panel-header-row';
+
     const header = document.createElement('header');
     header.className = 'panel-header';
     header.textContent = 'Event Log';
+
+    const exportButton = document.createElement('button');
+    exportButton.type = 'button';
+    exportButton.className = 'ui-btn ui-btn-ghost';
+    exportButton.textContent = 'Export JSON';
+    exportButton.addEventListener('click', () => this.exportToJson());
+
+    headerRow.append(header, exportButton);
 
     this.listElement = document.createElement('div');
     this.listElement.className = 'log-list';
@@ -47,7 +60,7 @@ export class LogPanel implements UIPanel {
     this.statsElement = document.createElement('div');
     this.statsElement.className = 'panel-footer';
 
-    this.element.append(header, this.listElement, this.statsElement);
+    this.element.append(headerRow, this.listElement, this.statsElement);
   }
 
   show(): void {
@@ -63,7 +76,9 @@ export class LogPanel implements UIPanel {
       for (const event of state.events) {
         this.entries.push({
           id: `${state.tickId}-${this.entries.length + 1}`,
+          tickId: state.tickId,
           text: summarizeEvent(event),
+          event,
         });
       }
 
@@ -93,5 +108,22 @@ export class LogPanel implements UIPanel {
     }
 
     this.listElement.scrollTop = this.listElement.scrollHeight;
+  }
+
+  private exportToJson(): void {
+    const payload = this.entries.map((entry) => ({
+      id: entry.id,
+      tickId: entry.tickId,
+      text: entry.text,
+      event: entry.event,
+    }));
+
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `agent-town-events-${Date.now()}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
   }
 }

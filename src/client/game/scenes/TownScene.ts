@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { TILE_SIZE } from '@shared/Constants';
+import { TICK_INTERVAL_MS, TILE_SIZE } from '@shared/Constants';
 import { AgentData, AgentState, GameTime } from '@shared/Types';
 import { CameraController } from '../camera/CameraController';
 import { AStar } from '../pathfinding/AStar';
@@ -26,6 +26,7 @@ export class TownScene extends Phaser.Scene {
   private serverAuthoritative = false;
   private serverConnected = false;
   private serverGameTime: GameTime | null = null;
+  private readonly speechBubbles = new Map<string, { container: Phaser.GameObjects.Container; remainingMs: number }>();
 
   constructor() {
     super('TownScene');
@@ -93,6 +94,7 @@ export class TownScene extends Phaser.Scene {
 
     this.renderSelectedPath();
     this.updateBlockedMarker(delta);
+    this.updateSpeechBubbles(delta);
 
     this.fpsTimerMs += delta;
     if (this.fpsTimerMs >= 250) {
@@ -125,6 +127,27 @@ export class TownScene extends Phaser.Scene {
 
   getSelectedAgentId(): string | null {
     return this.selectedAgent?.agentId ?? null;
+  }
+
+  applyServerEvents(events: unknown[]): void {
+    for (const event of events) {
+      if (!event || typeof event !== 'object') {
+        continue;
+      }
+
+      const typed = event as Record<string, unknown>;
+      if (typed.type !== 'speechBubble') {
+        continue;
+      }
+
+      if (typeof typed.agentId !== 'string' || typeof typed.message !== 'string') {
+        continue;
+      }
+
+      const durationTicks = typeof typed.durationTicks === 'number' ? typed.durationTicks : 8;
+      const durationMs = Math.max(400, Math.round(durationTicks * TICK_INTERVAL_MS));
+      this.showSpeechBubble(typed.agentId, typed.message, durationMs);
+    }
   }
 
   private createMap(): void {
@@ -255,6 +278,60 @@ export class TownScene extends Phaser.Scene {
     if (this.blockedMarkerTimerMs <= 0) {
       this.blockedMarker.setVisible(false);
     }
+  }
+
+  private updateSpeechBubbles(deltaMs: number): void {
+    for (const [agentId, bubble] of this.speechBubbles.entries()) {
+      const sprite = this.agentsById.get(agentId);
+      if (!sprite) {
+        bubble.container.destroy();
+        this.speechBubbles.delete(agentId);
+        continue;
+      }
+
+      bubble.container.setPosition(sprite.x, sprite.y - 14);
+      bubble.remainingMs -= deltaMs;
+      if (bubble.remainingMs <= 0) {
+        bubble.container.destroy();
+        this.speechBubbles.delete(agentId);
+      }
+    }
+  }
+
+  private showSpeechBubble(agentId: string, message: string, durationMs: number): void {
+    const sprite = this.agentsById.get(agentId);
+    if (!sprite) {
+      return;
+    }
+
+    const previous = this.speechBubbles.get(agentId);
+    if (previous) {
+      previous.container.destroy();
+      this.speechBubbles.delete(agentId);
+    }
+
+    const text = this.add.text(0, 0, message.slice(0, 120), {
+      fontFamily: 'monospace',
+      fontSize: '10px',
+      color: '#04121f',
+      align: 'center',
+      wordWrap: { width: 180, useAdvancedWrap: false },
+    });
+    text.setOrigin(0.5);
+
+    const bounds = text.getBounds();
+    const padding = 4;
+    const bubble = this.add.rectangle(0, 0, bounds.width + padding * 2, bounds.height + padding * 2, 0xf8fafc, 0.92);
+    bubble.setStrokeStyle(1, 0x0f172a, 0.55);
+    bubble.setOrigin(0.5);
+
+    const container = this.add.container(sprite.x, sprite.y - 14, [bubble, text]);
+    container.setDepth(1100);
+
+    this.speechBubbles.set(agentId, {
+      container,
+      remainingMs: durationMs,
+    });
   }
 
   private syncServerAgents(agents: AgentData[]): void {

@@ -3,6 +3,8 @@ import { AgentManager } from './AgentManager';
 import { Agent } from './Agent';
 import { DecisionMaker } from './DecisionMaker';
 import { MemoryStream } from '../memory/MemoryStream';
+import { RequestQueue } from '../llm/RequestQueue';
+import { OllamaClient } from '../llm/OllamaClient';
 import { NavGrid } from '../world/NavGrid';
 import { Pathfinding } from '../world/Pathfinding';
 import { Town } from '../world/Town';
@@ -85,5 +87,46 @@ describe('DecisionMaker', () => {
 
     const currentPlan = memory.getCurrentPlan(480);
     expect(currentPlan?.planItems[0].status).toBe('active');
+  });
+
+  test('records llm prompt/response trace for llm-enabled agents', async () => {
+    const agent = createAgent('agent-2');
+    const manager = new AgentManager([agent]);
+    const memory = new MemoryStream(agent.id);
+    const town = createTown();
+    const nav = new NavGrid(Array.from({ length: 20 }, () => Array.from({ length: 20 }, () => true)));
+    const pathfinding = new Pathfinding(nav);
+    const decisionMaker = new DecisionMaker(21, { llmEnabledAgents: 1, minDecisionIntervalTicks: 1, maxDecisionIntervalTicks: 1 });
+    const llmQueue = new RequestQueue({ concurrency: 1 });
+
+    const llmClient = {
+      async generate() {
+        return {
+          success: true,
+          content: '{"action":"WAIT","reason":"rest","urgency":5}',
+          latencyMs: 1,
+          retries: 0,
+        };
+      },
+    } as unknown as OllamaClient;
+
+    decisionMaker.update({
+      tickId: 2,
+      gameTime: { day: 0, hour: 8, minute: 10, totalMinutes: 490 },
+      agentManager: manager,
+      pathfinding,
+      walkableWaypoints: [{ tileX: 10, tileY: 10 }],
+      town,
+      llmClient,
+      llmQueue,
+      memoryByAgent: new Map([[agent.id, memory]]),
+    });
+
+    await llmQueue.onIdle();
+
+    const trace = decisionMaker.getLlmTrace(agent.id);
+    expect(trace?.lastPrompt).toBeTruthy();
+    expect(trace?.lastOutcome).toBe('ok');
+    expect(trace?.lastResponse).toContain('"action":"WAIT"');
   });
 });

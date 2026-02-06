@@ -4,8 +4,10 @@ import { DeltaEvent, SnapshotEvent } from '@shared/Events';
 import { BootScene } from './game/scenes/BootScene';
 import { TownScene } from './game/scenes/TownScene';
 import { SimulationSocket } from './network/SimulationSocket';
+import { DebugPanel } from './ui/DebugPanel';
 import { InspectorPanel } from './ui/InspectorPanel';
 import { LogPanel } from './ui/LogPanel';
+import { PromptViewer } from './ui/PromptViewer';
 import { UIEventBus } from './ui/UIEventBus';
 import { UIManager } from './ui/UIManager';
 import { TimeControls } from './ui/TimeControls';
@@ -44,18 +46,27 @@ const logPanel = new LogPanel();
 const inspectorPanel = new InspectorPanel({
   getSelectedAgentId: () => getTownScene()?.getSelectedAgentId() ?? null,
 });
+const debugPanel = new DebugPanel({
+  getSelectedAgentId: () => getTownScene()?.getSelectedAgentId() ?? null,
+});
+const promptViewer = new PromptViewer({
+  getSelectedAgentId: () => getTownScene()?.getSelectedAgentId() ?? null,
+});
 const timeControls = new TimeControls({
   onControl: (action, value) => simulationSocket.sendControl(action, value),
 });
 
 uiManager.registerPanel(timeControls);
 uiManager.registerPanel(inspectorPanel);
+uiManager.registerPanel(debugPanel);
+uiManager.registerPanel(promptViewer);
 uiManager.registerPanel(logPanel);
 
 const uiState: UISimulationState = {
   connected: false,
   tickId: 0,
   gameTime: null,
+  metrics: null,
   agents: [],
   events: [],
 };
@@ -94,6 +105,7 @@ simulationSocket.onSnapshot((event) => {
   const scene = getTownScene();
   scene?.setServerConnectionState(true);
   scene?.applyServerSnapshot(event.agents, event.gameTime);
+  scene?.applyServerEvents(event.events ?? []);
 });
 
 simulationSocket.onDelta((event) => {
@@ -101,6 +113,7 @@ simulationSocket.onDelta((event) => {
   const scene = getTownScene();
   scene?.setServerConnectionState(true);
   scene?.applyServerDelta(event.agents, event.gameTime);
+  scene?.applyServerEvents(event.events ?? []);
 });
 
 simulationSocket.connect();
@@ -126,6 +139,7 @@ if (typeof window !== 'undefined') {
 function applyServerEvent(event: SnapshotEvent | DeltaEvent): void {
   uiState.tickId = event.tickId;
   uiState.gameTime = event.gameTime;
+  uiState.metrics = event.metrics ?? uiState.metrics;
   uiState.agents = event.agents;
   uiState.events = [...uiState.events, ...(event.events ?? [])];
 }

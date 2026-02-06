@@ -33,6 +33,19 @@
   margin-bottom: 6px;
 }
 
+.panel-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.panel-subheader {
+  font-size: 10px;
+  color: var(--ui-muted);
+  margin: 4px 0;
+}
+
 .panel-footer {
   font-size: 10px;
   color: var(--ui-muted);
@@ -96,13 +109,48 @@
   background: #2a3d52;
 }
 
+.ui-btn-ghost {
+  background: transparent;
+  border-color: #4a6075;
+  color: var(--ui-accent);
+}
+
+.ui-btn-ghost:hover {
+  background: rgba(125, 211, 252, 0.12);
+}
+
+.debug-panel {
+  right: 10px;
+  top: 220px;
+  width: min(30vw, 380px);
+}
+
+.prompt-viewer {
+  right: 10px;
+  bottom: 10px;
+  width: min(34vw, 500px);
+  max-height: 42vh;
+  overflow: auto;
+}
+
+.prompt-content {
+  margin: 0 0 6px 0;
+  white-space: pre-wrap;
+  font-size: 10px;
+  line-height: 1.35;
+  max-height: 15vh;
+  overflow: auto;
+}
+
 @media (max-width: 900px) {
   .log-panel {
     width: calc(100vw - 20px);
   }
 
   .inspector-panel,
-  .time-controls {
+  .time-controls,
+  .debug-panel,
+  .prompt-viewer {
     width: calc(50vw - 15px);
   }
 }

@@ -18,6 +18,7 @@ function formatAgent(agent: AgentData): string {
     `plan: ${(agent.currentPlan ?? []).join(' | ') || 'n/a'}`,
     `reflection: ${agent.lastReflection ?? 'n/a'}`,
     `relationships: friends ${relationship?.friendCount ?? 0}, rivals ${relationship?.rivalCount ?? 0}, avg ${relationship?.averageWeight ?? 0}`,
+    `llm: ${agent.llmTrace?.lastOutcome ?? 'n/a'}`,
   ].join('\n');
 }
 

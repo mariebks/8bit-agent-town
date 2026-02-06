@@ -391,6 +391,7 @@ export class Simulation {
       const planPreview = memory ? this.planningSystem.getPlanPreview(memory, currentGameTime, 3) : [];
       const lastReflection = memory ? this.reflectionSystem.getLatestReflection(memory) : null;
       const relationshipSummary = this.relationships.getSummary(agent.id);
+      const llmTrace = this.decisionMaker.getLlmTrace(agent.id);
 
       return {
         ...payload,
@@ -399,6 +400,7 @@ export class Simulation {
         currentPlan: planPreview.length > 0 ? planPreview : undefined,
         lastReflection: lastReflection ?? undefined,
         relationshipSummary,
+        llmTrace,
       };
     });
   }

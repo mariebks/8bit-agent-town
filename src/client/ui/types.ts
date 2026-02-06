@@ -1,9 +1,10 @@
-import { AgentData, GameTime } from '@shared/Types';
+import { AgentData, GameTime, SimulationMetrics } from '@shared/Types';
 
 export interface UISimulationState {
   connected: boolean;
   tickId: number;
   gameTime: GameTime | null;
+  metrics: SimulationMetrics | null;
   agents: AgentData[];
   events: unknown[];
 }
