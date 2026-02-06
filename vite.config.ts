@@ -1,6 +1,8 @@
 import { defineConfig } from 'vite';
 import path from 'path';
 
+const isPlaywright = process.env.PLAYWRIGHT === '1';
+
 export default defineConfig({
   root: '.',
   publicDir: 'public',
@@ -11,10 +13,14 @@ export default defineConfig({
   },
   server: {
     port: 3000,
-    open: true
+    open: !isPlaywright
   },
   build: {
     outDir: 'dist',
     assetsDir: 'assets'
+  },
+  test: {
+    include: ['src/**/*.test.ts'],
+    exclude: ['e2e/**']
   }
 });

@@ -25,4 +25,14 @@ const config: Phaser.Types.Core.GameConfig = {
   },
 };
 
-void new Phaser.Game(config);
+const game = new Phaser.Game(config);
+
+declare global {
+  interface Window {
+    __agentTownGame?: Phaser.Game;
+  }
+}
+
+if (typeof window !== 'undefined') {
+  window.__agentTownGame = game;
+}
