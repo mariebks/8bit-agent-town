@@ -82,6 +82,13 @@ describe('Events schemas', () => {
         queueDepth: 1,
         queueDropped: 0,
         llmFallbackRate: 0.2,
+        llmQueueMaxDepth: 4,
+        llmQueueAvgWaitMs: 7,
+        llmQueueAvgProcessMs: 12,
+        llmQueueBackpressure: 'elevated',
+        llmQueueHealthy: true,
+        pathCacheSize: 3,
+        pathCacheHitRate: 0.25,
       },
     });
 

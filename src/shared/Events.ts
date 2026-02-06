@@ -60,6 +60,13 @@ export const SimulationMetricsSchema = z.object({
   queueDepth: z.number(),
   queueDropped: z.number(),
   llmFallbackRate: z.number(),
+  llmQueueMaxDepth: z.number().optional(),
+  llmQueueAvgWaitMs: z.number().optional(),
+  llmQueueAvgProcessMs: z.number().optional(),
+  llmQueueBackpressure: z.enum(['normal', 'elevated', 'critical']).optional(),
+  llmQueueHealthy: z.boolean().optional(),
+  pathCacheSize: z.number().optional(),
+  pathCacheHitRate: z.number().optional(),
 });
 
 export const SnapshotEventSchema = z.object({

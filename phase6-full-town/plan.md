@@ -28,6 +28,16 @@ This phase scales the 8-bit agent town simulation from a small prototype to a fu
 3. Tune decision cadence, pathfinding caching, and render culling for smooth performance
 4. Stress test the LLM queue by running a 10-day simulation with logging enabled
 
+## Implementation Status (2026-02-06)
+
+- [x] Pathfinding cache added with explicit invalidation support and cache hit/miss metrics.
+- [x] LLM queue health/backpressure metrics added and surfaced through simulation snapshots/deltas.
+- [x] Debug panel now shows queue pressure/health and path cache metrics.
+- [x] Unit coverage added for queue backpressure/health and path cache invalidation behavior.
+- [ ] Stress harness for 10-day profile runs (LLM off baseline + LLM on profile).
+- [ ] Backpressure-driven cadence throttling strategy in scheduler.
+- [ ] Long-run memory/tick budget reporting artifacts.
+
 ## Prerequisites
 
 Before starting Phase 6, the following must be complete:

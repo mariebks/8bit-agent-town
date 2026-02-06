@@ -31,6 +31,10 @@ describe('Simulation', () => {
     expect(snapshot.agents[0].currentPlan?.length ?? 0).toBeGreaterThan(0);
     expect(snapshot.agents[0].relationshipSummary).toBeDefined();
     expect(snapshot.metrics?.tickDurationMsP50).toBeGreaterThanOrEqual(0);
+    expect(snapshot.metrics?.llmQueueBackpressure).toBeDefined();
+    expect(snapshot.metrics?.llmQueueHealthy).toBeDefined();
+    expect(snapshot.metrics?.pathCacheSize).toBeGreaterThanOrEqual(0);
+    expect(snapshot.metrics?.pathCacheHitRate).toBeGreaterThanOrEqual(0);
 
     simulation.tick(2);
     const delta = simulation.createDeltaEvent(2);

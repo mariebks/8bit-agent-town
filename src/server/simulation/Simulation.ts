@@ -351,6 +351,9 @@ export class Simulation {
   }
 
   private getMetrics() {
+    const pathCache = this.pathfinding.getCacheStats();
+    const queueMetrics = this.llmQueue.getMetrics();
+
     return {
       tickDurationMsP50: this.tickStats.percentile(50),
       tickDurationMsP95: this.tickStats.percentile(95),
@@ -358,6 +361,13 @@ export class Simulation {
       queueDepth: this.llmQueue.size() + this.llmQueue.pending(),
       queueDropped: this.llmQueue.dropped(),
       llmFallbackRate: this.decisionMaker.getFallbackRate(),
+      llmQueueMaxDepth: queueMetrics.maxSizeReached,
+      llmQueueAvgWaitMs: queueMetrics.averageWaitTimeMs,
+      llmQueueAvgProcessMs: queueMetrics.averageProcessTimeMs,
+      llmQueueBackpressure: this.llmQueue.getBackpressureLevel(),
+      llmQueueHealthy: this.llmQueue.isHealthy(),
+      pathCacheSize: pathCache.size,
+      pathCacheHitRate: pathCache.hitRate,
     };
   }
 

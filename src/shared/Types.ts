@@ -104,6 +104,13 @@ export interface SimulationMetrics {
   queueDepth: number;
   queueDropped: number;
   llmFallbackRate: number;
+  llmQueueMaxDepth?: number;
+  llmQueueAvgWaitMs?: number;
+  llmQueueAvgProcessMs?: number;
+  llmQueueBackpressure?: 'normal' | 'elevated' | 'critical';
+  llmQueueHealthy?: boolean;
+  pathCacheSize?: number;
+  pathCacheHitRate?: number;
 }
 
 export const TILE_SIZE = 16;
