@@ -1,0 +1,108 @@
+:root {
+  --ui-bg: rgba(8, 16, 28, 0.86);
+  --ui-border: #3a5166;
+  --ui-text: #edf2f7;
+  --ui-accent: #7dd3fc;
+  --ui-muted: #93a6b8;
+}
+
+.ui-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1200;
+  font-family: 'Courier New', monospace;
+  color: var(--ui-text);
+}
+
+.ui-panel {
+  position: fixed;
+  pointer-events: auto;
+  background: var(--ui-bg);
+  border: 1px solid var(--ui-border);
+  border-radius: 6px;
+  backdrop-filter: blur(2px);
+  padding: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
+.panel-header {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ui-accent);
+  margin-bottom: 6px;
+}
+
+.panel-footer {
+  font-size: 10px;
+  color: var(--ui-muted);
+  margin-top: 6px;
+}
+
+.log-panel {
+  left: 10px;
+  bottom: 10px;
+  width: min(40vw, 500px);
+  max-height: 34vh;
+}
+
+.log-list {
+  max-height: 24vh;
+  overflow-y: auto;
+  font-size: 10px;
+}
+
+.log-line {
+  margin-bottom: 3px;
+  opacity: 0.96;
+}
+
+.inspector-panel {
+  right: 10px;
+  top: 10px;
+  width: min(28vw, 340px);
+}
+
+.inspector-content {
+  margin: 0;
+  white-space: pre-wrap;
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.time-controls {
+  left: 10px;
+  top: 10px;
+  width: min(28vw, 320px);
+}
+
+.time-controls-row {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.ui-btn {
+  background: #1f2e3f;
+  border: 1px solid #405c77;
+  color: var(--ui-text);
+  border-radius: 4px;
+  font-size: 10px;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+.ui-btn:hover {
+  background: #2a3d52;
+}
+
+@media (max-width: 900px) {
+  .log-panel {
+    width: calc(100vw - 20px);
+  }
+
+  .inspector-panel,
+  .time-controls {
+    width: calc(50vw - 15px);
+  }
+}

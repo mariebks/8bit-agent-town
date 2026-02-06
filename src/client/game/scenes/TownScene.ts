@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { TILE_SIZE } from '@shared/Constants';
-import { AgentData, AgentState } from '@shared/Types';
+import { AgentData, AgentState, GameTime } from '@shared/Types';
 import { CameraController } from '../camera/CameraController';
 import { AStar } from '../pathfinding/AStar';
 import { AgentSprite } from '../sprites/AgentSprite';
@@ -14,6 +14,7 @@ export class TownScene extends Phaser.Scene {
   private blockedMarkerTimerMs = 0;
 
   private readonly agents: AgentSprite[] = [];
+  private readonly agentsById = new Map<string, AgentSprite>();
   private selectedAgent: AgentSprite | null = null;
 
   private cameraController!: CameraController;
@@ -21,6 +22,10 @@ export class TownScene extends Phaser.Scene {
 
   private fpsOverlay: HTMLElement | null = null;
   private fpsTimerMs = 0;
+
+  private serverAuthoritative = false;
+  private serverConnected = false;
+  private serverGameTime: GameTime | null = null;
 
   constructor() {
     super('TownScene');
@@ -61,8 +66,13 @@ export class TownScene extends Phaser.Scene {
 
       const tileX = Math.floor(pointer.worldX / TILE_SIZE);
       const tileY = Math.floor(pointer.worldY / TILE_SIZE);
-      const path = this.astar.findPath(this.selectedAgent.currentTile, { tileX, tileY });
 
+      if (this.serverAuthoritative) {
+        this.showBlockedMarker(tileX, tileY);
+        return;
+      }
+
+      const path = this.astar.findPath(this.selectedAgent.currentTile, { tileX, tileY });
       if (!path || path.length === 0) {
         this.showBlockedMarker(tileX, tileY);
         return;
@@ -75,9 +85,12 @@ export class TownScene extends Phaser.Scene {
   update(_time: number, delta: number): void {
     this.cameraController.update(delta);
 
-    for (const agent of this.agents) {
-      agent.updateMovement(delta);
+    if (!this.serverAuthoritative) {
+      for (const agent of this.agents) {
+        agent.updateMovement(delta);
+      }
     }
+
     this.renderSelectedPath();
     this.updateBlockedMarker(delta);
 
@@ -89,6 +102,29 @@ export class TownScene extends Phaser.Scene {
         this.fpsOverlay.textContent = `FPS: ${fps} | Frame: ${delta.toFixed(1)}ms`;
       }
     }
+  }
+
+  setServerConnectionState(connected: boolean): void {
+    this.serverConnected = connected;
+    this.updateInfoText();
+  }
+
+  applyServerSnapshot(agents: AgentData[], gameTime: GameTime): void {
+    this.serverAuthoritative = true;
+    this.serverGameTime = gameTime;
+    this.syncServerAgents(agents);
+    this.updateInfoText();
+  }
+
+  applyServerDelta(agents: AgentData[], gameTime: GameTime): void {
+    this.serverAuthoritative = true;
+    this.serverGameTime = gameTime;
+    this.syncServerAgents(agents);
+    this.updateInfoText();
+  }
+
+  getSelectedAgentId(): string | null {
+    return this.selectedAgent?.agentId ?? null;
   }
 
   private createMap(): void {
@@ -126,7 +162,7 @@ export class TownScene extends Phaser.Scene {
     ];
 
     for (const agentData of data) {
-      this.agents.push(new AgentSprite(this, agentData));
+      this.addOrReplaceAgent(agentData);
     }
   }
 
@@ -149,6 +185,7 @@ export class TownScene extends Phaser.Scene {
     });
     this.infoText.setScrollFactor(0);
     this.infoText.setDepth(1000);
+    this.updateInfoText();
   }
 
   private selectAgent(agent: AgentSprite | null): void {
@@ -160,7 +197,14 @@ export class TownScene extends Phaser.Scene {
 
   private updateInfoText(): void {
     const selected = this.selectedAgent?.agentName ?? 'None';
-    this.infoText?.setText(`Selected: ${selected} | Click agent to select | Click tile to move | Hold Space + Drag to pan`);
+    const mode = this.serverAuthoritative ? (this.serverConnected ? 'Server' : 'Server (offline)') : 'Local';
+    const timeText = this.serverGameTime
+      ? `Day ${this.serverGameTime.day} ${String(this.serverGameTime.hour).padStart(2, '0')}:${String(this.serverGameTime.minute).padStart(2, '0')}`
+      : 'No sim time';
+
+    this.infoText?.setText(
+      `Mode: ${mode} | ${timeText} | Selected: ${selected} | Click agent to select | Hold Space + Drag to pan`,
+    );
   }
 
   private findAgentAtWorld(worldX: number, worldY: number): AgentSprite | null {
@@ -211,6 +255,48 @@ export class TownScene extends Phaser.Scene {
     if (this.blockedMarkerTimerMs <= 0) {
       this.blockedMarker.setVisible(false);
     }
+  }
+
+  private syncServerAgents(agents: AgentData[]): void {
+    const activeIds = new Set<string>();
+
+    for (const data of agents) {
+      activeIds.add(data.id);
+      this.addOrReplaceAgent(data);
+    }
+
+    for (const [agentId, sprite] of this.agentsById.entries()) {
+      if (activeIds.has(agentId)) {
+        continue;
+      }
+
+      sprite.destroy();
+      this.agentsById.delete(agentId);
+      const index = this.agents.indexOf(sprite);
+      if (index >= 0) {
+        this.agents.splice(index, 1);
+      }
+    }
+
+    if (this.selectedAgent && !this.agentsById.has(this.selectedAgent.agentId)) {
+      this.selectedAgent = null;
+    }
+
+    if (!this.selectedAgent) {
+      this.selectAgent(this.agents[0] ?? null);
+    }
+  }
+
+  private addOrReplaceAgent(data: AgentData): void {
+    const existing = this.agentsById.get(data.id);
+    if (existing) {
+      existing.applyServerState(data);
+      return;
+    }
+
+    const sprite = new AgentSprite(this, data);
+    this.agentsById.set(data.id, sprite);
+    this.agents.push(sprite);
   }
 
   private createAgentData(

@@ -1,5 +1,6 @@
 export type AgentId = string;
 export type LocationId = string;
+export type ConversationId = string;
 
 export interface Position {
   x: number;
@@ -16,7 +17,7 @@ export enum AgentState {
   Walking = 'walking',
   Conversing = 'conversing',
   Activity = 'activity',
-  Sleeping = 'sleeping'
+  Sleeping = 'sleeping',
 }
 
 export interface AgentData {
@@ -27,6 +28,11 @@ export interface AgentData {
   state: AgentState;
   color: number;
   path?: TilePosition[];
+  currentLocationId?: LocationId;
+  currentAction?: string;
+  mood?: number;
+  energy?: number;
+  hunger?: number;
 }
 
 export interface LocationData {
@@ -35,6 +41,9 @@ export interface LocationData {
   type: string;
   bounds: { x: number; y: number; width: number; height: number };
   tags: string[];
+  capacity?: number;
+  spawnPoint?: TilePosition;
+  allowedActivities?: string[];
 }
 
 export interface GameTime {
@@ -42,6 +51,39 @@ export interface GameTime {
   hour: number;
   minute: number;
   totalMinutes: number;
+}
+
+export interface ConversationTurn {
+  speakerId: AgentId;
+  message: string;
+  timestamp: number;
+}
+
+export interface ConversationData {
+  id: ConversationId;
+  participants: [AgentId, AgentId];
+  turns: ConversationTurn[];
+  startTime: number;
+  endTime?: number;
+  location: LocationId;
+}
+
+export interface RelationshipEdge {
+  targetId: AgentId;
+  weight: number;
+  tags: string[];
+  lastInteraction: number;
+}
+
+export type RelationshipGraph = Record<AgentId, RelationshipEdge[]>;
+
+export interface SimulationMetrics {
+  tickDurationMsP50: number;
+  tickDurationMsP95: number;
+  tickDurationMsP99: number;
+  queueDepth: number;
+  queueDropped: number;
+  llmFallbackRate: number;
 }
 
 export const TILE_SIZE = 16;

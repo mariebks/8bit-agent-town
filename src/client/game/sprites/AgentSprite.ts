@@ -14,9 +14,7 @@ export class AgentSprite extends Phaser.GameObjects.Rectangle {
   private selected = false;
 
   constructor(scene: Phaser.Scene, data: AgentData) {
-    const start = tileToWorld(data.tilePosition);
-
-    super(scene, start.x, start.y, 12, 12, data.color);
+    super(scene, data.position.x, data.position.y, 12, 12, data.color);
 
     this.agentId = data.id;
     this.agentName = data.name;
@@ -30,6 +28,13 @@ export class AgentSprite extends Phaser.GameObjects.Rectangle {
 
   setPath(path: TilePosition[]): void {
     this.path = path;
+    this.pathIndex = 0;
+  }
+
+  applyServerState(data: AgentData): void {
+    this.setPosition(data.position.x, data.position.y);
+    this.currentTile = { ...data.tilePosition };
+    this.path = data.path ? [...data.path] : [];
     this.pathIndex = 0;
   }
 

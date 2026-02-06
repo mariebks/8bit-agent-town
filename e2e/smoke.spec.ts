@@ -46,7 +46,14 @@ test.describe('8-bit Agent Town smoke', () => {
 
     page.on('console', (msg) => {
       if (msg.type() === 'error') {
-        consoleErrors.push(msg.text());
+        const text = msg.text();
+        const isExpectedOfflineSocketError =
+          /WebSocket connection to 'ws:\/\/(?:127\.0\.0\.1|localhost):4000\/ws' failed/.test(text) &&
+          text.includes('ERR_CONNECTION_REFUSED');
+
+        if (!isExpectedOfflineSocketError) {
+          consoleErrors.push(text);
+        }
       }
     });
 
