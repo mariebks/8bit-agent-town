@@ -1,0 +1,9 @@
+export const TICK_INTERVAL_MS = 200;
+export const GAME_MINUTES_PER_TICK = 1;
+export const TILE_SIZE = 16;
+export const MAP_WIDTH_TILES = 40;
+export const MAP_HEIGHT_TILES = 30;
+export const DEFAULT_AGENT_SPEED = 2;
+export const CAMERA_ZOOM_MIN = 0.5;
+export const CAMERA_ZOOM_MAX = 3;
+export const CAMERA_ZOOM_STEP = 0.1;
