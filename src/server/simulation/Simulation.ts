@@ -198,6 +198,10 @@ export class Simulation {
     return [...this.recentLogEvents];
   }
 
+  async waitForIdle(): Promise<void> {
+    await this.llmQueue.onIdle();
+  }
+
   private tryStartConversations(gameTime: GameTime): void {
     for (const [left, right] of this.agentManager.getNearbyPairs(1)) {
       const relationshipWeight = this.relationships.getWeight(left.id, right.id);

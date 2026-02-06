@@ -10,7 +10,10 @@
     "preview": "vite preview",
     "test": "vitest",
     "test:e2e": "playwright test",
-    "test:e2e:headed": "playwright test --headed"
+    "test:e2e:headed": "playwright test --headed",
+    "stress": "tsx src/server/testing/runStress.ts --profile baseline",
+    "stress:llm": "tsx src/server/testing/runStress.ts --profile llm",
+    "stress:profiles": "tsx src/server/testing/runStress.ts --profile both"
   },
   "dependencies": {
     "express": "^4.18.0",
