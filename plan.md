@@ -10,6 +10,27 @@
 - In-memory state only for gameplay (no database).
 - Backend dev friendly workflows and tooling.
 
+## Authoritative engineering constraints
+
+The following constraints supersede any conflicting detail in this document or the phase plans:
+
+1. Determinism contract for simulation:
+   - Simulation logic must be driven by tick index and seeded RNG only.
+   - Do not use `Date.now()` or `Math.random()` for simulation outcomes.
+   - Wall-clock time is allowed only for diagnostics/logging.
+2. Non-blocking cognition:
+   - Tick loop must never `await` LLM, reflection, or summarization work.
+   - Long-running cognitive tasks are queued and applied as deferred results.
+3. LLM budget enforcement on local hardware:
+   - Maintain strict concurrency limits and per-agent cooldowns.
+   - Drop stale queued requests (do not execute outdated intents).
+   - Prefer rule-based actions whenever confidence is high.
+4. In-memory gameplay state with optional debug artifacts:
+   - Runtime state remains in memory only.
+   - Optional JSON debug snapshots/event logs are allowed for replay and troubleshooting, not persistence.
+5. Monolithic repo, split runtime:
+   - Single codebase remains correct, but dev runtime is two cooperative processes (server + client) for clarity and stability.
+
 ## Decision review and adjustments (scrutiny)
 
 - Frontend stack: Phaser remains a strong fit for tilemaps and pixel art. Adjustment: use Phaser for world rendering only, and HTML/CSS overlays for log, inspector, and controls. This keeps UI iteration simple and avoids building complex UI inside the canvas.
@@ -198,7 +219,7 @@ Example action response schema:
 - Default behavior uses a rule-based behavior tree.
 - LLM is used for:
   - Daily plan generation (once per in-game morning)
-  - Reflection (every 3-6 in-game hours)
+  - Reflection (budgeted, roughly 1-2 times per in-game day per agent)
   - Dialogue turns
   - High-level action changes (when routine fails or new event happens)
 
@@ -218,7 +239,7 @@ score = 0.5 * recency + 0.3 * importance + 0.2 * relevance
 
 - Recency: exponential decay over in-game time.
 - Importance: LLM rated 1-10 (batched or heuristic fallback).
-- Relevance: BM25 keyword similarity (fast, local, no embeddings).
+- Relevance: lightweight keyword overlap scoring (BM25 optional later if needed).
 
 ### Memory pruning
 
@@ -321,11 +342,11 @@ Tasks:
 - Define JSON response schemas for action selection and validate with zod; reject invalid JSON and log failures.
 - Add prompt templates for action selection that include agent profile, current status, and local context only.
 - Gate LLM calls to only trigger when a rule-based decision cannot pick a reasonable action.
-- Limit LLM-enabled agents to 3-5 and keep others on rules to protect performance during early tests.
+- Start with 2-3 LLM-enabled agents and keep others on rules to protect performance during early tests.
 - Add a "last LLM response" debug entry in the server log for quick inspection.
 
 End state:
-- At least 3 agents can request actions from the LLM and execute them without crashing on invalid outputs.
+- Start with 2-3 agents requesting LLM actions, then scale once queue/tick metrics are healthy.
 - When the LLM is unavailable or times out, agents fall back to rule-based actions and continue moving.
 - LLM request rate stays below 1 concurrent call and does not stall the simulation loop.
 
@@ -618,7 +639,7 @@ Goal: retrieve the most relevant memories for a given context.
 
 Instructions:
 - Implement a recency decay function that takes in-game time and returns a 0-1 score.
-- Add BM25 keyword relevance scoring using local tokens only (no embeddings).
+- Add lightweight keyword relevance scoring first; treat BM25 as optional later optimization.
 - Combine recency, importance, and relevance into a final score and return top K.
 
 End state:
