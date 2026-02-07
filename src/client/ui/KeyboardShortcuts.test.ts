@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { resolveModeShortcut, resolveOverlayShortcut, resolvePanelShortcut } from './KeyboardShortcuts';
+import { resolveModeShortcut, resolveOverlayShortcut, resolvePanelShortcut, resolveUtilityShortcut } from './KeyboardShortcuts';
 
 describe('KeyboardShortcuts', () => {
   test('maps supported keys to panel toggles', () => {
@@ -34,5 +34,11 @@ describe('KeyboardShortcuts', () => {
     expect(resolveModeShortcut({ key: 'm' })).toBe('cycle-ui-mode');
     expect(resolveModeShortcut({ key: 'n' })).toBe('cycle-ui-density');
     expect(resolveModeShortcut({ key: 'm', ctrlKey: true })).toBeNull();
+  });
+
+  test('maps utility shortcuts for focus ui and finder input', () => {
+    expect(resolveUtilityShortcut({ key: '/', targetTagName: 'div' })).toBe('focus-agent-finder');
+    expect(resolveUtilityShortcut({ key: 'F', shiftKey: true, targetTagName: 'div' })).toBe('toggle-focus-ui');
+    expect(resolveUtilityShortcut({ key: '/', targetTagName: 'input' })).toBeNull();
   });
 });

@@ -102,3 +102,4 @@ Ship eight UX upgrades that make the town readable, cinematic, and fun to observ
 - [x] 15. Sprite readability upgrade: deterministic body silhouettes and outfit pattern variation tied to identity traits.
 - [x] 16. Focus UI mode: one-click declutter toggle that hides secondary spectator panels for cleaner viewing.
 - [x] 17. Agent Finder panel: quick search by name/occupation with one-click camera jump.
+- [x] 18. Power-user shortcuts: `/` focuses Agent Finder input, `Shift+F` toggles Focus UI declutter mode.

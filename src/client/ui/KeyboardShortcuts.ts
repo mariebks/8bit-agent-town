@@ -8,12 +8,14 @@ export type PanelShortcutTarget =
   | 'relationship-heatmap-panel';
 export type OverlayShortcutTarget = 'path-overlay' | 'perception-overlay';
 export type ModeShortcutTarget = 'cycle-ui-mode' | 'cycle-ui-density';
+export type UtilityShortcutTarget = 'toggle-focus-ui' | 'focus-agent-finder';
 
 export interface ShortcutInput {
   key: string;
   ctrlKey?: boolean;
   metaKey?: boolean;
   altKey?: boolean;
+  shiftKey?: boolean;
   targetTagName?: string | null;
   targetIsContentEditable?: boolean;
 }
@@ -85,6 +87,21 @@ export function resolveModeShortcut(input: ShortcutInput): ModeShortcutTarget | 
   }
   if (input.key.toLowerCase() === 'n') {
     return 'cycle-ui-density';
+  }
+  return null;
+}
+
+export function resolveUtilityShortcut(input: ShortcutInput): UtilityShortcutTarget | null {
+  if (input.ctrlKey || input.metaKey || input.altKey) {
+    return null;
+  }
+
+  const key = input.key.toLowerCase();
+  if (key === '/' && !isEditableTarget(input.targetTagName, input.targetIsContentEditable)) {
+    return 'focus-agent-finder';
+  }
+  if (key === 'f' && input.shiftKey && !isEditableTarget(input.targetTagName, input.targetIsContentEditable)) {
+    return 'toggle-focus-ui';
   }
   return null;
 }

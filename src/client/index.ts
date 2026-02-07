@@ -20,7 +20,7 @@ import { UIEventBus } from './ui/UIEventBus';
 import { UIManager } from './ui/UIManager';
 import { WeatherStatusPanel } from './ui/WeatherStatusPanel';
 import { applyFocusUiDataset, loadFocusUiEnabled, storeFocusUiEnabled } from './ui/FocusUi';
-import { resolveModeShortcut, resolveOverlayShortcut, resolvePanelShortcut } from './ui/KeyboardShortcuts';
+import { resolveModeShortcut, resolveOverlayShortcut, resolvePanelShortcut, resolveUtilityShortcut } from './ui/KeyboardShortcuts';
 import { TimeControls } from './ui/TimeControls';
 import { UISimulationState } from './ui/types';
 import { nextUiDensity } from './ui/UiDensity';
@@ -75,6 +75,13 @@ const uiState: UISimulationState = {
 
 let focusUiEnabled = loadFocusUiEnabled(typeof window !== 'undefined' ? window.localStorage : null);
 applyFocusUiDataset(focusUiEnabled, typeof document !== 'undefined' ? document.body.dataset : undefined);
+
+function toggleFocusUi(): boolean {
+  focusUiEnabled = !focusUiEnabled;
+  applyFocusUiDataset(focusUiEnabled, typeof document !== 'undefined' ? document.body.dataset : undefined);
+  storeFocusUiEnabled(focusUiEnabled, typeof window !== 'undefined' ? window.localStorage : null);
+  return focusUiEnabled;
+}
 
 if (typeof window !== 'undefined') {
   audioController.bindUnlockGestures(window);
@@ -165,12 +172,7 @@ const timeControls = new TimeControls({
   onToggleAutoDirector: () => getTownScene()?.toggleAutoDirector() ?? false,
   onToggleAudio: () => audioController.toggleEnabled(),
   onToggleHeatmap: () => uiManager.togglePanel('relationship-heatmap-panel'),
-  onToggleFocusUi: () => {
-    focusUiEnabled = !focusUiEnabled;
-    applyFocusUiDataset(focusUiEnabled, typeof document !== 'undefined' ? document.body.dataset : undefined);
-    storeFocusUiEnabled(focusUiEnabled, typeof window !== 'undefined' ? window.localStorage : null);
-    return focusUiEnabled;
-  },
+  onToggleFocusUi: () => toggleFocusUi(),
   onAddBookmark: () => {
     const bookmarked = getTownScene()?.addBookmarkForSelectedAgent() ?? null;
     if (bookmarked) {
@@ -355,18 +357,30 @@ window.addEventListener('keydown', (event: KeyboardEvent) => {
     ctrlKey: event.ctrlKey,
     metaKey: event.metaKey,
     altKey: event.altKey,
+    shiftKey: event.shiftKey,
     targetTagName: target?.tagName,
     targetIsContentEditable: target?.isContentEditable,
   };
   const panelShortcut = resolvePanelShortcut(shortcutInput);
   const overlayShortcut = resolveOverlayShortcut(shortcutInput);
   const modeShortcut = resolveModeShortcut(shortcutInput);
+  const utilityShortcut = resolveUtilityShortcut(shortcutInput);
 
-  if (!panelShortcut && !overlayShortcut && !modeShortcut) {
+  if (!panelShortcut && !overlayShortcut && !modeShortcut && !utilityShortcut) {
     return;
   }
 
   event.preventDefault();
+  if (utilityShortcut === 'focus-agent-finder') {
+    agentFinderPanel.focusQueryInput();
+    return;
+  }
+
+  if (utilityShortcut === 'toggle-focus-ui') {
+    toggleFocusUi();
+    return;
+  }
+
   if (modeShortcut === 'cycle-ui-mode') {
     uiManager.setMode(nextUiMode(uiManager.getMode()));
     return;

@@ -59,6 +59,11 @@ export class AgentFinderPanel implements UIPanel {
     this.element.remove();
   }
 
+  focusQueryInput(): void {
+    this.input.focus();
+    this.input.select();
+  }
+
   private renderHits(hits: Array<{ id: string; name: string; occupation: string | null }>): void {
     this.list.innerHTML = '';
     for (const hit of hits) {
