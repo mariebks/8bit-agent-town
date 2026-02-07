@@ -25,4 +25,12 @@ describe('SpeechBubbleText', () => {
     expect(formatted.truncated).toBe(false);
     expect(formatted.hint).toBeNull();
   });
+
+  test('uses expanded truncation limit when selected quote is still too long', () => {
+    const message = 'c'.repeat(320);
+    const formatted = formatSpeechBubbleText(message, 90, true, 220);
+    expect(formatted.body.endsWith('…')).toBe(true);
+    expect(formatted.body.length).toBeLessThanOrEqual(220);
+    expect(formatted.hint).toBeNull();
+  });
 });

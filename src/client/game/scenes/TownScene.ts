@@ -29,6 +29,8 @@ interface SpeechBubbleState {
   width: number;
   height: number;
   preferredOffsetY: number;
+  message: string;
+  expanded: boolean;
 }
 
 export class TownScene extends Phaser.Scene {
@@ -728,7 +730,8 @@ export class TownScene extends Phaser.Scene {
       selected: boolean;
     }> = [];
 
-    for (const [agentId, bubble] of this.speechBubbles.entries()) {
+    for (const [agentId, existingBubble] of this.speechBubbles.entries()) {
+      let bubble = existingBubble;
       const sprite = this.agentsById.get(agentId);
       if (!sprite) {
         bubble.container.destroy();
@@ -737,6 +740,15 @@ export class TownScene extends Phaser.Scene {
       }
 
       const selected = this.selectedAgent?.agentId === sprite.agentId;
+      if (bubble.expanded !== selected) {
+        this.showSpeechBubble(agentId, bubble.message, bubble.remainingMs, selected);
+        const refreshed = this.speechBubbles.get(agentId);
+        if (!refreshed) {
+          continue;
+        }
+        bubble = refreshed;
+      }
+
       const bubbleVisible = selected || (sprite.visible && shouldRenderBubble(sprite.x, sprite.y, cameraCenter.x, cameraCenter.y));
       bubble.container.setVisible(bubbleVisible);
       if (bubbleVisible) {
@@ -781,7 +793,7 @@ export class TownScene extends Phaser.Scene {
     }
   }
 
-  private showSpeechBubble(agentId: string, message: string, durationMs: number): void {
+  private showSpeechBubble(agentId: string, message: string, durationMs: number, expandedOverride?: boolean): void {
     const sprite = this.agentsById.get(agentId);
     if (!sprite) {
       return;
@@ -799,7 +811,7 @@ export class TownScene extends Phaser.Scene {
       .slice(0, maxTagCount)
       .map((tag) => `#${tag}`)
       .join(' ');
-    const selected = this.selectedAgent?.agentId === agentId;
+    const selected = expandedOverride ?? this.selectedAgent?.agentId === agentId;
     const formatted = formatSpeechBubbleText(message, 120, selected, 220);
     const headerText = this.add.text(0, 0, `${sprite.agentName} ${tags}`.trim(), {
       fontFamily: 'monospace',
@@ -855,6 +867,8 @@ export class TownScene extends Phaser.Scene {
       width,
       height,
       preferredOffsetY: -16,
+      message,
+      expanded: selected,
     });
   }
 
@@ -901,10 +915,15 @@ export class TownScene extends Phaser.Scene {
     this.directorCooldownMs = Math.max(0, this.directorCooldownMs - deltaMs);
     this.directorFocusMs = Math.max(0, this.directorFocusMs - deltaMs);
 
-    if (!this.autoDirectorEnabled || this.followSelectedAgent || this.cameraController.isPanModifierPressed()) {
+    if (!this.autoDirectorEnabled) {
       this.directorCurrentAgentId = null;
       this.directorFocusMs = 0;
-      this.cameras.main.setZoom(Phaser.Math.Linear(this.cameras.main.zoom, this.modeBaseZoom, 0.1));
+      return;
+    }
+
+    if (this.followSelectedAgent || this.cameraController.isPanModifierPressed()) {
+      this.directorCurrentAgentId = null;
+      this.directorFocusMs = 0;
       return;
     }
 

@@ -396,4 +396,97 @@ test.describe('8-bit Agent Town fullstack', () => {
       })
       .toBeGreaterThan(0);
   });
+
+  test('preserves manual zoom when director is off and while following', async ({ page }) => {
+    await page.goto('/');
+    await waitForTownScene(page);
+    await setUiMode(page, 'Debug');
+
+    await page.evaluate(() => {
+      const scene = window.__agentTownGame?.scene.getScene('TownScene') as { cameras: { main: { setZoom: (value: number) => void } } };
+      scene.cameras.main.setZoom(1.42);
+    });
+    await page.waitForTimeout(700);
+    await expect
+      .poll(
+        async () =>
+          await page.evaluate(() => {
+            const scene = window.__agentTownGame?.scene.getScene('TownScene') as { cameras: { main: { zoom: number } } };
+            return scene.cameras.main.zoom;
+          }),
+        { timeout: 3_000, intervals: [100, 200, 400] },
+      )
+      .toBeGreaterThan(1.3);
+
+    await page.locator('.time-controls .ui-btn', { hasText: 'Follow:' }).click();
+    await page.evaluate(() => {
+      const scene = window.__agentTownGame?.scene.getScene('TownScene') as { cameras: { main: { setZoom: (value: number) => void } } };
+      scene.cameras.main.setZoom(1.33);
+    });
+    await page.waitForTimeout(700);
+    await expect
+      .poll(
+        async () =>
+          await page.evaluate(() => {
+            const scene = window.__agentTownGame?.scene.getScene('TownScene') as { cameras: { main: { zoom: number } } };
+            return scene.cameras.main.zoom;
+          }),
+        { timeout: 3_000, intervals: [100, 200, 400] },
+      )
+      .toBeGreaterThan(1.22);
+  });
+
+  test('refreshes sprite texture when server occupation metadata changes', async ({ page }) => {
+    await page.goto('/');
+    await waitForTownScene(page);
+    await expect
+      .poll(
+        async () =>
+          await page.evaluate(() => {
+            const scene = window.__agentTownGame?.scene.getScene('TownScene') as
+              | {
+                  agents?: Array<{
+                    agentId: string;
+                    agentName: string;
+                    x: number;
+                    y: number;
+                    currentTile: { tileX: number; tileY: number };
+                    actorSprite?: { texture?: { key?: string } };
+                  }>;
+                  applyServerSnapshot: (agents: unknown[], gameTime: unknown) => void;
+                }
+              | undefined;
+            const target = scene?.agents?.[0];
+            if (!scene || !target?.actorSprite?.texture?.key) {
+              return false;
+            }
+
+            const before = target.actorSprite.texture.key;
+            scene.applyServerSnapshot(
+              [
+                {
+                  id: target.agentId,
+                  name: target.agentName,
+                  occupation: 'Town Guard',
+                  position: { x: target.x, y: target.y },
+                  tilePosition: { tileX: target.currentTile.tileX, tileY: target.currentTile.tileY },
+                  state: 'idle',
+                  color: 0x2b9f5a,
+                },
+              ],
+              {
+                day: 1,
+                hour: 9,
+                minute: 30,
+                totalMinutes: 9 * 60 + 30,
+              },
+            );
+
+            const after = scene.agents?.[0]?.actorSprite?.texture?.key ?? '';
+            return before !== after;
+          }),
+        { timeout: 3_000, intervals: [100, 200, 400] },
+      )
+      .toBe(true);
+  });
 });

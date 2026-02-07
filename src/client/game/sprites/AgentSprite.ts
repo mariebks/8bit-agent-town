@@ -30,6 +30,8 @@ export class AgentSprite extends Phaser.GameObjects.Container {
   private readonly idlePhaseSeed: number;
   private idlePhaseMs = 0;
   private baseActorY = -2;
+  private appearanceColor: number;
+  private appearanceOccupation: string | undefined;
   private facing: FacingDirection = 'down';
   private walkPhase = false;
   private strideAccumulator = 0;
@@ -43,6 +45,8 @@ export class AgentSprite extends Phaser.GameObjects.Container {
     this.currentTile = { ...data.tilePosition };
     this.speedPxPerSecond = DEFAULT_AGENT_SPEED * TILE_SIZE;
     this.currentState = data.state;
+    this.appearanceColor = data.color;
+    this.appearanceOccupation = data.occupation;
     this.idlePhaseSeed = hashToUnit(data.id + (data.occupation ?? '')) * Math.PI * 2;
     this.idleMotion = idleMotionConfigForOccupation(data.occupation);
 
@@ -86,6 +90,8 @@ export class AgentSprite extends Phaser.GameObjects.Container {
   }
 
   applyServerState(data: AgentData): void {
+    this.refreshAppearanceIfNeeded(data);
+
     const dx = data.position.x - this.x;
     const dy = data.position.y - this.y;
 
@@ -197,6 +203,26 @@ export class AgentSprite extends Phaser.GameObjects.Container {
 
     this.actorSprite.y = this.baseActorY;
     this.shadow.alpha = 0.28;
+  }
+
+  private refreshAppearanceIfNeeded(data: AgentData): void {
+    const nextOccupation = data.occupation ?? undefined;
+    if (this.appearanceColor === data.color && this.appearanceOccupation === nextOccupation) {
+      return;
+    }
+
+    this.appearanceColor = data.color;
+    this.appearanceOccupation = nextOccupation;
+    this.idleMotion = idleMotionConfigForOccupation(nextOccupation);
+
+    const textureKey = spriteTextureKeyForAgent(this.agentId, data.color, nextOccupation);
+    ensureAgentSpriteSheet(
+      this.scene,
+      textureKey,
+      deriveAgentPalette(data.color, this.agentId, nextOccupation),
+      resolveOccupationSpriteTraits(nextOccupation, this.agentId),
+    );
+    this.actorSprite.setTexture(textureKey, this.actorSprite.frame.name);
   }
 }
 

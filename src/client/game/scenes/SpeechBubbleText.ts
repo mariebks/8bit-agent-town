@@ -27,6 +27,15 @@ export function formatSpeechBubbleText(
     };
   }
 
+  if (expanded) {
+    const expandedSlice = normalized.slice(0, Math.max(1, expandedMaxChars - 1)).trimEnd();
+    return {
+      body: `${expandedSlice}…`,
+      hint: null,
+      truncated: true,
+    };
+  }
+
   const sliced = normalized.slice(0, Math.max(1, maxChars - 1)).trimEnd();
   return {
     body: `${sliced}…`,
