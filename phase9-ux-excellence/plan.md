@@ -100,3 +100,4 @@ Ship eight UX upgrades that make the town readable, cinematic, and fun to observ
 - [x] 13. Compact weather status HUD tied to live topic/mood signals.
 - [x] 14. Post-review hardening: game-minute Highlights Reel window, always-fresh relationship trend sampling, and neutral-topic weather bias fix.
 - [x] 15. Sprite readability upgrade: deterministic body silhouettes and outfit pattern variation tied to identity traits.
+- [x] 16. Focus UI mode: one-click declutter toggle that hides secondary spectator panels for cleaner viewing.

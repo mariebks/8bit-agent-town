@@ -633,6 +633,13 @@ body[data-ui-density='compact'] .highlights-list {
   font-size: 8px;
 }
 
+body[data-focus-ui='on'] .onboarding-panel,
+body[data-focus-ui='on'] .story-digest-bar,
+body[data-focus-ui='on'] .weather-status-panel,
+body[data-focus-ui='on'] .highlights-reel-panel {
+  display: none !important;
+}
+
 @media (max-width: 900px) {
   .log-panel,
   .timeline-panel {

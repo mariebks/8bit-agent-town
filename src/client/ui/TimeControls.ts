@@ -8,12 +8,14 @@ interface TimeControlsOptions {
   onToggleAutoDirector?: () => boolean;
   onToggleAudio?: () => boolean | Promise<boolean>;
   onToggleHeatmap?: () => boolean;
+  onToggleFocusUi?: () => boolean;
   onAddBookmark?: () => string | null;
   onJumpToBookmark?: () => string | null;
   getFollowSelectedEnabled?: () => boolean;
   getAutoDirectorEnabled?: () => boolean;
   getAudioEnabled?: () => boolean;
   getHeatmapVisible?: () => boolean;
+  getFocusUiEnabled?: () => boolean;
 }
 
 export class TimeControls implements UIPanel {
@@ -26,6 +28,7 @@ export class TimeControls implements UIPanel {
   private readonly directorButton: HTMLButtonElement | null;
   private readonly audioButton: HTMLButtonElement | null;
   private readonly heatmapButton: HTMLButtonElement | null;
+  private readonly focusUiButton: HTMLButtonElement | null;
   private readonly options: TimeControlsOptions;
 
   constructor(options: TimeControlsOptions) {
@@ -114,6 +117,16 @@ export class TimeControls implements UIPanel {
       this.heatmapButton = null;
     }
 
+    if (options.onToggleFocusUi) {
+      this.focusUiButton = this.createButton('Focus UI: Off', () => {
+        const enabled = options.onToggleFocusUi?.() ?? false;
+        this.updateFocusUiLabel(enabled);
+      });
+      focusRow.append(this.focusUiButton);
+    } else {
+      this.focusUiButton = null;
+    }
+
     if (options.onAddBookmark) {
       const bookmarkButton = this.createButton('Bookmark Agent', () => {
         const bookmarked = options.onAddBookmark?.();
@@ -138,6 +151,7 @@ export class TimeControls implements UIPanel {
     this.updateDirectorLabel(options.getAutoDirectorEnabled?.() ?? true);
     this.updateAudioLabel(options.getAudioEnabled?.() ?? false);
     this.updateHeatmapLabel(options.getHeatmapVisible?.() ?? false);
+    this.updateFocusUiLabel(options.getFocusUiEnabled?.() ?? false);
   }
 
   show(): void {
@@ -153,6 +167,7 @@ export class TimeControls implements UIPanel {
     this.updateDirectorLabel(this.options.getAutoDirectorEnabled?.() ?? true);
     this.updateAudioLabel(this.options.getAudioEnabled?.() ?? false);
     this.updateHeatmapLabel(this.options.getHeatmapVisible?.() ?? false);
+    this.updateFocusUiLabel(this.options.getFocusUiEnabled?.() ?? false);
     const time = state.gameTime
       ? `Day ${state.gameTime.day} ${String(state.gameTime.hour).padStart(2, '0')}:${String(state.gameTime.minute).padStart(2, '0')}`
       : 'No server time';
@@ -199,5 +214,12 @@ export class TimeControls implements UIPanel {
       return;
     }
     this.heatmapButton.textContent = `Heatmap: ${visible ? 'On' : 'Off'}`;
+  }
+
+  private updateFocusUiLabel(enabled: boolean): void {
+    if (!this.focusUiButton) {
+      return;
+    }
+    this.focusUiButton.textContent = `Focus UI: ${enabled ? 'On' : 'Off'}`;
   }
 }

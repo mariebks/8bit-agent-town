@@ -18,6 +18,7 @@ import { TimelinePanel } from './ui/TimelinePanel';
 import { UIEventBus } from './ui/UIEventBus';
 import { UIManager } from './ui/UIManager';
 import { WeatherStatusPanel } from './ui/WeatherStatusPanel';
+import { applyFocusUiDataset, loadFocusUiEnabled, storeFocusUiEnabled } from './ui/FocusUi';
 import { resolveModeShortcut, resolveOverlayShortcut, resolvePanelShortcut } from './ui/KeyboardShortcuts';
 import { TimeControls } from './ui/TimeControls';
 import { UISimulationState } from './ui/types';
@@ -70,6 +71,9 @@ const uiState: UISimulationState = {
   audioEnabled: false,
   lastJumpedAgentId: null,
 };
+
+let focusUiEnabled = loadFocusUiEnabled(typeof window !== 'undefined' ? window.localStorage : null);
+applyFocusUiDataset(focusUiEnabled, typeof document !== 'undefined' ? document.body.dataset : undefined);
 
 if (typeof window !== 'undefined') {
   audioController.bindUnlockGestures(window);
@@ -150,6 +154,12 @@ const timeControls = new TimeControls({
   onToggleAutoDirector: () => getTownScene()?.toggleAutoDirector() ?? false,
   onToggleAudio: () => audioController.toggleEnabled(),
   onToggleHeatmap: () => uiManager.togglePanel('relationship-heatmap-panel'),
+  onToggleFocusUi: () => {
+    focusUiEnabled = !focusUiEnabled;
+    applyFocusUiDataset(focusUiEnabled, typeof document !== 'undefined' ? document.body.dataset : undefined);
+    storeFocusUiEnabled(focusUiEnabled, typeof window !== 'undefined' ? window.localStorage : null);
+    return focusUiEnabled;
+  },
   onAddBookmark: () => {
     const bookmarked = getTownScene()?.addBookmarkForSelectedAgent() ?? null;
     if (bookmarked) {
@@ -176,6 +186,7 @@ const timeControls = new TimeControls({
   getAutoDirectorEnabled: () => getTownScene()?.isAutoDirectorEnabled() ?? false,
   getAudioEnabled: () => audioController.isEnabled(),
   getHeatmapVisible: () => uiManager.isPanelVisible('relationship-heatmap-panel'),
+  getFocusUiEnabled: () => focusUiEnabled,
   onJumpToInteresting: () => {
     const nextAgentId = timelinePanel.nextInterestingAgentId();
     if (!nextAgentId) {
