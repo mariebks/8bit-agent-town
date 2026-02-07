@@ -60,8 +60,12 @@ describe('AgentVisuals', () => {
 
     expect(farmer.headwear).toBe('wideHat');
     expect(farmer.accessory).toBe('apron');
+    expect(farmer.bodyType).toBe('broad');
     expect(librarian.accessory).toBe('robe');
+    expect(librarian.bodyType).toBe('slim');
     expect(guard.badge).toBe(true);
+    expect(['plain', 'stripe', 'trim']).toContain(unknownA.outfitPattern);
+    expect(['slim', 'balanced', 'broad']).toContain(unknownA.bodyType);
 
     expect(unknownA).toEqual(unknownARepeat);
     expect(unknownA).not.toEqual(unknownB);

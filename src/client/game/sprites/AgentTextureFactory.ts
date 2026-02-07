@@ -7,6 +7,8 @@ const DEFAULT_TRAITS: OccupationSpriteTraits = {
   headwear: 'none',
   accessory: 'none',
   hairStyle: 'short',
+  bodyType: 'balanced',
+  outfitPattern: 'plain',
   badge: false,
 };
 
@@ -84,6 +86,7 @@ function drawDownFrame(
   const rightArmY = stepping ? 7 : 8;
   const leftLegY = stepping ? 11 : 12;
   const rightLegY = stepping ? 12 : 11;
+  const body = resolveBodyMetrics(traits.bodyType);
 
   drawHairDown(context, offsetX, palette, traits.hairStyle);
   pixelRect(context, offsetX, palette.skin, 6, 3, 4, 3);
@@ -91,14 +94,14 @@ function drawDownFrame(
   pixelRect(context, offsetX, palette.outline, 8, 4, 1, 1);
   drawHeadwearDown(context, offsetX, palette, traits.headwear);
 
-  pixelRect(context, offsetX, palette.outfit, 5, 6, 6, 5);
-  pixelRect(context, offsetX, palette.accent, 5, 9, 6, 1);
-  pixelRect(context, offsetX, palette.outfitDark, 4, leftArmY, 1, 4);
-  pixelRect(context, offsetX, palette.outfitDark, 11, rightArmY, 1, 4);
+  pixelRect(context, offsetX, palette.outfit, body.torsoX, 6, body.torsoWidth, 5);
+  drawOutfitPatternDown(context, offsetX, palette, traits.outfitPattern, body.torsoX, body.torsoWidth);
+  pixelRect(context, offsetX, palette.outfitDark, body.leftArmX, leftArmY, 1, 4);
+  pixelRect(context, offsetX, palette.outfitDark, body.rightArmX, rightArmY, 1, 4);
 
   pixelRect(context, offsetX, palette.outfitDark, 6, leftLegY, 2, 3);
   pixelRect(context, offsetX, palette.outfitDark, 8, rightLegY, 2, 3);
-  pixelRect(context, offsetX, palette.outline, 5, 6, 6, 1);
+  pixelRect(context, offsetX, palette.outline, body.torsoX, 6, body.torsoWidth, 1);
   drawAccessoryDown(context, offsetX, palette, traits, stepping);
 }
 
@@ -112,17 +115,18 @@ function drawUpFrame(
   const armY = stepping ? 8 : 7;
   const leftLegY = stepping ? 12 : 11;
   const rightLegY = stepping ? 11 : 12;
+  const body = resolveBodyMetrics(traits.bodyType);
 
   drawHairUp(context, offsetX, palette, traits.hairStyle);
   drawHeadwearUp(context, offsetX, palette, traits.headwear);
   pixelRect(context, offsetX, palette.skin, 6, 4, 4, 2);
-  pixelRect(context, offsetX, palette.outfit, 5, 6, 6, 5);
-  pixelRect(context, offsetX, palette.outfitDark, 4, armY, 1, 4);
-  pixelRect(context, offsetX, palette.outfitDark, 11, armY, 1, 4);
-  pixelRect(context, offsetX, palette.accent, 5, 8, 6, 1);
+  pixelRect(context, offsetX, palette.outfit, body.torsoX, 6, body.torsoWidth, 5);
+  pixelRect(context, offsetX, palette.outfitDark, body.leftArmX, armY, 1, 4);
+  pixelRect(context, offsetX, palette.outfitDark, body.rightArmX, armY, 1, 4);
+  drawOutfitPatternUp(context, offsetX, palette, traits.outfitPattern, body.torsoX, body.torsoWidth);
   pixelRect(context, offsetX, palette.outfitDark, 6, leftLegY, 2, 3);
   pixelRect(context, offsetX, palette.outfitDark, 8, rightLegY, 2, 3);
-  pixelRect(context, offsetX, palette.outline, 5, 6, 6, 1);
+  pixelRect(context, offsetX, palette.outline, body.torsoX, 6, body.torsoWidth, 1);
   drawAccessoryUp(context, offsetX, palette, traits);
 }
 
@@ -137,18 +141,111 @@ function drawSideFrame(
   const leadLegY = stepping ? 11 : 12;
   const trailLegY = stepping ? 12 : 11;
   const armOffset = stepping ? 1 : 0;
+  const sideBody = resolveSideBodyMetrics(traits.bodyType);
 
   drawHairSide(context, offsetX, mirrored, palette, traits.hairStyle);
   drawHeadwearSide(context, offsetX, mirrored, palette, traits.headwear);
   mirroredRect(context, offsetX, mirrored, palette.skin, 7, 3, 3, 3);
   mirroredRect(context, offsetX, mirrored, palette.outline, 9, 4, 1, 1);
-  mirroredRect(context, offsetX, mirrored, palette.outfit, 6, 6, 5, 5);
-  mirroredRect(context, offsetX, mirrored, palette.outfitDark, 5, 7 + armOffset, 1, 4);
-  mirroredRect(context, offsetX, mirrored, palette.accent, 6, 8, 5, 1);
+  mirroredRect(context, offsetX, mirrored, palette.outfit, sideBody.torsoX, 6, sideBody.torsoWidth, 5);
+  mirroredRect(context, offsetX, mirrored, palette.outfitDark, sideBody.armX, 7 + armOffset, 1, 4);
+  drawOutfitPatternSide(context, offsetX, mirrored, palette, traits.outfitPattern, sideBody.torsoX, sideBody.torsoWidth);
   mirroredRect(context, offsetX, mirrored, palette.outfitDark, 7, leadLegY, 2, 3);
   mirroredRect(context, offsetX, mirrored, palette.outfitDark, 9, trailLegY, 1, 3);
-  mirroredRect(context, offsetX, mirrored, palette.outline, 6, 6, 5, 1);
+  mirroredRect(context, offsetX, mirrored, palette.outline, sideBody.torsoX, 6, sideBody.torsoWidth, 1);
   drawAccessorySide(context, offsetX, mirrored, palette, traits);
+}
+
+function drawOutfitPatternDown(
+  context: CanvasRenderingContext2D,
+  offsetX: number,
+  palette: AgentPalette,
+  pattern: OccupationSpriteTraits['outfitPattern'],
+  torsoX: number,
+  torsoWidth: number,
+): void {
+  if (pattern === 'plain') {
+    pixelRect(context, offsetX, palette.accent, torsoX, 9, torsoWidth, 1);
+    return;
+  }
+  if (pattern === 'stripe') {
+    const stripeX = torsoX + Math.floor(torsoWidth / 2);
+    pixelRect(context, offsetX, palette.accent, stripeX, 7, 1, 4);
+    return;
+  }
+  pixelRect(context, offsetX, palette.accent, torsoX, 7, torsoWidth, 1);
+  pixelRect(context, offsetX, palette.accent, torsoX, 10, torsoWidth, 1);
+}
+
+function drawOutfitPatternUp(
+  context: CanvasRenderingContext2D,
+  offsetX: number,
+  palette: AgentPalette,
+  pattern: OccupationSpriteTraits['outfitPattern'],
+  torsoX: number,
+  torsoWidth: number,
+): void {
+  if (pattern === 'plain') {
+    pixelRect(context, offsetX, palette.accent, torsoX, 8, torsoWidth, 1);
+    return;
+  }
+  if (pattern === 'stripe') {
+    const stripeX = torsoX + Math.floor(torsoWidth / 2);
+    pixelRect(context, offsetX, palette.accent, stripeX, 7, 1, 4);
+    return;
+  }
+  pixelRect(context, offsetX, palette.accent, torsoX, 7, torsoWidth, 1);
+  pixelRect(context, offsetX, palette.accent, torsoX, 9, torsoWidth, 1);
+}
+
+function drawOutfitPatternSide(
+  context: CanvasRenderingContext2D,
+  offsetX: number,
+  mirrored: boolean,
+  palette: AgentPalette,
+  pattern: OccupationSpriteTraits['outfitPattern'],
+  torsoX: number,
+  torsoWidth: number,
+): void {
+  if (pattern === 'plain') {
+    mirroredRect(context, offsetX, mirrored, palette.accent, torsoX, 8, torsoWidth, 1);
+    return;
+  }
+  if (pattern === 'stripe') {
+    mirroredRect(context, offsetX, mirrored, palette.accent, torsoX + 1, 7, 1, 4);
+    return;
+  }
+  mirroredRect(context, offsetX, mirrored, palette.accent, torsoX, 7, torsoWidth, 1);
+  mirroredRect(context, offsetX, mirrored, palette.accent, torsoX, 9, torsoWidth, 1);
+}
+
+function resolveBodyMetrics(bodyType: OccupationSpriteTraits['bodyType']): {
+  torsoX: number;
+  torsoWidth: number;
+  leftArmX: number;
+  rightArmX: number;
+} {
+  if (bodyType === 'slim') {
+    return { torsoX: 6, torsoWidth: 4, leftArmX: 5, rightArmX: 10 };
+  }
+  if (bodyType === 'broad') {
+    return { torsoX: 4, torsoWidth: 8, leftArmX: 3, rightArmX: 12 };
+  }
+  return { torsoX: 5, torsoWidth: 6, leftArmX: 4, rightArmX: 11 };
+}
+
+function resolveSideBodyMetrics(bodyType: OccupationSpriteTraits['bodyType']): {
+  torsoX: number;
+  torsoWidth: number;
+  armX: number;
+} {
+  if (bodyType === 'slim') {
+    return { torsoX: 7, torsoWidth: 4, armX: 6 };
+  }
+  if (bodyType === 'broad') {
+    return { torsoX: 5, torsoWidth: 6, armX: 4 };
+  }
+  return { torsoX: 6, torsoWidth: 5, armX: 5 };
 }
 
 function drawHairDown(
