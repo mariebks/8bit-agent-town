@@ -109,3 +109,4 @@ Ship eight UX upgrades that make the town readable, cinematic, and fun to observ
 - [x] 22. Conversation rewrite variety: intent-aware anti-repetition fallback lines to keep dialogue quality engaging.
 - [x] 23. Story Digest declutter: dedupe near-identical headlines so top moments stay diverse and readable.
 - [x] 24. Director bookmark persistence: keep bookmark sets across refresh and prune stale agents after sync.
+- [x] 25. Client startup perf: split Phaser/vendor bundles to improve initial load profile.
