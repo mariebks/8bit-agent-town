@@ -1,5 +1,6 @@
 import { UIEventBus } from './UIEventBus';
 import { UIPanel, UISimulationState } from './types';
+import { DEFAULT_UI_DENSITY, UiDensity, loadStoredUiDensity, storeUiDensity } from './UiDensity';
 import { DEFAULT_UI_MODE, UiMode, loadStoredUiMode, storeUiMode } from './UiMode';
 
 interface PanelRegistration {
@@ -22,6 +23,7 @@ export class UIManager {
   private readonly eventBus: UIEventBus;
   private updatePass = 0;
   private mode: UiMode;
+  private density: UiDensity;
 
   constructor(eventBus: UIEventBus) {
     this.eventBus = eventBus;
@@ -31,7 +33,9 @@ export class UIManager {
     document.body.appendChild(this.container);
 
     this.mode = loadStoredUiMode(resolveStorage());
+    this.density = loadStoredUiDensity(resolveStorage());
     this.applyModeDataset();
+    this.applyDensityDataset();
   }
 
   registerPanel(panel: UIPanel, options: PanelRegistrationOptions = {}): void {
@@ -60,6 +64,10 @@ export class UIManager {
     return this.mode;
   }
 
+  getDensity(): UiDensity {
+    return this.density;
+  }
+
   setMode(mode: UiMode): void {
     if (this.mode === mode) {
       return;
@@ -74,6 +82,17 @@ export class UIManager {
     }
 
     this.eventBus.emit('ui:modeChanged', mode);
+  }
+
+  setDensity(density: UiDensity): void {
+    if (this.density === density) {
+      return;
+    }
+
+    this.density = density;
+    this.applyDensityDataset();
+    storeUiDensity(density, resolveStorage());
+    this.eventBus.emit('ui:densityChanged', density);
   }
 
   updateAll(state: UISimulationState): void {
@@ -139,6 +158,10 @@ export class UIManager {
   private applyModeDataset(): void {
     document.body.dataset.uiMode = this.mode;
   }
+
+  private applyDensityDataset(): void {
+    document.body.dataset.uiDensity = this.density;
+  }
 }
 
 function normalizeStride(value: number | undefined): number {
@@ -165,4 +188,14 @@ export function normalizeUiMode(value: unknown): UiMode {
     return 'spectator';
   }
   return DEFAULT_UI_MODE;
+}
+
+export function normalizeUiDensity(value: unknown): UiDensity {
+  if (value === 'full' || value === 'compact') {
+    return value;
+  }
+  if (value === 'dense') {
+    return 'compact';
+  }
+  return DEFAULT_UI_DENSITY;
 }

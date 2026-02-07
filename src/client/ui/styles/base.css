@@ -110,6 +110,8 @@ body::before {
   right: 10px;
   top: 72px;
   width: min(28vw, 340px);
+  max-height: calc(100vh - 92px);
+  overflow: auto;
 }
 
 .inspector-content {
@@ -121,7 +123,7 @@ body::before {
 
 .time-controls {
   left: 50%;
-  top: 76px;
+  top: 96px;
   transform: translateX(-50%);
   width: min(36vw, 440px);
 }
@@ -185,6 +187,8 @@ body::before {
   right: 10px;
   top: 304px;
   width: min(30vw, 380px);
+  max-height: calc(100vh - 324px);
+  overflow: auto;
 }
 
 .prompt-viewer {
@@ -400,8 +404,10 @@ body::before {
 
 .relationship-heatmap-panel {
   right: 10px;
-  top: 470px;
+  bottom: 10px;
   width: min(28vw, 340px);
+  max-height: 32vh;
+  overflow: auto;
 }
 
 .heatmap-rows {
@@ -485,6 +491,87 @@ body[data-ui-mode='spectator'] .story-digest-bar {
   width: min(56vw, 760px);
 }
 
+body[data-ui-density='compact'] .ui-panel {
+  padding: 6px;
+  border-radius: 6px;
+}
+
+body[data-ui-density='compact'] .panel-header {
+  font-size: 10px;
+  margin-bottom: 4px;
+}
+
+body[data-ui-density='compact'] .panel-subheader {
+  font-size: 9px;
+}
+
+body[data-ui-density='compact'] .ui-btn,
+body[data-ui-density='compact'] .ui-input,
+body[data-ui-density='compact'] .ui-select {
+  font-size: 9px;
+  padding: 3px 6px;
+}
+
+body[data-ui-density='compact'] .time-controls-row {
+  gap: 4px;
+  margin-bottom: 4px;
+}
+
+body[data-ui-density='compact'] .mode-switcher-panel {
+  width: min(26vw, 320px);
+}
+
+body[data-ui-density='compact'] .time-controls {
+  top: 86px;
+  width: min(30vw, 360px);
+}
+
+body[data-ui-density='compact'] .inspector-panel,
+body[data-ui-density='compact'] .relationship-heatmap-panel {
+  width: min(24vw, 300px);
+}
+
+body[data-ui-density='compact'] .timeline-panel {
+  width: min(32vw, 440px);
+  max-height: 28vh;
+}
+
+body[data-ui-density='compact'] .timeline-list {
+  max-height: 19vh;
+  gap: 4px;
+}
+
+body[data-ui-density='compact'] .timeline-card {
+  padding: 5px;
+}
+
+body[data-ui-density='compact'] .timeline-headline {
+  font-size: 9px;
+}
+
+body[data-ui-density='compact'] .timeline-detail,
+body[data-ui-density='compact'] .digest-meta,
+body[data-ui-density='compact'] .panel-footer {
+  opacity: 0;
+  max-height: 0;
+  overflow: hidden;
+  margin-top: 0;
+  transition: opacity 120ms ease-out;
+}
+
+body[data-ui-density='compact'] .timeline-card:hover .timeline-detail,
+body[data-ui-density='compact'] .digest-row:hover .digest-meta,
+body[data-ui-density='compact'] .ui-panel:hover .panel-footer,
+body[data-ui-density='compact'] .ui-panel:focus-within .panel-footer {
+  opacity: 1;
+  max-height: 120px;
+  margin-top: 4px;
+}
+
+body[data-ui-density='compact'] .story-digest-bar {
+  width: min(44vw, 560px);
+}
+
 @media (max-width: 900px) {
   .log-panel,
   .timeline-panel {
@@ -500,6 +587,19 @@ body[data-ui-mode='spectator'] .story-digest-bar {
     width: calc(50vw - 15px);
   }
 
+  .inspector-panel {
+    right: 10px;
+    top: auto;
+    bottom: 10px;
+    max-height: 34vh;
+  }
+
+  .relationship-heatmap-panel {
+    right: 10px;
+    bottom: calc(34vh + 22px);
+    max-height: 26vh;
+  }
+
   .story-digest-bar {
     width: calc(100vw - 20px);
     left: 10px;
@@ -509,5 +609,31 @@ body[data-ui-mode='spectator'] .story-digest-bar {
   .time-controls {
     left: 10px;
     transform: none;
+    top: 98px;
+  }
+}
+
+@media (max-height: 860px) {
+  .story-digest-bar {
+    max-height: 18vh;
+    overflow: hidden;
+  }
+
+  .time-controls {
+    top: 118px;
+  }
+
+  .timeline-panel {
+    max-height: 30vh;
+  }
+
+  .timeline-list {
+    max-height: 21vh;
+  }
+
+  .debug-panel {
+    top: auto;
+    bottom: 10px;
+    max-height: 34vh;
   }
 }

@@ -7,7 +7,7 @@ export type PanelShortcutTarget =
   | 'time-controls'
   | 'relationship-heatmap-panel';
 export type OverlayShortcutTarget = 'path-overlay' | 'perception-overlay';
-export type ModeShortcutTarget = 'cycle-ui-mode';
+export type ModeShortcutTarget = 'cycle-ui-mode' | 'cycle-ui-density';
 
 export interface ShortcutInput {
   key: string;
@@ -82,6 +82,9 @@ export function resolveModeShortcut(input: ShortcutInput): ModeShortcutTarget | 
 
   if (input.key.toLowerCase() === 'm') {
     return 'cycle-ui-mode';
+  }
+  if (input.key.toLowerCase() === 'n') {
+    return 'cycle-ui-density';
   }
   return null;
 }

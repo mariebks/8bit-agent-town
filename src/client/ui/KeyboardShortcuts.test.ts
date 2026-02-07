@@ -32,6 +32,7 @@ describe('KeyboardShortcuts', () => {
 
   test('maps ui mode cycle shortcut', () => {
     expect(resolveModeShortcut({ key: 'm' })).toBe('cycle-ui-mode');
+    expect(resolveModeShortcut({ key: 'n' })).toBe('cycle-ui-density');
     expect(resolveModeShortcut({ key: 'm', ctrlKey: true })).toBeNull();
   });
 });

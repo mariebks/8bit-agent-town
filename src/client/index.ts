@@ -19,6 +19,7 @@ import { UIManager } from './ui/UIManager';
 import { resolveModeShortcut, resolveOverlayShortcut, resolvePanelShortcut } from './ui/KeyboardShortcuts';
 import { TimeControls } from './ui/TimeControls';
 import { UISimulationState } from './ui/types';
+import { nextUiDensity } from './ui/UiDensity';
 import { nextUiMode } from './ui/UiMode';
 import './ui/styles/base.css';
 
@@ -59,6 +60,7 @@ const uiState: UISimulationState = {
   agents: [],
   events: [],
   uiMode: uiManager.getMode(),
+  uiDensity: uiManager.getDensity(),
   selectedAgentId: null,
   manualSelectionMade: false,
   followSelected: false,
@@ -128,6 +130,12 @@ const onboardingPanel = new OnboardingPanel({
     followEnabled: Boolean(uiState.followSelected),
     jumpedToEvent: Boolean(uiState.lastJumpedAgentId),
   }),
+  getDensity: () => uiManager.getDensity(),
+  onToggleDensity: () => {
+    const density = nextUiDensity(uiManager.getDensity());
+    uiManager.setDensity(density);
+    return density;
+  },
   onResetProgress: () => {
     uiState.lastJumpedAgentId = null;
   },
@@ -157,8 +165,12 @@ const timeControls = new TimeControls({
 });
 const modeSwitcherPanel = new ModeSwitcherPanel({
   getMode: () => uiManager.getMode(),
+  getDensity: () => uiManager.getDensity(),
   onModeChange: (mode) => {
     uiManager.setMode(mode);
+  },
+  onDensityChange: (density) => {
+    uiManager.setDensity(density);
   },
 });
 
@@ -245,6 +257,18 @@ uiEventBus.on('ui:modeChanged', (mode) => {
   ];
 });
 
+uiEventBus.on('ui:densityChanged', (density) => {
+  uiState.uiDensity = density as UISimulationState['uiDensity'];
+  uiState.events = [
+    ...uiState.events,
+    {
+      type: 'log',
+      level: 'info',
+      message: `ui density: ${uiState.uiDensity}`,
+    },
+  ];
+});
+
 simulationSocket.onSnapshot((event) => {
   applyServerEvent(event);
   const scene = getTownScene();
@@ -288,6 +312,11 @@ window.addEventListener('keydown', (event: KeyboardEvent) => {
   event.preventDefault();
   if (modeShortcut === 'cycle-ui-mode') {
     uiManager.setMode(nextUiMode(uiManager.getMode()));
+    return;
+  }
+
+  if (modeShortcut === 'cycle-ui-density') {
+    uiManager.setDensity(nextUiDensity(uiManager.getDensity()));
     return;
   }
 

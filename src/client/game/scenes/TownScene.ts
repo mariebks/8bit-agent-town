@@ -8,6 +8,8 @@ import { AgentSprite } from '../sprites/AgentSprite';
 import { inferConversationTags } from './ConversationTags';
 import { dequeueDirectorCue, DirectorCue, enqueueDirectorCue as pushDirectorCue } from './DirectorQueue';
 import { enqueueSpeech } from './SpeechQueue';
+import { layoutSpeechBubbleOffsets } from './SpeechBubbleLayout';
+import { formatSpeechBubbleText } from './SpeechBubbleText';
 import { classifyAgentLod, movementUpdateInterval, shouldRenderBubble } from './CullingMath';
 import { overlayQualityProfileForFps } from './OverlayQuality';
 
@@ -19,6 +21,14 @@ export interface DebugOverlayState {
   updateStride: number;
   pathSampleStep: number;
   perceptionSuppressed: boolean;
+}
+
+interface SpeechBubbleState {
+  container: Phaser.GameObjects.Container;
+  remainingMs: number;
+  width: number;
+  height: number;
+  preferredOffsetY: number;
 }
 
 export class TownScene extends Phaser.Scene {
@@ -49,7 +59,7 @@ export class TownScene extends Phaser.Scene {
   private serverSelectionInitialized = false;
   private serverGameTime: GameTime | null = null;
   private manualSelectionMade = false;
-  private readonly speechBubbles = new Map<string, { container: Phaser.GameObjects.Container; remainingMs: number }>();
+  private readonly speechBubbles = new Map<string, SpeechBubbleState>();
   private readonly pendingSpeechByAgent = new Map<string, Array<{ message: string; durationMs: number }>>();
   private frameCounter = 0;
   private pathOverlayEnabled = true;
@@ -667,6 +677,16 @@ export class TownScene extends Phaser.Scene {
 
   private updateSpeechBubbles(deltaMs: number): void {
     const cameraCenter = this.getCameraCenter();
+    const layoutEntries: Array<{
+      agentId: string;
+      x: number;
+      y: number;
+      container: Phaser.GameObjects.Container;
+      width: number;
+      height: number;
+      preferredOffsetY: number;
+      selected: boolean;
+    }> = [];
 
     for (const [agentId, bubble] of this.speechBubbles.entries()) {
       const sprite = this.agentsById.get(agentId);
@@ -676,10 +696,21 @@ export class TownScene extends Phaser.Scene {
         continue;
       }
 
-      bubble.container.setPosition(sprite.x, sprite.y - 14);
       const selected = this.selectedAgent?.agentId === sprite.agentId;
       const bubbleVisible = selected || (sprite.visible && shouldRenderBubble(sprite.x, sprite.y, cameraCenter.x, cameraCenter.y));
       bubble.container.setVisible(bubbleVisible);
+      if (bubbleVisible) {
+        layoutEntries.push({
+          agentId,
+          x: sprite.x,
+          y: sprite.y,
+          container: bubble.container,
+          width: bubble.width,
+          height: bubble.height,
+          preferredOffsetY: bubble.preferredOffsetY,
+          selected,
+        });
+      }
 
       bubble.remainingMs -= deltaMs;
       if (bubble.remainingMs <= 0) {
@@ -703,6 +734,11 @@ export class TownScene extends Phaser.Scene {
         this.pendingSpeechByAgent.delete(agentId);
       }
     }
+
+    const offsets = layoutSpeechBubbleOffsets(layoutEntries, { minGapPx: 6, maxLiftPx: 52 });
+    for (const entry of layoutEntries) {
+      entry.container.setPosition(entry.x, entry.y + (offsets.get(entry.agentId) ?? entry.preferredOffsetY));
+    }
   }
 
   private showSpeechBubble(agentId: string, message: string, durationMs: number): void {
@@ -717,42 +753,68 @@ export class TownScene extends Phaser.Scene {
       this.speechBubbles.delete(agentId);
     }
 
-    const tags = inferConversationTags(message).map((tag) => `#${tag}`).join(' ');
+    const wrapWidth = Math.max(120, Math.min(180, Math.round(this.scale.width * 0.24)));
+    const maxTagCount = this.scale.width <= 900 ? 2 : 3;
+    const tags = inferConversationTags(message)
+      .slice(0, maxTagCount)
+      .map((tag) => `#${tag}`)
+      .join(' ');
+    const selected = this.selectedAgent?.agentId === agentId;
+    const formatted = formatSpeechBubbleText(message, 120, selected, 220);
     const headerText = this.add.text(0, 0, `${sprite.agentName} ${tags}`.trim(), {
       fontFamily: 'monospace',
       fontSize: '9px',
       color: '#12311d',
       align: 'center',
-      wordWrap: { width: 180, useAdvancedWrap: false },
+      wordWrap: { width: wrapWidth, useAdvancedWrap: false },
     });
     headerText.setOrigin(0.5);
 
-    const text = this.add.text(0, 0, message.slice(0, 120), {
+    const text = this.add.text(0, 0, formatted.body, {
       fontFamily: 'monospace',
       fontSize: '10px',
       color: '#04121f',
       align: 'center',
-      wordWrap: { width: 180, useAdvancedWrap: false },
+      wordWrap: { width: wrapWidth, useAdvancedWrap: false },
     });
     text.setOrigin(0.5);
 
+    const hintText = formatted.hint
+      ? this.add.text(0, 0, formatted.hint, {
+          fontFamily: 'monospace',
+          fontSize: '8px',
+          color: '#345043',
+          align: 'center',
+          wordWrap: { width: wrapWidth, useAdvancedWrap: false },
+        })
+      : null;
+    hintText?.setOrigin(0.5);
+
     const headerBounds = headerText.getBounds();
     const bounds = text.getBounds();
+    const hintBounds = hintText?.getBounds() ?? null;
     const padding = 4;
-    const width = Math.max(headerBounds.width, bounds.width) + padding * 2;
-    const height = headerBounds.height + bounds.height + padding * 3;
+    const width = Math.max(headerBounds.width, bounds.width, hintBounds?.width ?? 0) + padding * 2;
+    const height = headerBounds.height + bounds.height + (hintBounds?.height ?? 0) + padding * (hintBounds ? 4 : 3);
     const bubble = this.add.rectangle(0, 0, width, height, 0xf8fafc, 0.92);
     bubble.setStrokeStyle(1, 0x0f172a, 0.55);
     bubble.setOrigin(0.5);
     headerText.setY(-height / 2 + headerBounds.height / 2 + padding);
-    text.setY(headerText.y + headerBounds.height / 2 + bounds.height / 2 + padding);
+    text.setY(headerText.y + headerBounds.height / 2 + bounds.height / 2 + padding + (hintBounds ? 1 : 0));
+    if (hintText) {
+      hintText.setY(text.y + bounds.height / 2 + hintBounds!.height / 2 + 2);
+    }
 
-    const container = this.add.container(sprite.x, sprite.y - 16, [bubble, headerText, text]);
+    const children: Phaser.GameObjects.GameObject[] = hintText ? [bubble, headerText, text, hintText] : [bubble, headerText, text];
+    const container = this.add.container(sprite.x, sprite.y - 16, children);
     container.setDepth(1100);
 
     this.speechBubbles.set(agentId, {
       container,
       remainingMs: durationMs,
+      width,
+      height,
+      preferredOffsetY: -16,
     });
   }
 

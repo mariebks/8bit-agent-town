@@ -1,4 +1,5 @@
 import { UIPanel, UISimulationState } from './types';
+import { UiDensity } from './UiDensity';
 
 const ONBOARDING_STORAGE_KEY = 'agent-town.ui.onboarding.dismissed';
 const ONBOARDING_PROGRESS_STORAGE_KEY = 'agent-town.ui.onboarding.progress';
@@ -12,6 +13,8 @@ export interface OnboardingProgress {
 interface OnboardingPanelOptions {
   getProgress?: () => OnboardingProgress;
   onResetProgress?: () => void;
+  getDensity?: () => UiDensity;
+  onToggleDensity?: () => UiDensity;
 }
 
 export class OnboardingPanel implements UIPanel {
@@ -69,6 +72,18 @@ export class OnboardingPanel implements UIPanel {
 
     actions.append(dismissButton, resetButton);
 
+    if (options.onToggleDensity) {
+      const densityButton = document.createElement('button');
+      densityButton.type = 'button';
+      densityButton.className = 'ui-btn ui-btn-ghost';
+      densityButton.textContent = options.getDensity?.() === 'compact' ? 'Use Full UI' : 'Use Compact UI';
+      densityButton.addEventListener('click', () => {
+        const nextDensity = options.onToggleDensity?.();
+        densityButton.textContent = nextDensity === 'compact' ? 'Use Full UI' : 'Use Compact UI';
+      });
+      actions.append(densityButton);
+    }
+
     this.statusElement = document.createElement('div');
     this.statusElement.className = 'panel-footer';
 
@@ -107,7 +122,11 @@ export class OnboardingPanel implements UIPanel {
     }
 
     this.statusElement.textContent = state.connected
-      ? 'Complete all 3 steps to auto-dismiss this guide.'
+      ? `Complete all 3 steps to auto-dismiss this guide. Tip: ${
+          this.options.getDensity?.() === 'compact'
+            ? 'switch to Full UI in View Mode if you want more detail.'
+            : 'switch to Compact UI in View Mode if overlays feel crowded.'
+        }`
       : 'Waiting for simulation server...';
   }
 

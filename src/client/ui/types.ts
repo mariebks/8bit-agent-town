@@ -1,4 +1,5 @@
 import { AgentData, GameTime, SimulationMetrics } from '@shared/Types';
+import { UiDensity } from './UiDensity';
 import { UiMode } from './UiMode';
 
 export interface UISimulationState {
@@ -9,6 +10,7 @@ export interface UISimulationState {
   agents: AgentData[];
   events: unknown[];
   uiMode: UiMode;
+  uiDensity: UiDensity;
   selectedAgentId?: string | null;
   manualSelectionMade?: boolean;
   followSelected?: boolean;

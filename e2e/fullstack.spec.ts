@@ -29,8 +29,9 @@ async function waitForTownScene(page: import('@playwright/test').Page): Promise<
 }
 
 async function setUiMode(page: import('@playwright/test').Page, label: 'Spectator' | 'Story' | 'Debug'): Promise<void> {
-  await page.locator('.mode-switcher-panel .ui-btn', { hasText: label }).click();
-  await expect(page.locator('.mode-switcher-panel .ui-btn.active')).toContainText(label);
+  const modeButton = page.locator('.mode-switcher-panel .ui-btn', { hasText: label });
+  await modeButton.click();
+  await expect(modeButton).toHaveClass(/active/);
 }
 
 async function getSelectedAgentId(page: import('@playwright/test').Page): Promise<string | null> {
@@ -349,7 +350,7 @@ test.describe('8-bit Agent Town fullstack', () => {
     await page.reload();
     await waitForTownScene(page);
 
-    await expect(page.locator('.mode-switcher-panel .ui-btn.active')).toContainText('Story');
+    await expect(page.locator('.mode-switcher-panel .ui-btn', { hasText: 'Story' })).toHaveClass(/active/);
     await expect(page.locator('.timeline-panel')).toBeVisible();
     await expect
       .poll(

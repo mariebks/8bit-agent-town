@@ -23,14 +23,14 @@ Improve legibility and charm so the simulation feels closer to a polished retro 
 - [ ] Validate FPS impact with stress profiles.
 
 4. Conversation readability
-- [ ] Add bubble collision avoidance priority for selected/inspected agents.
-- [ ] Improve bubble truncation + expansion affordance in story mode.
-- [ ] Ensure tags stay readable on mobile widths.
+- [x] Add bubble collision avoidance priority for selected/inspected agents.
+- [x] Improve bubble truncation + expansion affordance in story mode.
+- [x] Ensure tags stay readable on mobile widths.
 
 5. Layout declutter
-- [ ] Introduce compact panel preset with progressive disclosure.
-- [ ] Resolve panel overlap at common laptop resolutions.
-- [ ] Add onboarding hint to switch compact/full UI density.
+- [x] Introduce compact panel preset with progressive disclosure.
+- [x] Resolve panel overlap at common laptop resolutions.
+- [x] Add onboarding hint to switch compact/full UI density.
 
 ## Validation
 
