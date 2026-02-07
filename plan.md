@@ -299,6 +299,22 @@ score = 0.5 * recency + 0.3 * importance + 0.2 * relevance
 
 Each phase has a goal, a set of explicit tasks, and an end state. Do not move to the next phase until the end state is met.
 
+## Completion status (2026-02-07)
+
+- [x] Phase 1 complete (world rendering, movement, camera, pathfinding).
+- [x] Phase 2 complete (server authority, deterministic ticks, controls, socket sync).
+- [x] Phase 3 complete (Ollama integration, queueing, schema validation, fallback behavior).
+- [x] Phase 4 complete (memory stream, reflection, planning, pruning).
+- [x] Phase 5 complete (conversation flow, relationship updates, social memory propagation).
+- [x] Phase 6 complete (20+ agents, path cache + culling, stress harness and long-run artifacts).
+- [x] Phase 7 complete (UI panels, overlays, shortcuts, export, prompt/response tooling).
+
+Current verification baseline:
+- `npm run test -- --run` -> 100/100 tests passing.
+- `npm run build` -> passing.
+- `npm run test:e2e` -> passing.
+- `npm run test:e2e:fullstack` -> passing.
+
 ### Phase 1: World rendering and movement
 
 Goal: show the town and agents moving in a controllable camera without any server or AI dependencies.
