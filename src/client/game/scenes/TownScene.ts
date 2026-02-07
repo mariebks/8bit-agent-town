@@ -10,6 +10,7 @@ import { dequeueDirectorCue, DirectorCue, enqueueDirectorCue as pushDirectorCue 
 import { enqueueSpeech } from './SpeechQueue';
 import { layoutSpeechBubbleOffsets } from './SpeechBubbleLayout';
 import { formatSpeechBubbleText } from './SpeechBubbleText';
+import { resolveWeatherProfile, WeatherProfile } from './WeatherProfile';
 import { classifyAgentLod, movementUpdateInterval, shouldRenderBubble } from './CullingMath';
 import { overlayQualityProfileForFps } from './OverlayQuality';
 
@@ -43,10 +44,12 @@ export class TownScene extends Phaser.Scene {
   private blockedMarkerTimerMs = 0;
   private dayTintOverlay!: Phaser.GameObjects.Rectangle;
   private dayTintTimerMs = 0;
+  private rainUpdateTimerMs = 0;
   private landmarkGuideTimerMs = 0;
   private landmarkAccentPulseMs = 0;
   private routeGraphics!: Phaser.GameObjects.Graphics;
   private terrainVarianceGraphics!: Phaser.GameObjects.Graphics;
+  private rainGraphics!: Phaser.GameObjects.Graphics;
 
   private readonly agents: AgentSprite[] = [];
   private readonly agentsById = new Map<string, AgentSprite>();
@@ -62,6 +65,9 @@ export class TownScene extends Phaser.Scene {
   private serverConnected = false;
   private serverSelectionInitialized = false;
   private serverGameTime: GameTime | null = null;
+  private serverAverageMood: number | null = null;
+  private weatherProfile: WeatherProfile = resolveWeatherProfile(null, []);
+  private readonly recentTopicTrail: string[] = [];
   private manualSelectionMade = false;
   private readonly speechBubbles = new Map<string, SpeechBubbleState>();
   private readonly pendingSpeechByAgent = new Map<string, Array<{ message: string; durationMs: number }>>();
@@ -162,6 +168,7 @@ export class TownScene extends Phaser.Scene {
     this.updateAgentCullingAndMovement(delta);
     this.updateAmbientParticles(delta);
     this.updateDayTint(delta);
+    this.updateWeatherEffects(delta);
     this.updateLandmarkGuides(delta);
     this.updateDirectorCamera(delta);
 
@@ -188,6 +195,8 @@ export class TownScene extends Phaser.Scene {
   applyServerSnapshot(agents: AgentData[], gameTime: GameTime): void {
     this.serverAuthoritative = true;
     this.serverGameTime = gameTime;
+    this.serverAverageMood = computeAverageMood(agents);
+    this.weatherProfile = resolveWeatherProfile(this.serverAverageMood, this.recentTopicTrail);
     this.syncServerAgents(agents);
     this.updateInfoText();
   }
@@ -195,6 +204,8 @@ export class TownScene extends Phaser.Scene {
   applyServerDelta(agents: AgentData[], gameTime: GameTime): void {
     this.serverAuthoritative = true;
     this.serverGameTime = gameTime;
+    this.serverAverageMood = computeAverageMood(agents);
+    this.weatherProfile = resolveWeatherProfile(this.serverAverageMood, this.recentTopicTrail);
     this.syncServerAgents(agents);
     this.updateInfoText();
   }
@@ -314,6 +325,13 @@ export class TownScene extends Phaser.Scene {
       }
 
       if (typed.type === 'topicSpread' && typeof typed.targetId === 'string') {
+        if (typeof typed.topic === 'string') {
+          this.recentTopicTrail.push(typed.topic);
+          if (this.recentTopicTrail.length > 28) {
+            this.recentTopicTrail.splice(0, this.recentTopicTrail.length - 28);
+          }
+          this.weatherProfile = resolveWeatherProfile(this.serverAverageMood, this.recentTopicTrail);
+        }
         this.enqueueDirectorCue(typed.targetId, 'topic', 1);
       }
     }
@@ -407,6 +425,9 @@ export class TownScene extends Phaser.Scene {
     this.dayTintOverlay.setScrollFactor(0);
     this.dayTintOverlay.setDepth(980);
 
+    this.rainGraphics = this.add.graphics();
+    this.rainGraphics.setDepth(981);
+
     this.updateInfoText();
   }
 
@@ -496,12 +517,21 @@ export class TownScene extends Phaser.Scene {
   private updateAmbientParticles(deltaMs: number): void {
     const visible = this.uiMode === 'spectator';
     const dt = deltaMs / 1000;
+    const weatherColor =
+      this.weatherProfile.kind === 'storm'
+        ? 0xa5c1de
+        : this.weatherProfile.kind === 'drizzle'
+          ? 0xb9d0e6
+          : this.weatherProfile.kind === 'cloudy'
+            ? 0xd5dfd2
+            : 0xe6f7bc;
 
     for (const particle of this.ambientParticles) {
       particle.dot.setVisible(visible);
       if (!visible) {
         continue;
       }
+      particle.dot.setFillStyle(weatherColor, this.weatherProfile.kind === 'clear' ? 0.12 : 0.08);
 
       particle.dot.x += particle.vx * dt;
       particle.dot.y += particle.vy * dt;
@@ -529,26 +559,59 @@ export class TownScene extends Phaser.Scene {
 
     const time = this.serverGameTime;
     if (!time) {
-      this.dayTintOverlay.setFillStyle(0x1f2937, this.uiMode === 'spectator' ? 0.03 : 0);
+      this.dayTintOverlay.setFillStyle(0x1f2937, (this.uiMode === 'spectator' ? 0.03 : 0) + this.weatherProfile.tintAlphaBoost);
       return;
     }
 
+    let tintColor = 0xffffff;
+    let tintAlpha = 0;
     if (time.hour >= 6 && time.hour < 9) {
-      this.dayTintOverlay.setFillStyle(0xf59e0b, this.uiMode === 'spectator' ? 0.05 : 0.02);
+      tintColor = 0xf59e0b;
+      tintAlpha = this.uiMode === 'spectator' ? 0.05 : 0.02;
+    } else if (time.hour >= 9 && time.hour < 18) {
+      tintColor = 0xffffff;
+      tintAlpha = 0;
+    } else if (time.hour >= 18 && time.hour < 21) {
+      tintColor = 0xff8b3d;
+      tintAlpha = this.uiMode === 'spectator' ? 0.08 : 0.04;
+    } else {
+      tintColor = 0x0f172a;
+      tintAlpha = this.uiMode === 'spectator' ? 0.13 : 0.08;
+    }
+
+    if (this.weatherProfile.kind !== 'clear') {
+      tintColor = this.weatherProfile.tintColor;
+      tintAlpha += this.weatherProfile.tintAlphaBoost;
+    }
+    this.dayTintOverlay.setFillStyle(tintColor, Math.min(0.25, tintAlpha));
+  }
+
+  private updateWeatherEffects(deltaMs: number): void {
+    this.rainUpdateTimerMs += deltaMs;
+    if (this.rainUpdateTimerMs < 80) {
+      return;
+    }
+    this.rainUpdateTimerMs = 0;
+
+    this.rainGraphics.clear();
+    if (this.weatherProfile.rainIntensity <= 0) {
       return;
     }
 
-    if (time.hour >= 9 && time.hour < 18) {
-      this.dayTintOverlay.setFillStyle(0xffffff, 0);
-      return;
+    const camera = this.cameras.main;
+    const view = camera.worldView;
+    const drops = Math.round(38 * this.weatherProfile.rainIntensity);
+    const alpha = this.weatherProfile.kind === 'storm' ? 0.42 : 0.32;
+    this.rainGraphics.lineStyle(1, 0xb9d8f2, alpha);
+    for (let index = 0; index < drops; index += 1) {
+      const x = view.x + Math.random() * view.width;
+      const y = view.y + Math.random() * view.height;
+      const length = this.weatherProfile.kind === 'storm' ? 11 : 8;
+      this.rainGraphics.beginPath();
+      this.rainGraphics.moveTo(x, y);
+      this.rainGraphics.lineTo(x - 3, y + length);
+      this.rainGraphics.strokePath();
     }
-
-    if (time.hour >= 18 && time.hour < 21) {
-      this.dayTintOverlay.setFillStyle(0xff8b3d, this.uiMode === 'spectator' ? 0.08 : 0.04);
-      return;
-    }
-
-    this.dayTintOverlay.setFillStyle(0x0f172a, this.uiMode === 'spectator' ? 0.13 : 0.08);
   }
 
   private updateLandmarkGuides(deltaMs: number): void {
@@ -1143,4 +1206,12 @@ function resolveLandmarkAccentAlpha(gameTime: GameTime | null): number {
   }
 
   return 0.04;
+}
+
+function computeAverageMood(agents: AgentData[]): number | null {
+  const moods = agents.map((agent) => agent.mood).filter((mood): mood is number => typeof mood === 'number');
+  if (moods.length === 0) {
+    return null;
+  }
+  return moods.reduce((sum, mood) => sum + mood, 0) / moods.length;
 }
