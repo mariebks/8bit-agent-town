@@ -302,6 +302,23 @@ test.describe('8-bit Agent Town fullstack', () => {
     await page.keyboard.press('d');
     await page.keyboard.press('d');
 
+    const promptStatus = promptPanel.locator('.panel-footer');
+    await promptPanel.getByRole('button', { name: 'Copy Prompt' }).click();
+    await expect
+      .poll(async () => ((await promptStatus.textContent()) ?? '').trim(), {
+        timeout: 3_000,
+        intervals: [100, 200, 400],
+      })
+      .not.toBe('');
+
+    await promptPanel.getByRole('button', { name: 'Copy Response' }).click();
+    await expect
+      .poll(async () => ((await promptStatus.textContent()) ?? '').trim(), {
+        timeout: 3_000,
+        intervals: [100, 200, 400],
+      })
+      .not.toBe('');
+
     const [download] = await Promise.all([
       page.waitForEvent('download'),
       logPanel.getByRole('button', { name: 'Export JSON' }).click(),

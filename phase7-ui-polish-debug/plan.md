@@ -23,6 +23,7 @@ Deliver an observer-friendly user interface with inspection tools and debugging 
 - [x] Verified pause/resume behavior against authoritative server time controls.
 - [x] Verified server-mode select/deselect behavior, including persistent background deselection.
 - [x] Verified keyboard toggles for panels/overlays and JSON log export flow.
+- [x] Added prompt/response copy actions with clipboard fallback and validated via full-stack E2E.
 
 ## Expert corrections (supersedes conflicting details below)
 
