@@ -1,6 +1,6 @@
 import { UIPanel, UISimulationState } from './types';
 import { buildAgentIdentityToken } from './AgentIdentity';
-import { DigestItem, extractDigestItems } from './StoryDigest';
+import { DigestItem, extractDigestItems, selectDigestHighlights } from './StoryDigest';
 
 const MAX_DIGEST_ITEMS = 3;
 const MAX_CACHE_ITEMS = 36;
@@ -64,14 +64,7 @@ export class StoryDigestPanel implements UIPanel {
       }
     }
 
-    const top = [...this.cached.values()]
-      .sort((left, right) => {
-        if (right.score !== left.score) {
-          return right.score - left.score;
-        }
-        return right.tickId - left.tickId;
-      })
-      .slice(0, MAX_DIGEST_ITEMS);
+    const top = selectDigestHighlights([...this.cached.values()], MAX_DIGEST_ITEMS);
 
     this.render(top, state);
     this.statusElement.textContent = top.length > 0 ? `top ${top.length} live moments` : 'watching for moments...';

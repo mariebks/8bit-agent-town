@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { AgentState } from '@shared/Types';
-import { extractDigestItems } from './StoryDigest';
+import { extractDigestItems, selectDigestHighlights } from './StoryDigest';
 
 describe('StoryDigest', () => {
   test('prioritizes high-signal story events over arrivals and system logs', () => {
@@ -38,5 +38,19 @@ describe('StoryDigest', () => {
     expect(items[0].kind).toBe('relationship');
     expect(items.find((item) => item.kind === 'system')).toBeDefined();
     expect(items.findIndex((item) => item.kind === 'system')).toBeGreaterThan(items.findIndex((item) => item.kind === 'arrival'));
+  });
+
+  test('deduplicates near-identical headlines when selecting top highlights', () => {
+    const selected = selectDigestHighlights(
+      [
+        { id: '1', headline: 'Alex and Blair grew closer', tickId: 100, kind: 'relationship', score: 10 },
+        { id: '2', headline: 'Alex & Blair grew closer', tickId: 101, kind: 'relationship', score: 10 },
+        { id: '3', headline: 'Casey spread harvest gossip', tickId: 102, kind: 'topic', score: 8 },
+      ],
+      3,
+    );
+
+    expect(selected).toHaveLength(2);
+    expect(selected.map((item) => item.id)).toEqual(['2', '3']);
   });
 });

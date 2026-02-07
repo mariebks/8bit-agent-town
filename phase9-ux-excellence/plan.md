@@ -107,3 +107,4 @@ Ship eight UX upgrades that make the town readable, cinematic, and fun to observ
 - [x] 20. Persistent selected-agent restore: preserve preferred agent selection across refreshes and server sync churn.
 - [x] 21. Agent Finder relevance upgrade: typo-tolerant and token-aware ranking for faster camera jumps.
 - [x] 22. Conversation rewrite variety: intent-aware anti-repetition fallback lines to keep dialogue quality engaging.
+- [x] 23. Story Digest declutter: dedupe near-identical headlines so top moments stay diverse and readable.
