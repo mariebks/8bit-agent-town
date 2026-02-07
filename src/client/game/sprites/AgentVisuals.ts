@@ -36,10 +36,10 @@ export function frameIndexFor(direction: FacingDirection, stepping: boolean): nu
   return stepping ? frames.step : frames.idle;
 }
 
-export function deriveAgentPalette(baseColor: number, agentId: string): AgentPalette {
-  const seed = hashString(`${agentId}:${baseColor.toString(16)}`);
+export function deriveAgentPalette(baseColor: number, agentId: string, occupation?: string): AgentPalette {
+  const seed = hashString(`${agentId}:${baseColor.toString(16)}:${occupation ?? ''}`);
   const skin = SKIN_TONES[seed % SKIN_TONES.length];
-  const hair = HAIR_TONES[(seed >> 3) % HAIR_TONES.length];
+  const hair = HAIR_TONES[(seed >>> 3) % HAIR_TONES.length];
   const outfit = mix(baseColor, 0x2f473b, 0.14);
   const outfitDark = shade(outfit, 0.66);
   const accent = mix(baseColor, 0xd6f0ad, 0.32);
@@ -54,8 +54,8 @@ export function deriveAgentPalette(baseColor: number, agentId: string): AgentPal
   };
 }
 
-export function spriteTextureKeyForAgent(agentId: string, baseColor: number): string {
-  const seed = hashString(`${agentId}:${baseColor.toString(16)}`);
+export function spriteTextureKeyForAgent(agentId: string, baseColor: number, occupation?: string): string {
+  const seed = hashString(`${agentId}:${baseColor.toString(16)}:${occupation ?? ''}`);
   return `agent-sprite-${seed.toString(36)}`;
 }
 

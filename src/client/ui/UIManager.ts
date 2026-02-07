@@ -13,7 +13,7 @@ export interface PanelRegistrationOptions {
   updateEvery?: Partial<Record<UiMode, number>>;
 }
 
-const ALL_MODES: UiMode[] = ['cinematic', 'story', 'debug'];
+const ALL_MODES: UiMode[] = ['spectator', 'story', 'debug'];
 
 export class UIManager {
   private readonly panels = new Map<string, PanelRegistration>();
@@ -37,7 +37,7 @@ export class UIManager {
   registerPanel(panel: UIPanel, options: PanelRegistrationOptions = {}): void {
     const visibleIn = new Set(options.visibleIn && options.visibleIn.length > 0 ? options.visibleIn : ALL_MODES);
     const updateEvery: Record<UiMode, number> = {
-      cinematic: normalizeStride(options.updateEvery?.cinematic),
+      spectator: normalizeStride(options.updateEvery?.spectator),
       story: normalizeStride(options.updateEvery?.story),
       debug: normalizeStride(options.updateEvery?.debug),
     };
@@ -158,8 +158,11 @@ function resolveStorage(): Storage | null {
 }
 
 export function normalizeUiMode(value: unknown): UiMode {
-  if (value === 'story' || value === 'debug') {
+  if (value === 'story' || value === 'debug' || value === 'spectator') {
     return value;
+  }
+  if (value === 'cinematic') {
+    return 'spectator';
   }
   return DEFAULT_UI_MODE;
 }

@@ -1,13 +1,18 @@
-export type UiMode = 'cinematic' | 'story' | 'debug';
+export type UiMode = 'spectator' | 'story' | 'debug';
 
 export const UI_MODE_STORAGE_KEY = 'agent-town.ui.mode';
-export const DEFAULT_UI_MODE: UiMode = 'cinematic';
+export const DEFAULT_UI_MODE: UiMode = 'spectator';
 
-const VALID_UI_MODES: UiMode[] = ['cinematic', 'story', 'debug'];
+const VALID_UI_MODES: UiMode[] = ['spectator', 'story', 'debug'];
 
 export function parseUiMode(candidate: unknown, fallback: UiMode = DEFAULT_UI_MODE): UiMode {
   if (typeof candidate !== 'string') {
     return fallback;
+  }
+
+  // Backward compatibility for older saved mode values.
+  if (candidate === 'cinematic') {
+    return 'spectator';
   }
 
   return VALID_UI_MODES.includes(candidate as UiMode) ? (candidate as UiMode) : fallback;

@@ -1,4 +1,5 @@
 import { AgentData } from '@shared/Types';
+import { buildAgentIdentityToken } from './AgentIdentity';
 import { UIPanel, UISimulationState } from './types';
 
 interface InspectorOptions {
@@ -10,6 +11,7 @@ function formatAgent(agent: AgentData): string {
 
   return [
     `name: ${agent.name}`,
+    `occupation: ${agent.occupation ?? 'Townsperson'}`,
     `state: ${agent.state}`,
     `tile: ${agent.tilePosition.tileX},${agent.tilePosition.tileY}`,
     `action: ${agent.currentAction ?? 'n/a'}`,
@@ -27,6 +29,7 @@ export class InspectorPanel implements UIPanel {
   readonly element: HTMLElement;
 
   private readonly contentElement: HTMLElement;
+  private readonly identityElement: HTMLElement;
   private readonly getSelectedAgentId: () => string | null;
 
   constructor(options: InspectorOptions) {
@@ -39,10 +42,13 @@ export class InspectorPanel implements UIPanel {
     header.className = 'panel-header';
     header.textContent = 'Inspector';
 
+    this.identityElement = document.createElement('div');
+    this.identityElement.className = 'inspector-identity';
+
     this.contentElement = document.createElement('pre');
     this.contentElement.className = 'inspector-content';
 
-    this.element.append(header, this.contentElement);
+    this.element.append(header, this.identityElement, this.contentElement);
   }
 
   show(): void {
@@ -63,9 +69,23 @@ export class InspectorPanel implements UIPanel {
     const agent = state.agents.find((candidate) => candidate.id === selectedAgentId);
     if (!agent) {
       this.contentElement.textContent = `Agent ${selectedAgentId} not found in latest state`;
+      this.identityElement.innerHTML = '';
       return;
     }
 
+    const identity = buildAgentIdentityToken(agent);
+    this.identityElement.innerHTML = '';
+    const portrait = document.createElement('div');
+    portrait.className = 'identity-portrait';
+    portrait.textContent = identity.initials;
+    portrait.style.background = identity.gradient;
+    portrait.style.borderColor = identity.border;
+
+    const badge = document.createElement('div');
+    badge.className = 'identity-role-badge';
+    badge.textContent = identity.roleBadge;
+
+    this.identityElement.append(portrait, badge);
     this.contentElement.textContent = formatAgent(agent);
   }
 

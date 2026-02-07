@@ -22,21 +22,25 @@ describe('AgentVisuals', () => {
   });
 
   test('derives deterministic palette and texture key for each agent identity', () => {
-    const paletteA = deriveAgentPalette(0x55aa33, 'agent-a');
-    const paletteARepeat = deriveAgentPalette(0x55aa33, 'agent-a');
-    const paletteB = deriveAgentPalette(0x55aa33, 'agent-b');
+    const paletteA = deriveAgentPalette(0x55aa33, 'agent-a', 'Farmer');
+    const paletteARepeat = deriveAgentPalette(0x55aa33, 'agent-a', 'Farmer');
+    const paletteB = deriveAgentPalette(0x55aa33, 'agent-b', 'Farmer');
+    const paletteRoleVariant = deriveAgentPalette(0x55aa33, 'agent-a', 'Librarian');
 
     expect(paletteA).toEqual(paletteARepeat);
     expect(paletteA).not.toEqual(paletteB);
+    expect(paletteA).not.toEqual(paletteRoleVariant);
     for (const value of Object.values(paletteA)) {
       expect(value).toBeGreaterThanOrEqual(0);
       expect(value).toBeLessThanOrEqual(0xffffff);
     }
 
-    const keyA = spriteTextureKeyForAgent('agent-a', 0x55aa33);
-    const keyARepeat = spriteTextureKeyForAgent('agent-a', 0x55aa33);
-    const keyB = spriteTextureKeyForAgent('agent-b', 0x55aa33);
+    const keyA = spriteTextureKeyForAgent('agent-a', 0x55aa33, 'Farmer');
+    const keyARepeat = spriteTextureKeyForAgent('agent-a', 0x55aa33, 'Farmer');
+    const keyB = spriteTextureKeyForAgent('agent-b', 0x55aa33, 'Farmer');
+    const keyRoleVariant = spriteTextureKeyForAgent('agent-a', 0x55aa33, 'Librarian');
     expect(keyA).toBe(keyARepeat);
     expect(keyA).not.toBe(keyB);
+    expect(keyA).not.toBe(keyRoleVariant);
   });
 });

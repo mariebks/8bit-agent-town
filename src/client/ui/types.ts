@@ -9,6 +9,12 @@ export interface UISimulationState {
   agents: AgentData[];
   events: unknown[];
   uiMode: UiMode;
+  selectedAgentId?: string | null;
+  manualSelectionMade?: boolean;
+  followSelected?: boolean;
+  autoDirectorEnabled?: boolean;
+  audioEnabled?: boolean;
+  lastJumpedAgentId?: string | null;
 }
 
 export interface UIPanel {

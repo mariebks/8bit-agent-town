@@ -9,7 +9,8 @@ import {
 
 describe('UiMode', () => {
   test('parses known modes and falls back for invalid values', () => {
-    expect(parseUiMode('cinematic')).toBe('cinematic');
+    expect(parseUiMode('spectator')).toBe('spectator');
+    expect(parseUiMode('cinematic')).toBe('spectator');
     expect(parseUiMode('story')).toBe('story');
     expect(parseUiMode('debug')).toBe('debug');
     expect(parseUiMode('invalid')).toBe(DEFAULT_UI_MODE);
@@ -17,9 +18,9 @@ describe('UiMode', () => {
   });
 
   test('cycles through mode order', () => {
-    expect(nextUiMode('cinematic')).toBe('story');
+    expect(nextUiMode('spectator')).toBe('story');
     expect(nextUiMode('story')).toBe('debug');
-    expect(nextUiMode('debug')).toBe('cinematic');
+    expect(nextUiMode('debug')).toBe('spectator');
   });
 
   test('loads and stores mode via storage adapter', () => {

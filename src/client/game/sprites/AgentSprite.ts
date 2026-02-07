@@ -31,8 +31,8 @@ export class AgentSprite extends Phaser.GameObjects.Container {
     this.speedPxPerSecond = DEFAULT_AGENT_SPEED * TILE_SIZE;
     this.currentState = data.state;
 
-    const textureKey = spriteTextureKeyForAgent(data.id, data.color);
-    ensureAgentSpriteSheet(scene, textureKey, deriveAgentPalette(data.color, data.id));
+    const textureKey = spriteTextureKeyForAgent(data.id, data.color, data.occupation);
+    ensureAgentSpriteSheet(scene, textureKey, deriveAgentPalette(data.color, data.id, data.occupation));
 
     this.shadow = scene.add.ellipse(0, 5, 10, 4, 0x09111a, 0.28);
     this.selectionRing = scene.add.ellipse(0, 5, 15, 7, 0xb8f77b, 0.14);

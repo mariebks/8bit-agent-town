@@ -4,7 +4,8 @@ export type PanelShortcutTarget =
   | 'prompt-viewer'
   | 'log-panel'
   | 'timeline-panel'
-  | 'time-controls';
+  | 'time-controls'
+  | 'relationship-heatmap-panel';
 export type OverlayShortcutTarget = 'path-overlay' | 'perception-overlay';
 export type ModeShortcutTarget = 'cycle-ui-mode';
 
@@ -44,6 +45,9 @@ export function resolvePanelShortcut(input: ShortcutInput): PanelShortcutTarget 
   }
   if (key === 'c') {
     return 'time-controls';
+  }
+  if (key === 'h') {
+    return 'relationship-heatmap-panel';
   }
   return null;
 }

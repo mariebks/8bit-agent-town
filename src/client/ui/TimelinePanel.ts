@@ -1,4 +1,5 @@
 import { UIPanel, UISimulationState } from './types';
+import { buildAgentIdentityToken } from './AgentIdentity';
 import { TimelineEntry, extractTimelineEntries } from './TimelineEvents';
 
 const MAX_TIMELINE_ENTRIES = 120;
@@ -65,9 +66,9 @@ export class TimelinePanel implements UIPanel {
       }
     }
 
-    this.headerElement.textContent = state.uiMode === 'cinematic' ? 'Story Stream' : 'Timeline';
+    this.headerElement.textContent = state.uiMode === 'spectator' ? 'Story Stream' : 'Timeline';
     if (state.events.length > 0 || this.lastRenderedMode !== state.uiMode) {
-      this.render(state.uiMode);
+      this.render(state.uiMode, state);
       this.lastRenderedMode = state.uiMode;
     }
     this.footerElement.textContent = `events: ${this.entries.length} | tick: ${state.tickId} | mode: ${state.uiMode}`;
@@ -87,10 +88,10 @@ export class TimelinePanel implements UIPanel {
     return resolved;
   }
 
-  private render(mode: UISimulationState['uiMode']): void {
+  private render(mode: UISimulationState['uiMode'], state: UISimulationState): void {
     this.listElement.innerHTML = '';
-    const sourceEntries = mode === 'cinematic' ? this.entries.filter((entry) => entry.kind !== 'system') : this.entries;
-    const limit = mode === 'cinematic' ? 10 : mode === 'story' ? 14 : 18;
+    const sourceEntries = mode === 'spectator' ? this.entries.filter((entry) => entry.kind !== 'system') : this.entries;
+    const limit = mode === 'spectator' ? 10 : mode === 'story' ? 14 : 18;
     const recent = sourceEntries.slice(Math.max(0, sourceEntries.length - limit));
 
     for (const entry of recent) {
@@ -98,15 +99,37 @@ export class TimelinePanel implements UIPanel {
       item.className = `timeline-card timeline-${entry.kind}`;
       item.dataset.kind = entry.kind;
 
+      const frame = document.createElement('div');
+      frame.className = 'timeline-frame';
+
+      const portrait = document.createElement('div');
+      portrait.className = 'timeline-portrait';
+      const agent = entry.agentId ? state.agents.find((candidate) => candidate.id === entry.agentId) : null;
+      if (agent) {
+        const identity = buildAgentIdentityToken(agent);
+        portrait.textContent = identity.initials;
+        portrait.style.background = identity.gradient;
+        portrait.style.borderColor = identity.border;
+      } else {
+        portrait.textContent = '•';
+      }
+
+      const copy = document.createElement('div');
+      copy.className = 'timeline-copy';
+
       const title = document.createElement('div');
       title.className = 'timeline-headline';
       title.textContent = entry.headline;
 
       const detail = document.createElement('div');
       detail.className = 'timeline-detail';
-      detail.textContent = entry.detail ? `${entry.detail} | tick ${entry.tickId}` : `tick ${entry.tickId}`;
+      const roleBadge = agent?.occupation ? agent.occupation : null;
+      const detailBody = entry.detail ?? 'event';
+      detail.textContent = roleBadge ? `${detailBody} | ${roleBadge} | tick ${entry.tickId}` : `${detailBody} | tick ${entry.tickId}`;
 
-      item.append(title, detail);
+      copy.append(title, detail);
+      frame.append(portrait, copy);
+      item.append(frame);
       this.listElement.append(item);
     }
 

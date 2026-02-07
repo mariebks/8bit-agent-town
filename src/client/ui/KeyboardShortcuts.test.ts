@@ -9,6 +9,7 @@ describe('KeyboardShortcuts', () => {
     expect(resolvePanelShortcut({ key: 'l' })).toBe('log-panel');
     expect(resolvePanelShortcut({ key: 't' })).toBe('timeline-panel');
     expect(resolvePanelShortcut({ key: 'c' })).toBe('time-controls');
+    expect(resolvePanelShortcut({ key: 'h' })).toBe('relationship-heatmap-panel');
   });
 
   test('ignores shortcuts with modifier keys', () => {

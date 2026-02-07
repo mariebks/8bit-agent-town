@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { MAP_HEIGHT_TILES, MAP_WIDTH_TILES, TILE_SIZE } from '@shared/Constants';
 import { DeltaEvent, SnapshotEvent } from '@shared/Events';
+import { AmbientAudioController } from './audio/AmbientAudioController';
 import { BootScene } from './game/scenes/BootScene';
 import { TownScene } from './game/scenes/TownScene';
 import { SimulationSocket } from './network/SimulationSocket';
@@ -10,6 +11,8 @@ import { LogPanel } from './ui/LogPanel';
 import { ModeSwitcherPanel } from './ui/ModeSwitcherPanel';
 import { OnboardingPanel } from './ui/OnboardingPanel';
 import { PromptViewer } from './ui/PromptViewer';
+import { RelationshipHeatmapPanel } from './ui/RelationshipHeatmapPanel';
+import { StoryDigestPanel } from './ui/StoryDigestPanel';
 import { TimelinePanel } from './ui/TimelinePanel';
 import { UIEventBus } from './ui/UIEventBus';
 import { UIManager } from './ui/UIManager';
@@ -46,6 +49,27 @@ const game = new Phaser.Game(config);
 const simulationSocket = new SimulationSocket();
 const uiEventBus = new UIEventBus();
 const uiManager = new UIManager(uiEventBus);
+const audioController = new AmbientAudioController();
+
+const uiState: UISimulationState = {
+  connected: false,
+  tickId: 0,
+  gameTime: null,
+  metrics: null,
+  agents: [],
+  events: [],
+  uiMode: uiManager.getMode(),
+  selectedAgentId: null,
+  manualSelectionMade: false,
+  followSelected: false,
+  autoDirectorEnabled: true,
+  audioEnabled: false,
+  lastJumpedAgentId: null,
+};
+
+if (typeof window !== 'undefined') {
+  audioController.bindUnlockGestures(window);
+}
 
 const logPanel = new LogPanel();
 const inspectorPanel = new InspectorPanel({
@@ -94,18 +118,41 @@ const promptViewer = new PromptViewer({
   getSelectedAgentId: () => getTownScene()?.getSelectedAgentId() ?? null,
 });
 const timelinePanel = new TimelinePanel();
-const onboardingPanel = new OnboardingPanel();
+const storyDigestPanel = new StoryDigestPanel();
+const relationshipHeatmapPanel = new RelationshipHeatmapPanel({
+  getSelectedAgentId: () => getTownScene()?.getSelectedAgentId() ?? null,
+});
+const onboardingPanel = new OnboardingPanel({
+  getProgress: () => ({
+    selectedAgent: Boolean(uiState.manualSelectionMade),
+    followEnabled: Boolean(uiState.followSelected),
+    jumpedToEvent: Boolean(uiState.lastJumpedAgentId),
+  }),
+  onResetProgress: () => {
+    uiState.lastJumpedAgentId = null;
+  },
+});
 const timeControls = new TimeControls({
   onControl: (action, value) => simulationSocket.sendControl(action, value),
   onToggleFollowSelected: () => getTownScene()?.toggleFollowSelectedAgent() ?? false,
+  onToggleAutoDirector: () => getTownScene()?.toggleAutoDirector() ?? false,
+  onToggleAudio: () => audioController.toggleEnabled(),
+  onToggleHeatmap: () => uiManager.togglePanel('relationship-heatmap-panel'),
   getFollowSelectedEnabled: () => getTownScene()?.isFollowingSelectedAgent() ?? false,
+  getAutoDirectorEnabled: () => getTownScene()?.isAutoDirectorEnabled() ?? false,
+  getAudioEnabled: () => audioController.isEnabled(),
+  getHeatmapVisible: () => uiManager.isPanelVisible('relationship-heatmap-panel'),
   onJumpToInteresting: () => {
     const nextAgentId = timelinePanel.nextInterestingAgentId();
     if (!nextAgentId) {
       return null;
     }
-
-    return getTownScene()?.focusAgentById(nextAgentId) ? nextAgentId : null;
+    const focused = getTownScene()?.focusAgentById(nextAgentId) ? nextAgentId : null;
+    uiState.lastJumpedAgentId = focused;
+    if (focused) {
+      void audioController.playCue('jump');
+    }
+    return focused;
   },
 });
 const modeSwitcherPanel = new ModeSwitcherPanel({
@@ -116,24 +163,30 @@ const modeSwitcherPanel = new ModeSwitcherPanel({
 });
 
 uiManager.registerPanel(modeSwitcherPanel, {
-  visibleIn: ['cinematic', 'story', 'debug'],
+  visibleIn: ['spectator', 'story', 'debug'],
 });
 uiManager.registerPanel(onboardingPanel, {
-  visibleIn: ['cinematic', 'story', 'debug'],
+  visibleIn: ['spectator', 'story', 'debug'],
+});
+uiManager.registerPanel(storyDigestPanel, {
+  visibleIn: ['spectator', 'story'],
 });
 uiManager.registerPanel(timelinePanel, {
-  visibleIn: ['cinematic', 'story', 'debug'],
+  visibleIn: ['spectator', 'story', 'debug'],
 });
 uiManager.registerPanel(timeControls, {
-  visibleIn: ['story', 'debug'],
+  visibleIn: ['spectator', 'story', 'debug'],
 });
 uiManager.registerPanel(inspectorPanel, {
+  visibleIn: ['story', 'debug'],
+});
+uiManager.registerPanel(relationshipHeatmapPanel, {
   visibleIn: ['story', 'debug'],
 });
 uiManager.registerPanel(debugPanel, {
   visibleIn: ['debug'],
   updateEvery: {
-    cinematic: 2,
+    spectator: 2,
     story: 2,
     debug: 1,
   },
@@ -141,7 +194,7 @@ uiManager.registerPanel(debugPanel, {
 uiManager.registerPanel(promptViewer, {
   visibleIn: ['debug'],
   updateEvery: {
-    cinematic: 2,
+    spectator: 2,
     story: 2,
     debug: 1,
   },
@@ -149,16 +202,6 @@ uiManager.registerPanel(promptViewer, {
 uiManager.registerPanel(logPanel, {
   visibleIn: ['debug'],
 });
-
-const uiState: UISimulationState = {
-  connected: false,
-  tickId: 0,
-  gameTime: null,
-  metrics: null,
-  agents: [],
-  events: [],
-  uiMode: uiManager.getMode(),
-};
 
 simulationSocket.onConnection((connected) => {
   uiState.connected = connected;
@@ -208,6 +251,8 @@ simulationSocket.onSnapshot((event) => {
   scene?.setServerConnectionState(true);
   scene?.applyServerSnapshot(event.agents, event.gameTime);
   scene?.applyServerEvents(event.events ?? []);
+  void audioController.setDayPart(event.gameTime);
+  queueAudioCuesFromEvents(event.events ?? []);
 });
 
 simulationSocket.onDelta((event) => {
@@ -216,6 +261,8 @@ simulationSocket.onDelta((event) => {
   scene?.setServerConnectionState(true);
   scene?.applyServerDelta(event.agents, event.gameTime);
   scene?.applyServerEvents(event.events ?? []);
+  void audioController.setDayPart(event.gameTime);
+  queueAudioCuesFromEvents(event.events ?? []);
 });
 
 simulationSocket.connect();
@@ -288,7 +335,13 @@ window.addEventListener('keydown', (event: KeyboardEvent) => {
 
 // Decouple DOM panel updates from render frames.
 window.setInterval(() => {
-  getTownScene()?.setUiMode(uiState.uiMode);
+  const scene = getTownScene();
+  scene?.setUiMode(uiState.uiMode);
+  uiState.selectedAgentId = scene?.getSelectedAgentId() ?? null;
+  uiState.manualSelectionMade = scene?.hasManualSelectionMade() ?? false;
+  uiState.followSelected = scene?.isFollowingSelectedAgent() ?? false;
+  uiState.autoDirectorEnabled = scene?.isAutoDirectorEnabled() ?? false;
+  uiState.audioEnabled = audioController.isEnabled();
   uiManager.updateAll(uiState);
   uiState.events = [];
 }, 120);
@@ -311,6 +364,27 @@ function applyServerEvent(event: SnapshotEvent | DeltaEvent): void {
   uiState.metrics = event.metrics ?? uiState.metrics;
   uiState.agents = event.agents;
   uiState.events = [...uiState.events, ...(event.events ?? [])];
+}
+
+function queueAudioCuesFromEvents(events: unknown[]): void {
+  for (const event of events) {
+    if (!event || typeof event !== 'object') {
+      continue;
+    }
+
+    const typed = event as Record<string, unknown>;
+    if (typed.type === 'relationshipShift') {
+      void audioController.playCue('relationship');
+      continue;
+    }
+    if (typed.type === 'conversationStart') {
+      void audioController.playCue('conversation');
+      continue;
+    }
+    if (typed.type === 'topicSpread') {
+      void audioController.playCue('topic');
+    }
+  }
 }
 
 function getTownScene(): TownScene | null {

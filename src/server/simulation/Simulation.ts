@@ -1020,6 +1020,7 @@ export class Simulation {
       const planPreview = memory ? this.planningSystem.getPlanPreview(memory, currentGameTime, 3) : [];
       const lastReflection = memory ? this.reflectionSystem.getLatestReflection(memory) : null;
       const relationshipSummary = this.relationships.getSummary(agent.id);
+      const relationshipEdges = this.relationships.getEdges(agent.id).slice(0, 12);
       const llmTrace = this.decisionMaker.getLlmTrace(agent.id);
 
       return {
@@ -1029,6 +1030,7 @@ export class Simulation {
         currentPlan: planPreview.length > 0 ? planPreview : undefined,
         lastReflection: lastReflection ?? undefined,
         relationshipSummary,
+        relationshipEdges,
         llmTrace,
       };
     });

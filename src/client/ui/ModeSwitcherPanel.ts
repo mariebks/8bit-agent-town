@@ -7,7 +7,7 @@ interface ModeSwitcherPanelOptions {
 }
 
 const MODE_LABELS: Record<UiMode, string> = {
-  cinematic: 'Cinematic',
+  spectator: 'Spectator',
   story: 'Story',
   debug: 'Debug',
 };
@@ -33,7 +33,7 @@ export class ModeSwitcherPanel implements UIPanel {
     const row = document.createElement('div');
     row.className = 'time-controls-row';
 
-    for (const mode of ['cinematic', 'story', 'debug'] as const) {
+    for (const mode of ['spectator', 'story', 'debug'] as const) {
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'ui-btn ui-btn-ghost';

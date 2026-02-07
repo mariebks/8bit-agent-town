@@ -28,7 +28,7 @@ async function waitForTownScene(page: import('@playwright/test').Page): Promise<
     .toBe(true);
 }
 
-async function setUiMode(page: import('@playwright/test').Page, label: 'Cinematic' | 'Story' | 'Debug'): Promise<void> {
+async function setUiMode(page: import('@playwright/test').Page, label: 'Spectator' | 'Story' | 'Debug'): Promise<void> {
   await page.locator('.mode-switcher-panel .ui-btn', { hasText: label }).click();
   await expect(page.locator('.mode-switcher-panel .ui-btn.active')).toContainText(label);
 }

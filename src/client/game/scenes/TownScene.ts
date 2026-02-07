@@ -5,10 +5,13 @@ import { AgentData, AgentState, GameTime } from '@shared/Types';
 import { CameraController } from '../camera/CameraController';
 import { AStar } from '../pathfinding/AStar';
 import { AgentSprite } from '../sprites/AgentSprite';
+import { inferConversationTags } from './ConversationTags';
+import { dequeueDirectorCue, DirectorCue, enqueueDirectorCue as pushDirectorCue } from './DirectorQueue';
+import { enqueueSpeech } from './SpeechQueue';
 import { classifyAgentLod, movementUpdateInterval, shouldRenderBubble } from './CullingMath';
 import { overlayQualityProfileForFps } from './OverlayQuality';
 
-type SceneUiMode = 'cinematic' | 'story' | 'debug';
+type SceneUiMode = 'spectator' | 'story' | 'debug';
 
 export interface DebugOverlayState {
   pathEnabled: boolean;
@@ -47,6 +50,7 @@ export class TownScene extends Phaser.Scene {
   private serverGameTime: GameTime | null = null;
   private manualSelectionMade = false;
   private readonly speechBubbles = new Map<string, { container: Phaser.GameObjects.Container; remainingMs: number }>();
+  private readonly pendingSpeechByAgent = new Map<string, Array<{ message: string; durationMs: number }>>();
   private frameCounter = 0;
   private pathOverlayEnabled = true;
   private perceptionOverlayEnabled = true;
@@ -54,7 +58,14 @@ export class TownScene extends Phaser.Scene {
   private overlayPathSampleStep = 1;
   private overlayPerceptionSuppressed = false;
   private followSelectedAgent = false;
-  private uiMode: SceneUiMode = 'cinematic';
+  private uiMode: SceneUiMode = 'spectator';
+  private autoDirectorEnabled = true;
+  private directorCooldownMs = 0;
+  private directorFocusMs = 0;
+  private directorCurrentAgentId: string | null = null;
+  private directorFocusQueue: DirectorCue[] = [];
+  private modeBaseZoom = 1;
+  private modeFocusZoom = 1.06;
   private readonly ambientParticles: Array<{ dot: Phaser.GameObjects.Arc; vx: number; vy: number }> = [];
   private readonly landmarkGuides: Array<{
     locationId: string;
@@ -90,6 +101,7 @@ export class TownScene extends Phaser.Scene {
     this.scale.on('resize', this.syncScreenOverlayBounds, this);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scale.off('resize', this.syncScreenOverlayBounds, this));
     this.syncScreenOverlayBounds();
+    this.applyModePreset();
     this.applySceneUiMode();
 
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
@@ -135,6 +147,7 @@ export class TownScene extends Phaser.Scene {
     this.updateAmbientParticles(delta);
     this.updateDayTint(delta);
     this.updateLandmarkGuides(delta);
+    this.updateDirectorCamera(delta);
 
     this.renderDebugOverlays();
     this.updateBlockedMarker(delta);
@@ -175,7 +188,11 @@ export class TownScene extends Phaser.Scene {
   }
 
   setUiMode(mode: SceneUiMode): void {
+    if (this.uiMode === mode) {
+      return;
+    }
     this.uiMode = mode;
+    this.applyModePreset();
     this.applySceneUiMode();
   }
 
@@ -193,6 +210,11 @@ export class TownScene extends Phaser.Scene {
 
   toggleFollowSelectedAgent(): boolean {
     this.followSelectedAgent = !this.followSelectedAgent;
+    if (this.followSelectedAgent) {
+      this.directorCurrentAgentId = null;
+      this.directorFocusMs = 0;
+      this.cameras.main.setZoom(this.modeBaseZoom);
+    }
     if (this.followSelectedAgent && this.selectedAgent) {
       this.centerCameraOn(this.selectedAgent, 0.25);
     }
@@ -200,8 +222,27 @@ export class TownScene extends Phaser.Scene {
     return this.followSelectedAgent;
   }
 
+  toggleAutoDirector(): boolean {
+    this.autoDirectorEnabled = !this.autoDirectorEnabled;
+    if (!this.autoDirectorEnabled) {
+      this.directorCurrentAgentId = null;
+      this.directorFocusMs = 0;
+      this.cameras.main.setZoom(this.modeBaseZoom);
+    }
+    this.updateInfoText();
+    return this.autoDirectorEnabled;
+  }
+
   isFollowingSelectedAgent(): boolean {
     return this.followSelectedAgent;
+  }
+
+  isAutoDirectorEnabled(): boolean {
+    return this.autoDirectorEnabled;
+  }
+
+  hasManualSelectionMade(): boolean {
+    return this.manualSelectionMade;
   }
 
   togglePathOverlay(): boolean {
@@ -233,17 +274,34 @@ export class TownScene extends Phaser.Scene {
       }
 
       const typed = event as Record<string, unknown>;
-      if (typed.type !== 'speechBubble') {
+      if (typed.type === 'speechBubble') {
+        if (typeof typed.agentId !== 'string' || typeof typed.message !== 'string') {
+          continue;
+        }
+
+        const durationTicks = typeof typed.durationTicks === 'number' ? typed.durationTicks : 8;
+        const durationMs = Math.max(400, Math.round(durationTicks * TICK_INTERVAL_MS));
+        this.enqueueSpeechBubble(typed.agentId, typed.message, durationMs);
         continue;
       }
 
-      if (typeof typed.agentId !== 'string' || typeof typed.message !== 'string') {
+      if (typed.type === 'conversationStart') {
+        const participants = Array.isArray(typed.participants) ? typed.participants : [];
+        const primary = typeof participants[0] === 'string' ? participants[0] : null;
+        if (primary) {
+          this.enqueueDirectorCue(primary, 'conversation', 1);
+        }
         continue;
       }
 
-      const durationTicks = typeof typed.durationTicks === 'number' ? typed.durationTicks : 8;
-      const durationMs = Math.max(400, Math.round(durationTicks * TICK_INTERVAL_MS));
-      this.showSpeechBubble(typed.agentId, typed.message, durationMs);
+      if (typed.type === 'relationshipShift' && typeof typed.sourceId === 'string') {
+        this.enqueueDirectorCue(typed.sourceId, 'relationship', 2);
+        continue;
+      }
+
+      if (typed.type === 'topicSpread' && typeof typed.targetId === 'string') {
+        this.enqueueDirectorCue(typed.targetId, 'topic', 1);
+      }
     }
   }
 
@@ -395,7 +453,7 @@ export class TownScene extends Phaser.Scene {
   }
 
   private updateAmbientParticles(deltaMs: number): void {
-    const visible = this.uiMode === 'cinematic';
+    const visible = this.uiMode === 'spectator';
     const dt = deltaMs / 1000;
 
     for (const particle of this.ambientParticles) {
@@ -430,12 +488,12 @@ export class TownScene extends Phaser.Scene {
 
     const time = this.serverGameTime;
     if (!time) {
-      this.dayTintOverlay.setFillStyle(0x1f2937, this.uiMode === 'cinematic' ? 0.03 : 0);
+      this.dayTintOverlay.setFillStyle(0x1f2937, this.uiMode === 'spectator' ? 0.03 : 0);
       return;
     }
 
     if (time.hour >= 6 && time.hour < 9) {
-      this.dayTintOverlay.setFillStyle(0xf59e0b, this.uiMode === 'cinematic' ? 0.05 : 0.02);
+      this.dayTintOverlay.setFillStyle(0xf59e0b, this.uiMode === 'spectator' ? 0.05 : 0.02);
       return;
     }
 
@@ -445,11 +503,11 @@ export class TownScene extends Phaser.Scene {
     }
 
     if (time.hour >= 18 && time.hour < 21) {
-      this.dayTintOverlay.setFillStyle(0xff8b3d, this.uiMode === 'cinematic' ? 0.08 : 0.04);
+      this.dayTintOverlay.setFillStyle(0xff8b3d, this.uiMode === 'spectator' ? 0.08 : 0.04);
       return;
     }
 
-    this.dayTintOverlay.setFillStyle(0x0f172a, this.uiMode === 'cinematic' ? 0.13 : 0.08);
+    this.dayTintOverlay.setFillStyle(0x0f172a, this.uiMode === 'spectator' ? 0.13 : 0.08);
   }
 
   private updateLandmarkGuides(deltaMs: number): void {
@@ -470,7 +528,7 @@ export class TownScene extends Phaser.Scene {
     }
 
     const center = this.getCameraCenter();
-    const maxDistance = this.uiMode === 'cinematic' ? 220 : 320;
+    const maxDistance = this.uiMode === 'spectator' ? 220 : 320;
     for (const guide of this.landmarkGuides) {
       const distance = Math.hypot(guide.centerX - center.x, guide.centerY - center.y);
       const visible = distance <= maxDistance;
@@ -502,9 +560,10 @@ export class TownScene extends Phaser.Scene {
       ? `Day ${this.serverGameTime.day} ${String(this.serverGameTime.hour).padStart(2, '0')}:${String(this.serverGameTime.minute).padStart(2, '0')}`
       : 'No sim time';
     const followText = this.followSelectedAgent ? 'On' : 'Off';
+    const directorText = this.autoDirectorEnabled ? 'On' : 'Off';
 
     this.infoText?.setText(
-      `Mode: ${mode} | ${timeText} | Selected: ${selected} | Follow: ${followText} | Click agent to select | Hold Space + Drag to pan`,
+      `Mode: ${mode} | ${timeText} | Selected: ${selected} | Follow: ${followText} | Director: ${directorText} | Click agent to select | Hold Space + Drag to pan`,
     );
   }
 
@@ -570,6 +629,20 @@ export class TownScene extends Phaser.Scene {
 
   private updateOverlayQuality(fps: number): void {
     const profile = overlayQualityProfileForFps(fps);
+    if (this.uiMode === 'spectator') {
+      this.overlayUpdateStride = Math.max(profile.updateStride, 2);
+      this.overlayPathSampleStep = Math.max(profile.pathSampleStep, 2);
+      this.overlayPerceptionSuppressed = true;
+      return;
+    }
+
+    if (this.uiMode === 'story') {
+      this.overlayUpdateStride = Math.max(profile.updateStride, 1);
+      this.overlayPathSampleStep = Math.max(profile.pathSampleStep, 1);
+      this.overlayPerceptionSuppressed = profile.suppressPerception;
+      return;
+    }
+
     this.overlayUpdateStride = profile.updateStride;
     this.overlayPathSampleStep = profile.pathSampleStep;
     this.overlayPerceptionSuppressed = profile.suppressPerception;
@@ -614,6 +687,22 @@ export class TownScene extends Phaser.Scene {
         this.speechBubbles.delete(agentId);
       }
     }
+
+    for (const [agentId, queue] of this.pendingSpeechByAgent.entries()) {
+      if (queue.length === 0 || this.speechBubbles.has(agentId)) {
+        continue;
+      }
+
+      const next = queue.shift();
+      if (!next) {
+        continue;
+      }
+
+      this.showSpeechBubble(agentId, next.message, next.durationMs);
+      if (queue.length === 0) {
+        this.pendingSpeechByAgent.delete(agentId);
+      }
+    }
   }
 
   private showSpeechBubble(agentId: string, message: string, durationMs: number): void {
@@ -628,6 +717,16 @@ export class TownScene extends Phaser.Scene {
       this.speechBubbles.delete(agentId);
     }
 
+    const tags = inferConversationTags(message).map((tag) => `#${tag}`).join(' ');
+    const headerText = this.add.text(0, 0, `${sprite.agentName} ${tags}`.trim(), {
+      fontFamily: 'monospace',
+      fontSize: '9px',
+      color: '#12311d',
+      align: 'center',
+      wordWrap: { width: 180, useAdvancedWrap: false },
+    });
+    headerText.setOrigin(0.5);
+
     const text = this.add.text(0, 0, message.slice(0, 120), {
       fontFamily: 'monospace',
       fontSize: '10px',
@@ -637,19 +736,34 @@ export class TownScene extends Phaser.Scene {
     });
     text.setOrigin(0.5);
 
+    const headerBounds = headerText.getBounds();
     const bounds = text.getBounds();
     const padding = 4;
-    const bubble = this.add.rectangle(0, 0, bounds.width + padding * 2, bounds.height + padding * 2, 0xf8fafc, 0.92);
+    const width = Math.max(headerBounds.width, bounds.width) + padding * 2;
+    const height = headerBounds.height + bounds.height + padding * 3;
+    const bubble = this.add.rectangle(0, 0, width, height, 0xf8fafc, 0.92);
     bubble.setStrokeStyle(1, 0x0f172a, 0.55);
     bubble.setOrigin(0.5);
+    headerText.setY(-height / 2 + headerBounds.height / 2 + padding);
+    text.setY(headerText.y + headerBounds.height / 2 + bounds.height / 2 + padding);
 
-    const container = this.add.container(sprite.x, sprite.y - 14, [bubble, text]);
+    const container = this.add.container(sprite.x, sprite.y - 16, [bubble, headerText, text]);
     container.setDepth(1100);
 
     this.speechBubbles.set(agentId, {
       container,
       remainingMs: durationMs,
     });
+  }
+
+  private enqueueSpeechBubble(agentId: string, message: string, durationMs: number): void {
+    const pending = this.pendingSpeechByAgent.get(agentId) ?? [];
+    if (this.speechBubbles.has(agentId) || pending.length > 0) {
+      this.pendingSpeechByAgent.set(agentId, enqueueSpeech(pending, { message, durationMs }, 2));
+      return;
+    }
+
+    this.showSpeechBubble(agentId, message, durationMs);
   }
 
   private updateAgentCullingAndMovement(deltaMs: number): void {
@@ -680,6 +794,46 @@ export class TownScene extends Phaser.Scene {
     this.centerCameraOn(this.selectedAgent, 0.18);
   }
 
+  private updateDirectorCamera(deltaMs: number): void {
+    this.directorCooldownMs = Math.max(0, this.directorCooldownMs - deltaMs);
+    this.directorFocusMs = Math.max(0, this.directorFocusMs - deltaMs);
+
+    if (!this.autoDirectorEnabled || this.followSelectedAgent || this.cameraController.isPanModifierPressed()) {
+      this.directorCurrentAgentId = null;
+      this.directorFocusMs = 0;
+      this.cameras.main.setZoom(Phaser.Math.Linear(this.cameras.main.zoom, this.modeBaseZoom, 0.1));
+      return;
+    }
+
+    if (!this.directorCurrentAgentId && this.directorCooldownMs <= 0 && this.directorFocusQueue.length > 0) {
+      const { cue: next, nextQueue } = dequeueDirectorCue(this.directorFocusQueue);
+      this.directorFocusQueue = nextQueue;
+      if (next && this.agentsById.has(next.agentId)) {
+        this.directorCurrentAgentId = next.agentId;
+        this.directorFocusMs = this.uiMode === 'spectator' ? 1850 : 1250;
+        this.directorCooldownMs = this.uiMode === 'spectator' ? 1900 : 1600;
+      }
+    }
+
+    if (!this.directorCurrentAgentId) {
+      this.cameras.main.setZoom(Phaser.Math.Linear(this.cameras.main.zoom, this.modeBaseZoom, 0.07));
+      return;
+    }
+
+    const target = this.agentsById.get(this.directorCurrentAgentId);
+    if (!target) {
+      this.directorCurrentAgentId = null;
+      return;
+    }
+
+    this.centerCameraOn(target, this.uiMode === 'spectator' ? 0.14 : 0.1);
+    this.cameras.main.setZoom(Phaser.Math.Linear(this.cameras.main.zoom, this.modeFocusZoom, 0.08));
+    if (this.directorFocusMs <= 0) {
+      this.directorCurrentAgentId = null;
+      this.cameras.main.setZoom(Phaser.Math.Linear(this.cameras.main.zoom, this.modeBaseZoom, 0.15));
+    }
+  }
+
   private centerCameraOn(agent: AgentSprite, lerpAmount: number): void {
     const camera = this.cameras.main;
     const clampedLerp = Math.max(0, Math.min(1, lerpAmount));
@@ -700,6 +854,36 @@ export class TownScene extends Phaser.Scene {
     this.renderDebugOverlays(true);
     this.updateLandmarkGuides(220);
     this.updateInfoText();
+  }
+
+  private applyModePreset(): void {
+    if (this.uiMode === 'spectator') {
+      this.autoDirectorEnabled = true;
+      this.modeBaseZoom = 1.02;
+      this.modeFocusZoom = 1.1;
+    } else if (this.uiMode === 'story') {
+      this.autoDirectorEnabled = true;
+      this.modeBaseZoom = 1;
+      this.modeFocusZoom = 1.05;
+    } else {
+      this.autoDirectorEnabled = false;
+      this.modeBaseZoom = 1;
+      this.modeFocusZoom = 1.02;
+    }
+
+    this.directorFocusQueue.length = 0;
+    this.directorCurrentAgentId = null;
+    this.directorFocusMs = 0;
+    this.directorCooldownMs = 0;
+    this.cameras.main.setZoom(this.modeBaseZoom);
+  }
+
+  private enqueueDirectorCue(agentId: string, reason: string, priority: number): void {
+    if (!this.autoDirectorEnabled) {
+      return;
+    }
+
+    this.directorFocusQueue = pushDirectorCue(this.directorFocusQueue, { agentId, reason, priority }, 8);
   }
 
   private getCameraCenter(): { x: number; y: number } {
