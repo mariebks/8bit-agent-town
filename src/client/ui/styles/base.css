@@ -119,6 +119,25 @@
   background: rgba(125, 211, 252, 0.12);
 }
 
+.ui-input,
+.ui-select {
+  background: #152232;
+  border: 1px solid #405c77;
+  color: var(--ui-text);
+  border-radius: 4px;
+  font-size: 10px;
+  padding: 4px 6px;
+}
+
+.ui-input {
+  flex: 1;
+  min-width: 80px;
+}
+
+.ui-select {
+  min-width: 110px;
+}
+
 .debug-panel {
   right: 10px;
   top: 220px;

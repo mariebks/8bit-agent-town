@@ -1,29 +1,13 @@
 import { UIPanel, UISimulationState } from './types';
+import { filterLogEntries, parseLogEvent } from './LogFilters';
 
 interface LogEntry {
   id: string;
   tickId: number;
+  type: string;
+  agentId?: string;
   text: string;
   event: unknown;
-}
-
-function summarizeEvent(event: unknown): string {
-  if (!event || typeof event !== 'object') {
-    return String(event);
-  }
-
-  const typed = event as Record<string, unknown>;
-  const type = typeof typed.type === 'string' ? typed.type : 'event';
-
-  if (type === 'conversationTurn') {
-    return `${type}: ${String(typed.speakerId ?? 'agent')} -> ${String(typed.message ?? '')}`;
-  }
-
-  if (type === 'log') {
-    return `log/${String(typed.level ?? 'info')}: ${String(typed.message ?? '')}`;
-  }
-
-  return `${type}`;
 }
 
 export class LogPanel implements UIPanel {
@@ -32,6 +16,8 @@ export class LogPanel implements UIPanel {
 
   private readonly listElement: HTMLElement;
   private readonly statsElement: HTMLElement;
+  private readonly typeFilterSelect: HTMLSelectElement;
+  private readonly agentFilterInput: HTMLInputElement;
   private readonly entries: LogEntry[] = [];
   private maxEntries = 300;
 
@@ -54,13 +40,34 @@ export class LogPanel implements UIPanel {
 
     headerRow.append(header, exportButton);
 
+    const filterRow = document.createElement('div');
+    filterRow.className = 'time-controls-row';
+
+    this.typeFilterSelect = document.createElement('select');
+    this.typeFilterSelect.className = 'ui-select';
+    for (const option of ['all', 'log', 'conversationTurn', 'speechBubble', 'conversationStart', 'conversationEnd']) {
+      const selectOption = document.createElement('option');
+      selectOption.value = option;
+      selectOption.textContent = option === 'all' ? 'all events' : option;
+      this.typeFilterSelect.appendChild(selectOption);
+    }
+    this.typeFilterSelect.addEventListener('change', () => this.render());
+
+    this.agentFilterInput = document.createElement('input');
+    this.agentFilterInput.className = 'ui-input';
+    this.agentFilterInput.type = 'text';
+    this.agentFilterInput.placeholder = 'filter agent id';
+    this.agentFilterInput.addEventListener('input', () => this.render());
+
+    filterRow.append(this.typeFilterSelect, this.agentFilterInput);
+
     this.listElement = document.createElement('div');
     this.listElement.className = 'log-list';
 
     this.statsElement = document.createElement('div');
     this.statsElement.className = 'panel-footer';
 
-    this.element.append(headerRow, this.listElement, this.statsElement);
+    this.element.append(headerRow, filterRow, this.listElement, this.statsElement);
   }
 
   show(): void {
@@ -74,10 +81,13 @@ export class LogPanel implements UIPanel {
   update(state: UISimulationState): void {
     if (state.events.length > 0) {
       for (const event of state.events) {
+        const parsed = parseLogEvent(event);
         this.entries.push({
           id: `${state.tickId}-${this.entries.length + 1}`,
           tickId: state.tickId,
-          text: summarizeEvent(event),
+          type: parsed.type,
+          agentId: parsed.agentId,
+          text: parsed.text,
           event,
         });
       }
@@ -89,7 +99,8 @@ export class LogPanel implements UIPanel {
       this.render();
     }
 
-    this.statsElement.textContent = `entries: ${this.entries.length} | connected: ${state.connected ? 'yes' : 'no'} | tick: ${state.tickId}`;
+    const filteredEntries = filterLogEntries(this.entries, this.typeFilterSelect.value, this.agentFilterInput.value);
+    this.statsElement.textContent = `entries: ${filteredEntries.length}/${this.entries.length} | connected: ${state.connected ? 'yes' : 'no'} | tick: ${state.tickId}`;
   }
 
   destroy(): void {
@@ -98,7 +109,8 @@ export class LogPanel implements UIPanel {
 
   private render(): void {
     this.listElement.innerHTML = '';
-    const recent = this.entries.slice(Math.max(0, this.entries.length - 16));
+    const filteredEntries = filterLogEntries(this.entries, this.typeFilterSelect.value, this.agentFilterInput.value);
+    const recent = filteredEntries.slice(Math.max(0, filteredEntries.length - 24));
 
     for (const entry of recent) {
       const line = document.createElement('div');

@@ -9,6 +9,14 @@ Deliver an observer-friendly user interface with inspection tools and debugging 
 4. Export logs and view LLM prompts/responses for debugging
 5. Achieve visual cohesion with pixel art assets and consistent 8-bit aesthetic
 
+## Implementation Status (2026-02-06)
+
+- [x] Inspector, prompt/response viewer, debug metrics panel, and JSON log export are implemented.
+- [x] DOM panel updates are throttled (120ms interval), decoupled from the Phaser render loop.
+- [x] Log panel now supports event-type and agent-id filtering.
+- [ ] Toggleable path/perception overlays with auto-downsample under FPS pressure.
+- [ ] Keyboard shortcut layer for panel toggles and focus-safe input handling.
+
 ## Expert corrections (supersedes conflicting details below)
 
 1. UI update budgets are required:
