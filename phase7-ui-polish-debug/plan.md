@@ -14,7 +14,7 @@ Deliver an observer-friendly user interface with inspection tools and debugging 
 - [x] Inspector, prompt/response viewer, debug metrics panel, and JSON log export are implemented.
 - [x] DOM panel updates are throttled (120ms interval), decoupled from the Phaser render loop.
 - [x] Log panel now supports event-type and agent-id filtering.
-- [ ] Toggleable path/perception overlays with auto-downsample under FPS pressure.
+- [x] Toggleable path/perception overlays implemented (`V`/`R` + panel buttons) with FPS-based downsample/suppression.
 - [x] Keyboard shortcut layer implemented for panel toggles (`D`, `I`, `P`, `L`) with focus-safe input handling.
 
 ## Expert corrections (supersedes conflicting details below)

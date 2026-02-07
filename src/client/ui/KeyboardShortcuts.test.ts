@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { resolvePanelShortcut } from './KeyboardShortcuts';
+import { resolveOverlayShortcut, resolvePanelShortcut } from './KeyboardShortcuts';
 
 describe('KeyboardShortcuts', () => {
   test('maps supported keys to panel toggles', () => {
@@ -20,5 +20,10 @@ describe('KeyboardShortcuts', () => {
     expect(resolvePanelShortcut({ key: 'd', targetTagName: 'textarea' })).toBeNull();
     expect(resolvePanelShortcut({ key: 'd', targetTagName: 'select' })).toBeNull();
     expect(resolvePanelShortcut({ key: 'd', targetIsContentEditable: true })).toBeNull();
+  });
+
+  test('maps overlay toggle keys', () => {
+    expect(resolveOverlayShortcut({ key: 'v' })).toBe('path-overlay');
+    expect(resolveOverlayShortcut({ key: 'R' })).toBe('perception-overlay');
   });
 });

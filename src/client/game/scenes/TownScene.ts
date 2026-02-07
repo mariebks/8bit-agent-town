@@ -5,11 +5,21 @@ import { CameraController } from '../camera/CameraController';
 import { AStar } from '../pathfinding/AStar';
 import { AgentSprite } from '../sprites/AgentSprite';
 import { classifyAgentLod, movementUpdateInterval, shouldRenderBubble } from './CullingMath';
+import { overlayQualityProfileForFps } from './OverlayQuality';
+
+export interface DebugOverlayState {
+  pathEnabled: boolean;
+  perceptionEnabled: boolean;
+  updateStride: number;
+  pathSampleStep: number;
+  perceptionSuppressed: boolean;
+}
 
 export class TownScene extends Phaser.Scene {
   private map!: Phaser.Tilemaps.Tilemap;
   private astar!: AStar;
   private pathGraphics!: Phaser.GameObjects.Graphics;
+  private perceptionGraphics!: Phaser.GameObjects.Graphics;
   private infoText!: Phaser.GameObjects.Text;
   private blockedMarker!: Phaser.GameObjects.Rectangle;
   private blockedMarkerTimerMs = 0;
@@ -29,6 +39,11 @@ export class TownScene extends Phaser.Scene {
   private serverGameTime: GameTime | null = null;
   private readonly speechBubbles = new Map<string, { container: Phaser.GameObjects.Container; remainingMs: number }>();
   private frameCounter = 0;
+  private pathOverlayEnabled = true;
+  private perceptionOverlayEnabled = true;
+  private overlayUpdateStride = 1;
+  private overlayPathSampleStep = 1;
+  private overlayPerceptionSuppressed = false;
 
   constructor() {
     super('TownScene');
@@ -90,16 +105,17 @@ export class TownScene extends Phaser.Scene {
     this.cameraController.update(delta);
     this.updateAgentCullingAndMovement(delta);
 
-    this.renderSelectedPath();
+    this.renderDebugOverlays();
     this.updateBlockedMarker(delta);
     this.updateSpeechBubbles(delta);
 
     this.fpsTimerMs += delta;
     if (this.fpsTimerMs >= 250) {
       this.fpsTimerMs = 0;
+      const fps = Math.round(this.game.loop.actualFps);
+      this.updateOverlayQuality(fps);
       if (this.fpsOverlay) {
-        const fps = Math.round(this.game.loop.actualFps);
-        this.fpsOverlay.textContent = `FPS: ${fps} | Frame: ${delta.toFixed(1)}ms`;
+        this.fpsOverlay.textContent = `FPS: ${fps} | Frame: ${delta.toFixed(1)}ms | Overlay x${this.overlayUpdateStride}`;
       }
     }
   }
@@ -125,6 +141,28 @@ export class TownScene extends Phaser.Scene {
 
   getSelectedAgentId(): string | null {
     return this.selectedAgent?.agentId ?? null;
+  }
+
+  togglePathOverlay(): boolean {
+    this.pathOverlayEnabled = !this.pathOverlayEnabled;
+    this.renderDebugOverlays(true);
+    return this.pathOverlayEnabled;
+  }
+
+  togglePerceptionOverlay(): boolean {
+    this.perceptionOverlayEnabled = !this.perceptionOverlayEnabled;
+    this.renderDebugOverlays(true);
+    return this.perceptionOverlayEnabled;
+  }
+
+  getDebugOverlayState(): DebugOverlayState {
+    return {
+      pathEnabled: this.pathOverlayEnabled,
+      perceptionEnabled: this.perceptionOverlayEnabled,
+      updateStride: this.overlayUpdateStride,
+      pathSampleStep: this.overlayPathSampleStep,
+      perceptionSuppressed: this.overlayPerceptionSuppressed,
+    };
   }
 
   applyServerEvents(events: unknown[]): void {
@@ -188,6 +226,9 @@ export class TownScene extends Phaser.Scene {
   }
 
   private createOverlays(): void {
+    this.perceptionGraphics = this.add.graphics();
+    this.perceptionGraphics.setDepth(89);
+
     this.pathGraphics = this.add.graphics();
     this.pathGraphics.setDepth(90);
 
@@ -237,28 +278,52 @@ export class TownScene extends Phaser.Scene {
     return null;
   }
 
-  private renderSelectedPath(): void {
+  private renderDebugOverlays(force = false): void {
+    if (!force && this.frameCounter % this.overlayUpdateStride !== 0) {
+      return;
+    }
+
     this.pathGraphics.clear();
+    this.perceptionGraphics.clear();
     if (!this.selectedAgent) {
       return;
     }
 
-    const path = this.selectedAgent.getRemainingPath();
-    if (path.length === 0) {
-      return;
+    if (this.pathOverlayEnabled) {
+      const path = this.selectedAgent.getRemainingPath();
+      if (path.length > 0) {
+        this.pathGraphics.lineStyle(2, 0x8ec9ff, 0.9);
+        this.pathGraphics.beginPath();
+        this.pathGraphics.moveTo(this.selectedAgent.x, this.selectedAgent.y);
+
+        for (let index = 0; index < path.length; index += this.overlayPathSampleStep) {
+          const tile = path[index];
+          const x = tile.tileX * TILE_SIZE + TILE_SIZE / 2;
+          const y = tile.tileY * TILE_SIZE + TILE_SIZE / 2;
+          this.pathGraphics.lineTo(x, y);
+        }
+
+        const last = path[path.length - 1];
+        if ((path.length - 1) % this.overlayPathSampleStep !== 0) {
+          this.pathGraphics.lineTo(last.tileX * TILE_SIZE + TILE_SIZE / 2, last.tileY * TILE_SIZE + TILE_SIZE / 2);
+        }
+        this.pathGraphics.strokePath();
+      }
     }
 
-    this.pathGraphics.lineStyle(2, 0x8ec9ff, 0.9);
-    this.pathGraphics.beginPath();
-    this.pathGraphics.moveTo(this.selectedAgent.x, this.selectedAgent.y);
-
-    for (const tile of path) {
-      const x = tile.tileX * TILE_SIZE + TILE_SIZE / 2;
-      const y = tile.tileY * TILE_SIZE + TILE_SIZE / 2;
-      this.pathGraphics.lineTo(x, y);
+    if (this.perceptionOverlayEnabled && !this.overlayPerceptionSuppressed) {
+      this.perceptionGraphics.lineStyle(1, 0x67e8f9, 0.6);
+      this.perceptionGraphics.fillStyle(0x67e8f9, 0.08);
+      this.perceptionGraphics.fillCircle(this.selectedAgent.x, this.selectedAgent.y, TILE_SIZE * 4);
+      this.perceptionGraphics.strokeCircle(this.selectedAgent.x, this.selectedAgent.y, TILE_SIZE * 4);
     }
+  }
 
-    this.pathGraphics.strokePath();
+  private updateOverlayQuality(fps: number): void {
+    const profile = overlayQualityProfileForFps(fps);
+    this.overlayUpdateStride = profile.updateStride;
+    this.overlayPathSampleStep = profile.pathSampleStep;
+    this.overlayPerceptionSuppressed = profile.suppressPerception;
   }
 
   private showBlockedMarker(tileX: number, tileY: number): void {

@@ -10,7 +10,7 @@ import { LogPanel } from './ui/LogPanel';
 import { PromptViewer } from './ui/PromptViewer';
 import { UIEventBus } from './ui/UIEventBus';
 import { UIManager } from './ui/UIManager';
-import { resolvePanelShortcut } from './ui/KeyboardShortcuts';
+import { resolveOverlayShortcut, resolvePanelShortcut } from './ui/KeyboardShortcuts';
 import { TimeControls } from './ui/TimeControls';
 import { UISimulationState } from './ui/types';
 import './ui/styles/base.css';
@@ -49,6 +49,42 @@ const inspectorPanel = new InspectorPanel({
 });
 const debugPanel = new DebugPanel({
   getSelectedAgentId: () => getTownScene()?.getSelectedAgentId() ?? null,
+  getOverlayState: () =>
+    getTownScene()?.getDebugOverlayState() ?? {
+      pathEnabled: true,
+      perceptionEnabled: true,
+      updateStride: 1,
+      pathSampleStep: 1,
+      perceptionSuppressed: false,
+    },
+  onTogglePathOverlay: () => {
+    const enabled = getTownScene()?.togglePathOverlay();
+    if (enabled === undefined) {
+      return;
+    }
+    uiState.events = [
+      ...uiState.events,
+      {
+        type: 'log',
+        level: 'info',
+        message: `debug path overlay ${enabled ? 'enabled' : 'disabled'}`,
+      },
+    ];
+  },
+  onTogglePerceptionOverlay: () => {
+    const enabled = getTownScene()?.togglePerceptionOverlay();
+    if (enabled === undefined) {
+      return;
+    }
+    uiState.events = [
+      ...uiState.events,
+      {
+        type: 'log',
+        level: 'info',
+        message: `debug perception overlay ${enabled ? 'enabled' : 'disabled'}`,
+      },
+    ];
+  },
 });
 const promptViewer = new PromptViewer({
   getSelectedAgentId: () => getTownScene()?.getSelectedAgentId() ?? null,
@@ -121,26 +157,60 @@ simulationSocket.connect();
 
 window.addEventListener('keydown', (event: KeyboardEvent) => {
   const target = event.target as HTMLElement | null;
-  const shortcut = resolvePanelShortcut({
+  const shortcutInput = {
     key: event.key,
     ctrlKey: event.ctrlKey,
     metaKey: event.metaKey,
     altKey: event.altKey,
     targetTagName: target?.tagName,
     targetIsContentEditable: target?.isContentEditable,
-  });
-  if (!shortcut) {
+  };
+  const panelShortcut = resolvePanelShortcut(shortcutInput);
+  const overlayShortcut = resolveOverlayShortcut(shortcutInput);
+
+  if (!panelShortcut && !overlayShortcut) {
     return;
   }
 
   event.preventDefault();
-  const isVisible = uiManager.togglePanel(shortcut);
+  if (panelShortcut) {
+    const isVisible = uiManager.togglePanel(panelShortcut);
+    uiState.events = [
+      ...uiState.events,
+      {
+        type: 'log',
+        level: 'info',
+        message: `panel ${panelShortcut} ${isVisible ? 'shown' : 'hidden'}`,
+      },
+    ];
+    return;
+  }
+
+  const scene = getTownScene();
+  if (!scene || !overlayShortcut) {
+    return;
+  }
+
+  if (overlayShortcut === 'path-overlay') {
+    const enabled = scene.togglePathOverlay();
+    uiState.events = [
+      ...uiState.events,
+      {
+        type: 'log',
+        level: 'info',
+        message: `debug path overlay ${enabled ? 'enabled' : 'disabled'}`,
+      },
+    ];
+    return;
+  }
+
+  const enabled = scene.togglePerceptionOverlay();
   uiState.events = [
     ...uiState.events,
     {
       type: 'log',
       level: 'info',
-      message: `panel ${shortcut} ${isVisible ? 'shown' : 'hidden'}`,
+      message: `debug perception overlay ${enabled ? 'enabled' : 'disabled'}`,
     },
   ];
 });

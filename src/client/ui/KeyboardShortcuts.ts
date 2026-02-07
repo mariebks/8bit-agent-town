@@ -1,4 +1,5 @@
 export type PanelShortcutTarget = 'debug-panel' | 'inspector-panel' | 'prompt-viewer' | 'log-panel';
+export type OverlayShortcutTarget = 'path-overlay' | 'perception-overlay';
 
 export interface ShortcutInput {
   key: string;
@@ -30,6 +31,25 @@ export function resolvePanelShortcut(input: ShortcutInput): PanelShortcutTarget 
   }
   if (key === 'l') {
     return 'log-panel';
+  }
+  return null;
+}
+
+export function resolveOverlayShortcut(input: ShortcutInput): OverlayShortcutTarget | null {
+  if (input.ctrlKey || input.metaKey || input.altKey) {
+    return null;
+  }
+
+  if (isEditableTarget(input.targetTagName, input.targetIsContentEditable)) {
+    return null;
+  }
+
+  const key = input.key.toLowerCase();
+  if (key === 'v') {
+    return 'path-overlay';
+  }
+  if (key === 'r') {
+    return 'perception-overlay';
   }
   return null;
 }

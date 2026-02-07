@@ -1,6 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { buildDefaultStressProfiles, StressTestConfig, StressTestRunner } from './StressTest';
+import { buildStressSummaryReport } from './StressReport';
+import type { StressTestResults } from './StressTest';
 
 type ProfileMode = 'baseline' | 'llm' | 'both';
 
@@ -71,6 +73,7 @@ async function main(): Promise<void> {
   const profiles = resolveProfiles(mode);
   const outputDir = path.resolve(process.cwd(), 'output/stress');
   fs.mkdirSync(outputDir, { recursive: true });
+  const results: StressTestResults[] = [];
 
   for (const profile of profiles) {
     const startedAt = Date.now();
@@ -80,6 +83,7 @@ async function main(): Promise<void> {
 
     const outputPath = path.join(outputDir, `${result.profileName}.json`);
     fs.writeFileSync(outputPath, JSON.stringify(result, null, 2), 'utf8');
+    results.push(result);
 
     // eslint-disable-next-line no-console
     console.log(
@@ -97,6 +101,11 @@ async function main(): Promise<void> {
       ].join(' '),
     );
   }
+
+  const summaryPath = path.join(outputDir, 'latest-summary.md');
+  fs.writeFileSync(summaryPath, buildStressSummaryReport(results), 'utf8');
+  // eslint-disable-next-line no-console
+  console.log(`[stress] summary=${summaryPath}`);
 }
 
 void main().catch((error) => {
