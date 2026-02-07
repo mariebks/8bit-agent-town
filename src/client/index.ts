@@ -5,6 +5,7 @@ import { AmbientAudioController } from './audio/AmbientAudioController';
 import { BootScene } from './game/scenes/BootScene';
 import { TownScene } from './game/scenes/TownScene';
 import { SimulationSocket } from './network/SimulationSocket';
+import { AgentFinderPanel } from './ui/AgentFinderPanel';
 import { DebugPanel } from './ui/DebugPanel';
 import { HighlightsReelPanel } from './ui/HighlightsReelPanel';
 import { InspectorPanel } from './ui/InspectorPanel';
@@ -129,6 +130,16 @@ const timelinePanel = new TimelinePanel();
 const storyDigestPanel = new StoryDigestPanel();
 const highlightsReelPanel = new HighlightsReelPanel();
 const weatherStatusPanel = new WeatherStatusPanel();
+const agentFinderPanel = new AgentFinderPanel({
+  onFocusAgent: (agentId) => {
+    const focused = getTownScene()?.focusAgentById(agentId) ?? false;
+    if (focused) {
+      uiState.lastJumpedAgentId = agentId;
+      void audioController.playCue('jump');
+    }
+    return focused;
+  },
+});
 const relationshipHeatmapPanel = new RelationshipHeatmapPanel({
   getSelectedAgentId: () => getTownScene()?.getSelectedAgentId() ?? null,
 });
@@ -225,6 +236,9 @@ uiManager.registerPanel(weatherStatusPanel, {
 });
 uiManager.registerPanel(highlightsReelPanel, {
   visibleIn: ['spectator', 'story'],
+});
+uiManager.registerPanel(agentFinderPanel, {
+  visibleIn: ['spectator', 'story', 'debug'],
 });
 uiManager.registerPanel(timelinePanel, {
   visibleIn: ['spectator', 'story', 'debug'],
