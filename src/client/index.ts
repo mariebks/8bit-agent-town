@@ -17,6 +17,7 @@ import { StoryDigestPanel } from './ui/StoryDigestPanel';
 import { TimelinePanel } from './ui/TimelinePanel';
 import { UIEventBus } from './ui/UIEventBus';
 import { UIManager } from './ui/UIManager';
+import { WeatherStatusPanel } from './ui/WeatherStatusPanel';
 import { resolveModeShortcut, resolveOverlayShortcut, resolvePanelShortcut } from './ui/KeyboardShortcuts';
 import { TimeControls } from './ui/TimeControls';
 import { UISimulationState } from './ui/types';
@@ -123,6 +124,7 @@ const promptViewer = new PromptViewer({
 const timelinePanel = new TimelinePanel();
 const storyDigestPanel = new StoryDigestPanel();
 const highlightsReelPanel = new HighlightsReelPanel();
+const weatherStatusPanel = new WeatherStatusPanel();
 const relationshipHeatmapPanel = new RelationshipHeatmapPanel({
   getSelectedAgentId: () => getTownScene()?.getSelectedAgentId() ?? null,
 });
@@ -205,6 +207,9 @@ uiManager.registerPanel(onboardingPanel, {
   visibleIn: ['spectator', 'story', 'debug'],
 });
 uiManager.registerPanel(storyDigestPanel, {
+  visibleIn: ['spectator', 'story'],
+});
+uiManager.registerPanel(weatherStatusPanel, {
   visibleIn: ['spectator', 'story'],
 });
 uiManager.registerPanel(highlightsReelPanel, {

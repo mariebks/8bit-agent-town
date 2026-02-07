@@ -97,3 +97,4 @@ Ship eight UX upgrades that make the town readable, cinematic, and fun to observ
 - [x] 10. Relationship timeline sparkline in inspector.
 - [x] 11. Dynamic weather visuals tied to conversation topics and mood.
 - [x] 12. Director bookmark system for returning to memorable moments.
+- [x] 13. Compact weather status HUD tied to live topic/mood signals.

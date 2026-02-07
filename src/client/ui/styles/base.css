@@ -237,6 +237,18 @@ body::before {
   pointer-events: none;
 }
 
+.weather-status-panel {
+  right: 10px;
+  top: 10px;
+  width: min(22vw, 280px);
+}
+
+.weather-status-label {
+  font-size: 10px;
+  color: var(--ui-accent);
+  margin-bottom: 4px;
+}
+
 .highlights-reel-panel {
   left: 10px;
   top: 118px;
@@ -601,6 +613,14 @@ body[data-ui-density='compact'] .ui-panel:focus-within .panel-footer {
 
 body[data-ui-density='compact'] .story-digest-bar {
   width: min(44vw, 560px);
+}
+
+body[data-ui-density='compact'] .weather-status-panel {
+  width: min(18vw, 220px);
+}
+
+body[data-ui-density='compact'] .weather-status-label {
+  font-size: 9px;
 }
 
 body[data-ui-density='compact'] .highlights-reel-panel {
