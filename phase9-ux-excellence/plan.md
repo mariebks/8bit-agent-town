@@ -96,4 +96,4 @@ Ship eight UX upgrades that make the town readable, cinematic, and fun to observ
 - [x] 9. "Highlights Reel" auto-generated recap of last in-game hour.
 - [x] 10. Relationship timeline sparkline in inspector.
 - [x] 11. Dynamic weather visuals tied to conversation topics and mood.
-- [ ] 12. Director bookmark system for returning to memorable moments.
+- [x] 12. Director bookmark system for returning to memorable moments.

@@ -496,4 +496,33 @@ test.describe('8-bit Agent Town fullstack', () => {
       )
       .toBe(true);
   });
+
+  test('cycles director bookmarks for memorable agents', async ({ page }) => {
+    await page.goto('/');
+    await waitForTownScene(page);
+    await setUiMode(page, 'Story');
+
+    const selected = await page.evaluate(() => {
+      const scene = window.__agentTownGame?.scene.getScene('TownScene') as {
+        getSelectedAgentId: () => string | null;
+        addBookmarkForSelectedAgent: () => string | null;
+      };
+      const selectedId = scene.getSelectedAgentId();
+      scene.addBookmarkForSelectedAgent();
+      return selectedId;
+    });
+    expect(selected).not.toBeNull();
+
+    await page.locator('.time-controls .ui-btn', { hasText: 'Next Bookmark' }).click();
+    await expect(page.locator('.time-controls .panel-footer')).toContainText('focused bookmark');
+
+    const focused = await page.evaluate(() => {
+      const scene = window.__agentTownGame?.scene.getScene('TownScene') as {
+        getSelectedAgentId: () => string | null;
+      };
+      return scene.getSelectedAgentId();
+    });
+
+    expect(focused).toBe(selected);
+  });
 });

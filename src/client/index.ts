@@ -148,6 +148,28 @@ const timeControls = new TimeControls({
   onToggleAutoDirector: () => getTownScene()?.toggleAutoDirector() ?? false,
   onToggleAudio: () => audioController.toggleEnabled(),
   onToggleHeatmap: () => uiManager.togglePanel('relationship-heatmap-panel'),
+  onAddBookmark: () => {
+    const bookmarked = getTownScene()?.addBookmarkForSelectedAgent() ?? null;
+    if (bookmarked) {
+      uiState.events = [
+        ...uiState.events,
+        {
+          type: 'log',
+          level: 'info',
+          message: `director bookmark saved: ${bookmarked}`,
+        },
+      ];
+    }
+    return bookmarked;
+  },
+  onJumpToBookmark: () => {
+    const focused = getTownScene()?.focusNextDirectorBookmark() ?? null;
+    if (focused) {
+      uiState.lastJumpedAgentId = focused;
+      void audioController.playCue('jump');
+    }
+    return focused;
+  },
   getFollowSelectedEnabled: () => getTownScene()?.isFollowingSelectedAgent() ?? false,
   getAutoDirectorEnabled: () => getTownScene()?.isAutoDirectorEnabled() ?? false,
   getAudioEnabled: () => audioController.isEnabled(),

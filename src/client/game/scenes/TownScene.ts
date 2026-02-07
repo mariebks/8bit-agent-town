@@ -6,6 +6,7 @@ import { CameraController } from '../camera/CameraController';
 import { AStar } from '../pathfinding/AStar';
 import { AgentSprite } from '../sprites/AgentSprite';
 import { inferConversationTags } from './ConversationTags';
+import { addDirectorBookmark, nextDirectorBookmark } from './DirectorBookmarks';
 import { dequeueDirectorCue, DirectorCue, enqueueDirectorCue as pushDirectorCue } from './DirectorQueue';
 import { enqueueSpeech } from './SpeechQueue';
 import { layoutSpeechBubbleOffsets } from './SpeechBubbleLayout';
@@ -80,6 +81,8 @@ export class TownScene extends Phaser.Scene {
   private followSelectedAgent = false;
   private uiMode: SceneUiMode = 'spectator';
   private autoDirectorEnabled = true;
+  private directorBookmarkAgentIds: string[] = [];
+  private directorBookmarkIndex = 0;
   private directorCooldownMs = 0;
   private directorFocusMs = 0;
   private directorCurrentAgentId: string | null = null;
@@ -264,6 +267,43 @@ export class TownScene extends Phaser.Scene {
 
   isAutoDirectorEnabled(): boolean {
     return this.autoDirectorEnabled;
+  }
+
+  addBookmarkForSelectedAgent(): string | null {
+    const selectedAgentId = this.selectedAgent?.agentId ?? null;
+    if (!selectedAgentId) {
+      return null;
+    }
+
+    const next = addDirectorBookmark(
+      {
+        bookmarkAgentIds: this.directorBookmarkAgentIds,
+        nextIndex: this.directorBookmarkIndex,
+      },
+      selectedAgentId,
+      10,
+    );
+    this.directorBookmarkAgentIds = next.bookmarkAgentIds;
+    this.directorBookmarkIndex = next.nextIndex;
+    return selectedAgentId;
+  }
+
+  focusNextDirectorBookmark(): string | null {
+    const next = nextDirectorBookmark({
+      bookmarkAgentIds: this.directorBookmarkAgentIds,
+      nextIndex: this.directorBookmarkIndex,
+    });
+    this.directorBookmarkIndex = next.state.nextIndex;
+    if (!next.agentId) {
+      return null;
+    }
+
+    if (!this.focusAgentById(next.agentId)) {
+      this.directorBookmarkAgentIds = this.directorBookmarkAgentIds.filter((id) => id !== next.agentId);
+      this.directorBookmarkIndex = 0;
+      return null;
+    }
+    return next.agentId;
   }
 
   hasManualSelectionMade(): boolean {

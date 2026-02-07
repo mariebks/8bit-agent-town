@@ -8,6 +8,8 @@ interface TimeControlsOptions {
   onToggleAutoDirector?: () => boolean;
   onToggleAudio?: () => boolean | Promise<boolean>;
   onToggleHeatmap?: () => boolean;
+  onAddBookmark?: () => string | null;
+  onJumpToBookmark?: () => string | null;
   getFollowSelectedEnabled?: () => boolean;
   getAutoDirectorEnabled?: () => boolean;
   getAudioEnabled?: () => boolean;
@@ -110,6 +112,22 @@ export class TimeControls implements UIPanel {
       focusRow.append(this.heatmapButton);
     } else {
       this.heatmapButton = null;
+    }
+
+    if (options.onAddBookmark) {
+      const bookmarkButton = this.createButton('Bookmark Agent', () => {
+        const bookmarked = options.onAddBookmark?.();
+        this.statusElement.textContent = bookmarked ? `bookmarked ${bookmarked}` : 'select an agent to bookmark';
+      });
+      focusRow.append(bookmarkButton);
+    }
+
+    if (options.onJumpToBookmark) {
+      const jumpBookmarkButton = this.createButton('Next Bookmark', () => {
+        const focused = options.onJumpToBookmark?.();
+        this.statusElement.textContent = focused ? `focused bookmark ${focused}` : 'no bookmarks available';
+      });
+      focusRow.append(jumpBookmarkButton);
     }
 
     this.statusElement = document.createElement('div');
