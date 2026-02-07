@@ -21,6 +21,7 @@ export const GameTimeSchema = z.object({
 export const AgentDataSchema = z.object({
   id: z.string(),
   name: z.string(),
+  occupation: z.string().optional(),
   position: PositionSchema,
   tilePosition: TilePositionSchema,
   state: z.nativeEnum(AgentState),
@@ -42,6 +43,16 @@ export const AgentDataSchema = z.object({
       strongestBondId: z.string().optional(),
       weakestBondId: z.string().optional(),
     })
+    .optional(),
+  relationshipEdges: z
+    .array(
+      z.object({
+        targetId: z.string(),
+        weight: z.number(),
+        tags: z.array(z.string()),
+        lastInteraction: z.number(),
+      }),
+    )
     .optional(),
   llmTrace: z
     .object({

@@ -1020,7 +1020,16 @@ export class Simulation {
       const planPreview = memory ? this.planningSystem.getPlanPreview(memory, currentGameTime, 3) : [];
       const lastReflection = memory ? this.reflectionSystem.getLatestReflection(memory) : null;
       const relationshipSummary = this.relationships.getSummary(agent.id);
-      const relationshipEdges = this.relationships.getEdges(agent.id).slice(0, 12);
+      const relationshipEdges = this.relationships
+        .getEdges(agent.id)
+        .sort((left, right) => {
+          const magnitudeDelta = Math.abs(right.weight) - Math.abs(left.weight);
+          if (magnitudeDelta !== 0) {
+            return magnitudeDelta;
+          }
+          return right.weight - left.weight;
+        })
+        .slice(0, 12);
       const llmTrace = this.decisionMaker.getLlmTrace(agent.id);
 
       return {
