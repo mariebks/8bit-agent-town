@@ -18,7 +18,7 @@ test.describe('8-bit Agent Town visual checklist', () => {
     await page.setViewportSize({ width: 1366, height: 768 });
     await page.goto('/');
     await waitForTownScene(page);
-    await expect(page.locator('.time-controls .panel-footer')).toContainText('online');
+    await expect(page.locator('.time-controls .panel-footer')).toContainText('tick');
 
     const modeButton = (label: 'Spectator' | 'Story' | 'Debug') =>
       page.locator('.mode-switcher-panel .ui-btn', { hasText: label });

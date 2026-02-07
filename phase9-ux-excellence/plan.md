@@ -16,79 +16,80 @@ Ship eight UX upgrades that make the town readable, cinematic, and fun to observ
 
 ### 1. Auto Director Camera
 
-- [ ] Add director focus queue in `TownScene` for high-signal events.
-- [ ] Add auto-director toggle in controls UI.
-- [ ] Add mode-aware defaults (`Spectator` on, `Story` optional, `Debug` off).
-- [ ] Add camera choreography (soft pan + temporary zoom focus + cooldown).
-- [ ] Add unit coverage for director event selection helper logic.
+- [x] Add director focus queue in `TownScene` for high-signal events.
+- [x] Add auto-director toggle in controls UI.
+- [x] Add mode-aware defaults (`Spectator` on, `Story` optional, `Debug` off).
+- [x] Add camera choreography (soft pan + temporary zoom focus + cooldown).
+- [x] Add unit coverage for director event selection helper logic.
 
 ### 2. Story Digest Bar (Top 3 Live Events)
 
-- [ ] Add compact top-bar panel showing top 3 recent high-value events.
-- [ ] Add event scoring/prioritization (relationship/topic/conversation > arrivals/system).
-- [ ] Render portraits + role badges in digest entries.
-- [ ] Ensure digest updates without log spam in Spectator mode.
-- [ ] Add tests for digest extraction/prioritization.
+- [x] Add compact top-bar panel showing top 3 recent high-value events.
+- [x] Add event scoring/prioritization (relationship/topic/conversation > arrivals/system).
+- [x] Render portraits + role badges in digest entries.
+- [x] Ensure digest updates without log spam in Spectator mode.
+- [x] Add tests for digest extraction/prioritization.
 
 ### 3. Conversation UI Upgrade
 
-- [ ] Upgrade speech bubbles with speaker name header.
-- [ ] Add inferred tags (`gossip`, `plan`, `conflict`, `friendly`, `urgent`).
-- [ ] Add speech pacing queue to reduce stutter/overlap.
-- [ ] Improve bubble styling and readability for long lines.
-- [ ] Add tests for tag inference and pacing helper behavior.
+- [x] Upgrade speech bubbles with speaker name header.
+- [x] Add inferred tags (`gossip`, `plan`, `conflict`, `friendly`, `urgent`).
+- [x] Add speech pacing queue to reduce stutter/overlap.
+- [x] Improve bubble styling and readability for long lines.
+- [x] Add tests for tag inference and pacing helper behavior.
 
 ### 4. Character Identity Layer
 
-- [ ] Extend `AgentData` with occupation + relationship edge data needed for identity UI.
-- [ ] Add portrait token generator from agent metadata.
-- [ ] Add role badge rendering in timeline and inspector.
-- [ ] Add more sprite variation knobs per role/archetype.
-- [ ] Add tests for identity token helpers.
+- [x] Extend `AgentData` with occupation + relationship edge data needed for identity UI.
+- [x] Add portrait token generator from agent metadata.
+- [x] Add role badge rendering in timeline and inspector.
+- [x] Add more sprite variation knobs per role/archetype.
+- [x] Add tests for identity token helpers.
 
 ### 5. Relationship Heatmap View
 
-- [ ] Add new relationship heatmap panel for selected agent.
-- [ ] Render weighted bars/nodes with friend/rival color coding.
-- [ ] Add quick-open shortcut and mode visibility defaults.
-- [ ] Make panel robust to missing/partial relationship data.
-- [ ] Add tests for heatmap row mapping and ordering.
+- [x] Add new relationship heatmap panel for selected agent.
+- [x] Render weighted bars/nodes with friend/rival color coding.
+- [x] Add quick-open shortcut and mode visibility defaults.
+- [x] Make panel robust to missing/partial relationship data.
+- [x] Add tests for heatmap row mapping and ordering.
 
 ### 6. Preset Modes: Spectator / Story / Debug
 
-- [ ] Rename Cinematic to Spectator across UI, storage parsing, and tests.
-- [ ] Add mode presets that control panel visibility, camera behavior, and overlay quality.
-- [ ] Preserve backward compatibility for old stored mode key values.
-- [ ] Update onboarding/help text and shortcut hints.
-- [ ] Update mode unit/E2E tests for renamed preset labels.
+- [x] Rename Cinematic to Spectator across UI, storage parsing, and tests.
+- [x] Add mode presets that control panel visibility, camera behavior, and overlay quality.
+- [x] Preserve backward compatibility for old stored mode key values.
+- [x] Update onboarding/help text and shortcut hints.
+- [x] Update mode unit/E2E tests for renamed preset labels.
 
 ### 7. Ambient Audio + UI SFX
 
-- [ ] Add lightweight WebAudio controller (no external assets required).
-- [ ] Add day-part ambient bed and subtle event chimes.
-- [ ] Add control toggle with safe defaults and browser autoplay-safe unlock.
-- [ ] Add graceful fallback when WebAudio unavailable.
-- [ ] Add tests for audio state transitions and day-part mapping.
+- [x] Add lightweight WebAudio controller (no external assets required).
+- [x] Add day-part ambient bed and subtle event chimes.
+- [x] Add control toggle with safe defaults and browser autoplay-safe unlock.
+- [x] Add graceful fallback when WebAudio unavailable.
+- [x] Add tests for audio state transitions and day-part mapping.
 
 ### 8. Guided First-Run Flow ("What To Do Next")
 
-- [ ] Replace static onboarding with progressive tasks:
-  - [ ] Select an agent.
-  - [ ] Turn Follow on.
-  - [ ] Jump to an event agent.
-- [ ] Track progress in local storage and dismiss automatically on completion.
-- [ ] Add reset capability for guided flow state.
-- [ ] Add tests for flow progression and persistence behavior.
+- [x] Replace static onboarding with progressive tasks:
+  - [x] Select an agent.
+  - [x] Turn Follow on.
+  - [x] Jump to an event agent.
+- [x] Track progress in local storage and dismiss automatically on completion.
+- [x] Add reset capability for guided flow state.
+- [x] Add tests for flow progression and persistence behavior.
 
 ## Review / Test / Ship Loop
 
-- [ ] Run `npm run test -- --run`.
-- [ ] Run `npm run build`.
-- [ ] Run `npm run test:e2e:fullstack`.
-- [ ] Run `npm run quality:check`.
-- [ ] Run `codex review --uncommitted`, apply findings, rerun affected tests.
-- [ ] Commit in coherent chunks.
-- [ ] Push to `main`.
+- [x] Run `npm run test -- --run`.
+- [x] Run `npm run build`.
+- [x] Run `npm run test:e2e:fullstack`.
+- [x] Run `npm run quality:check`.
+- [x] Run `codex review --uncommitted`, apply findings, rerun affected tests.
+- [x] Commit in coherent chunks.
+- [x] Push to PR branch (`phase9-ux-excellence`).
+- [ ] Merge PR to `main`.
 
 ## Next Improvements Backlog (9+)
 

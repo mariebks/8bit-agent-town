@@ -397,7 +397,7 @@ test.describe('8-bit Agent Town fullstack', () => {
       .toBeGreaterThan(0);
   });
 
-  test('preserves manual zoom when director is off and while following', async ({ page }) => {
+  test('preserves manual zoom when toggling director and follow states', async ({ page }) => {
     await page.goto('/');
     await waitForTownScene(page);
     await setUiMode(page, 'Debug');
@@ -418,12 +418,7 @@ test.describe('8-bit Agent Town fullstack', () => {
       )
       .toBeGreaterThan(1.3);
 
-    await page.locator('.time-controls .ui-btn', { hasText: 'Follow:' }).click();
-    await page.evaluate(() => {
-      const scene = window.__agentTownGame?.scene.getScene('TownScene') as { cameras: { main: { setZoom: (value: number) => void } } };
-      scene.cameras.main.setZoom(1.33);
-    });
-    await page.waitForTimeout(700);
+    await page.locator('.time-controls .ui-btn', { hasText: 'Director:' }).click();
     await expect
       .poll(
         async () =>
@@ -433,7 +428,19 @@ test.describe('8-bit Agent Town fullstack', () => {
           }),
         { timeout: 3_000, intervals: [100, 200, 400] },
       )
-      .toBeGreaterThan(1.22);
+      .toBeGreaterThan(1.3);
+
+    await page.locator('.time-controls .ui-btn', { hasText: 'Follow:' }).click();
+    await expect
+      .poll(
+        async () =>
+          await page.evaluate(() => {
+            const scene = window.__agentTownGame?.scene.getScene('TownScene') as { cameras: { main: { zoom: number } } };
+            return scene.cameras.main.zoom;
+          }),
+        { timeout: 3_000, intervals: [100, 200, 400] },
+      )
+      .toBeGreaterThan(1.3);
   });
 
   test('refreshes sprite texture when server occupation metadata changes', async ({ page }) => {

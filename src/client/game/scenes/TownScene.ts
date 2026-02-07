@@ -229,7 +229,6 @@ export class TownScene extends Phaser.Scene {
     if (this.followSelectedAgent) {
       this.directorCurrentAgentId = null;
       this.directorFocusMs = 0;
-      this.cameras.main.setZoom(this.modeBaseZoom);
     }
     if (this.followSelectedAgent && this.selectedAgent) {
       this.centerCameraOn(this.selectedAgent, 0.25);
@@ -243,7 +242,6 @@ export class TownScene extends Phaser.Scene {
     if (!this.autoDirectorEnabled) {
       this.directorCurrentAgentId = null;
       this.directorFocusMs = 0;
-      this.cameras.main.setZoom(this.modeBaseZoom);
     }
     this.updateInfoText();
     return this.autoDirectorEnabled;
