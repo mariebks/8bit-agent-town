@@ -10,6 +10,7 @@ import { LogPanel } from './ui/LogPanel';
 import { PromptViewer } from './ui/PromptViewer';
 import { UIEventBus } from './ui/UIEventBus';
 import { UIManager } from './ui/UIManager';
+import { resolvePanelShortcut } from './ui/KeyboardShortcuts';
 import { TimeControls } from './ui/TimeControls';
 import { UISimulationState } from './ui/types';
 import './ui/styles/base.css';
@@ -117,6 +118,32 @@ simulationSocket.onDelta((event) => {
 });
 
 simulationSocket.connect();
+
+window.addEventListener('keydown', (event: KeyboardEvent) => {
+  const target = event.target as HTMLElement | null;
+  const shortcut = resolvePanelShortcut({
+    key: event.key,
+    ctrlKey: event.ctrlKey,
+    metaKey: event.metaKey,
+    altKey: event.altKey,
+    targetTagName: target?.tagName,
+    targetIsContentEditable: target?.isContentEditable,
+  });
+  if (!shortcut) {
+    return;
+  }
+
+  event.preventDefault();
+  const isVisible = uiManager.togglePanel(shortcut);
+  uiState.events = [
+    ...uiState.events,
+    {
+      type: 'log',
+      level: 'info',
+      message: `panel ${shortcut} ${isVisible ? 'shown' : 'hidden'}`,
+    },
+  ];
+});
 
 // Decouple DOM panel updates from render frames.
 window.setInterval(() => {

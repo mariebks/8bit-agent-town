@@ -15,7 +15,7 @@ Deliver an observer-friendly user interface with inspection tools and debugging 
 - [x] DOM panel updates are throttled (120ms interval), decoupled from the Phaser render loop.
 - [x] Log panel now supports event-type and agent-id filtering.
 - [ ] Toggleable path/perception overlays with auto-downsample under FPS pressure.
-- [ ] Keyboard shortcut layer for panel toggles and focus-safe input handling.
+- [x] Keyboard shortcut layer implemented for panel toggles (`D`, `I`, `P`, `L`) with focus-safe input handling.
 
 ## Expert corrections (supersedes conflicting details below)
 
