@@ -7,10 +7,16 @@ import { AStar } from '../pathfinding/AStar';
 import { AgentSprite } from '../sprites/AgentSprite';
 import { inferConversationTags } from './ConversationTags';
 import { addDirectorBookmark, nextDirectorBookmark } from './DirectorBookmarks';
+import { nextDirectorZoom } from './DirectorZoom';
 import { dequeueDirectorCue, DirectorCue, enqueueDirectorCue as pushDirectorCue } from './DirectorQueue';
 import { enqueueSpeech } from './SpeechQueue';
 import { layoutSpeechBubbleOffsets } from './SpeechBubbleLayout';
 import { formatSpeechBubbleText } from './SpeechBubbleText';
+import {
+  loadPreferredSelectedAgentId,
+  resolveSelectedAgentId,
+  storePreferredSelectedAgentId,
+} from './SelectionPersistence';
 import { resolveWeatherProfile, WeatherProfile } from './WeatherProfile';
 import { classifyAgentLod, movementUpdateInterval, shouldRenderBubble, shouldShowSpeechBubble } from './CullingMath';
 import { overlayQualityProfileForFps } from './OverlayQuality';
@@ -70,6 +76,7 @@ export class TownScene extends Phaser.Scene {
   private weatherProfile: WeatherProfile = resolveWeatherProfile(null, []);
   private readonly recentTopicTrail: string[] = [];
   private manualSelectionMade = false;
+  private preferredSelectedAgentId: string | null = null;
   private readonly speechBubbles = new Map<string, SpeechBubbleState>();
   private readonly pendingSpeechByAgent = new Map<string, Array<{ message: string; durationMs: number }>>();
   private frameCounter = 0;
@@ -118,8 +125,11 @@ export class TownScene extends Phaser.Scene {
     this.createOverlays();
     this.createAmbientParticles();
     this.createLandmarkGuides();
+    this.preferredSelectedAgentId = loadPreferredSelectedAgentId(
+      typeof window !== 'undefined' ? window.localStorage : null,
+    );
 
-    this.selectAgent(this.agents[0] ?? null);
+    this.selectAgent(this.agents[0] ?? null, false);
 
     this.cameraController = new CameraController(this, this.map.widthInPixels, this.map.heightInPixels);
     this.cameras.main.centerOn(this.map.widthInPixels / 2, this.map.heightInPixels / 2);
@@ -710,10 +720,14 @@ export class TownScene extends Phaser.Scene {
     this.dayTintOverlay.setSize(this.scale.width, this.scale.height);
   }
 
-  private selectAgent(agent: AgentSprite | null): void {
+  private selectAgent(agent: AgentSprite | null, persistPreference = true): void {
     this.selectedAgent?.setSelected(false);
     this.selectedAgent = agent;
     this.selectedAgent?.setSelected(true);
+    if (persistPreference) {
+      this.preferredSelectedAgentId = agent?.agentId ?? null;
+      storePreferredSelectedAgentId(this.preferredSelectedAgentId, typeof window !== 'undefined' ? window.localStorage : null);
+    }
     this.updateInfoText();
   }
 
@@ -1055,7 +1069,7 @@ export class TownScene extends Phaser.Scene {
     }
 
     if (!this.directorCurrentAgentId) {
-      this.cameras.main.setZoom(Phaser.Math.Linear(this.cameras.main.zoom, this.modeBaseZoom, 0.07));
+      this.cameras.main.setZoom(nextDirectorZoom(this.cameras.main.zoom, this.modeBaseZoom, 0.07));
       return;
     }
 
@@ -1066,10 +1080,10 @@ export class TownScene extends Phaser.Scene {
     }
 
     this.centerCameraOn(target, this.uiMode === 'spectator' ? 0.14 : 0.1);
-    this.cameras.main.setZoom(Phaser.Math.Linear(this.cameras.main.zoom, this.modeFocusZoom, 0.08));
+    this.cameras.main.setZoom(nextDirectorZoom(this.cameras.main.zoom, this.modeFocusZoom, 0.08));
     if (this.directorFocusMs <= 0) {
       this.directorCurrentAgentId = null;
-      this.cameras.main.setZoom(Phaser.Math.Linear(this.cameras.main.zoom, this.modeBaseZoom, 0.15));
+      this.cameras.main.setZoom(nextDirectorZoom(this.cameras.main.zoom, this.modeBaseZoom, 0.15));
     }
   }
 
@@ -1154,15 +1168,25 @@ export class TownScene extends Phaser.Scene {
       }
     }
 
-    if (this.selectedAgent && !this.agentsById.has(this.selectedAgent.agentId)) {
-      this.selectedAgent = null;
+    const selectedAgentId = this.selectedAgent?.agentId ?? null;
+    const mostActiveAgentId = this.pickMostActiveServerAgent(agents)?.agentId ?? null;
+    const firstAgentId = this.agents[0]?.agentId ?? null;
+    const nextSelectedAgentId = resolveSelectedAgentId({
+      currentSelectedAgentId: selectedAgentId,
+      preferredSelectedAgentId: this.preferredSelectedAgentId,
+      activeAgentIds: activeIds,
+      serverSelectionInitialized: this.serverSelectionInitialized,
+      manualSelectionMade: this.manualSelectionMade,
+      mostActiveAgentId,
+      firstAgentId,
+    });
+
+    if (selectedAgentId !== nextSelectedAgentId) {
+      const nextSelectedAgent = nextSelectedAgentId ? this.agentsById.get(nextSelectedAgentId) ?? null : null;
+      this.selectAgent(nextSelectedAgent, nextSelectedAgentId !== null);
     }
 
     if (!this.serverSelectionInitialized) {
-      if (!this.selectedAgent) {
-        const defaultSelection = this.manualSelectionMade ? this.agents[0] ?? null : this.pickMostActiveServerAgent(agents);
-        this.selectAgent(defaultSelection);
-      }
       this.serverSelectionInitialized = true;
     }
   }
