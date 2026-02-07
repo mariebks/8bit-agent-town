@@ -841,6 +841,7 @@ export class TownScene extends Phaser.Scene {
       }
 
       agent.setVisible(selected || lod !== 'culled');
+      agent.tickVisuals(deltaMs);
     }
   }
 

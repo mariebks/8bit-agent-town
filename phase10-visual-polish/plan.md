@@ -10,11 +10,11 @@ Improve legibility and charm so the simulation feels closer to a polished retro 
 - [x] Add deterministic occupation traits (headwear/accessory/hair/badge).
 - [x] Render trait variants in generated sprite sheets.
 - [x] Add unit tests for trait mapping stability.
-- [ ] Add subtle per-role idle micro-variation without increasing texture atlas count.
+- [x] Add subtle per-role idle micro-variation without increasing texture atlas count.
 
 2. Sprite readability at zoom levels
-- [ ] Add optional outline/shadow tuning based on camera zoom.
-- [ ] Verify selected-agent ring remains visible over bright ground tiles.
+- [x] Add optional outline/shadow tuning based on camera zoom.
+- [x] Verify selected-agent ring remains visible over bright ground tiles.
 - [ ] Add visual regression checklist via Playwright screenshots.
 
 3. Environment visual cohesion
