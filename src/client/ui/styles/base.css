@@ -121,6 +121,11 @@ body::before {
   line-height: 1.4;
 }
 
+.inspector-trend {
+  margin: 0 0 6px 0;
+  letter-spacing: 0.5px;
+}
+
 .time-controls {
   left: 50%;
   top: 96px;

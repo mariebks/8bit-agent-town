@@ -94,6 +94,6 @@ Ship eight UX upgrades that make the town readable, cinematic, and fun to observ
 ## Next Improvements Backlog (9+)
 
 - [x] 9. "Highlights Reel" auto-generated recap of last in-game hour.
-- [ ] 10. Relationship timeline sparkline in inspector.
+- [x] 10. Relationship timeline sparkline in inspector.
 - [ ] 11. Dynamic weather visuals tied to conversation topics and mood.
 - [ ] 12. Director bookmark system for returning to memorable moments.

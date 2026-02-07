@@ -1,12 +1,13 @@
 import { AgentData } from '@shared/Types';
 import { buildAgentIdentityToken } from './AgentIdentity';
+import { appendRelationshipSample, renderRelationshipSparkline } from './RelationshipSparkline';
 import { UIPanel, UISimulationState } from './types';
 
 interface InspectorOptions {
   getSelectedAgentId: () => string | null;
 }
 
-function formatAgent(agent: AgentData): string {
+function formatAgent(agent: AgentData, relationshipTrend: string): string {
   const relationship = agent.relationshipSummary;
 
   return [
@@ -20,6 +21,7 @@ function formatAgent(agent: AgentData): string {
     `plan: ${(agent.currentPlan ?? []).join(' | ') || 'n/a'}`,
     `reflection: ${agent.lastReflection ?? 'n/a'}`,
     `relationships: friends ${relationship?.friendCount ?? 0}, rivals ${relationship?.rivalCount ?? 0}, avg ${relationship?.averageWeight ?? 0}`,
+    `relationship trend (1h): ${relationshipTrend}`,
     `llm: ${agent.llmTrace?.lastOutcome ?? 'n/a'}`,
   ].join('\n');
 }
@@ -30,7 +32,9 @@ export class InspectorPanel implements UIPanel {
 
   private readonly contentElement: HTMLElement;
   private readonly identityElement: HTMLElement;
+  private readonly trendElement: HTMLElement;
   private readonly getSelectedAgentId: () => string | null;
+  private readonly relationshipHistoryByAgent = new Map<string, number[]>();
 
   constructor(options: InspectorOptions) {
     this.getSelectedAgentId = options.getSelectedAgentId;
@@ -45,10 +49,13 @@ export class InspectorPanel implements UIPanel {
     this.identityElement = document.createElement('div');
     this.identityElement.className = 'inspector-identity';
 
+    this.trendElement = document.createElement('div');
+    this.trendElement.className = 'panel-subheader inspector-trend';
+
     this.contentElement = document.createElement('pre');
     this.contentElement.className = 'inspector-content';
 
-    this.element.append(header, this.identityElement, this.contentElement);
+    this.element.append(header, this.identityElement, this.trendElement, this.contentElement);
   }
 
   show(): void {
@@ -60,9 +67,12 @@ export class InspectorPanel implements UIPanel {
   }
 
   update(state: UISimulationState): void {
+    this.captureRelationshipSamples(state.events);
+
     const selectedAgentId = this.getSelectedAgentId();
     if (!selectedAgentId) {
       this.contentElement.textContent = 'No agent selected';
+      this.trendElement.textContent = '';
       return;
     }
 
@@ -70,6 +80,7 @@ export class InspectorPanel implements UIPanel {
     if (!agent) {
       this.contentElement.textContent = `Agent ${selectedAgentId} not found in latest state`;
       this.identityElement.innerHTML = '';
+      this.trendElement.textContent = '';
       return;
     }
 
@@ -86,10 +97,32 @@ export class InspectorPanel implements UIPanel {
     badge.textContent = identity.roleBadge;
 
     this.identityElement.append(portrait, badge);
-    this.contentElement.textContent = formatAgent(agent);
+    const sparkline = renderRelationshipSparkline(this.relationshipHistoryByAgent.get(agent.id) ?? []);
+    this.trendElement.textContent = `Relationship timeline: ${sparkline}`;
+    this.contentElement.textContent = formatAgent(agent, sparkline);
   }
 
   destroy(): void {
     this.element.remove();
+  }
+
+  private captureRelationshipSamples(events: unknown[]): void {
+    for (const event of events) {
+      if (!event || typeof event !== 'object') {
+        continue;
+      }
+
+      const typed = event as Record<string, unknown>;
+      if (typed.type !== 'relationshipShift') {
+        continue;
+      }
+
+      if (typeof typed.sourceId !== 'string' || typeof typed.toWeight !== 'number') {
+        continue;
+      }
+
+      const current = this.relationshipHistoryByAgent.get(typed.sourceId) ?? [];
+      this.relationshipHistoryByAgent.set(typed.sourceId, appendRelationshipSample(current, typed.toWeight, 24));
+    }
   }
 }
