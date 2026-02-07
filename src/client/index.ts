@@ -6,6 +6,7 @@ import { BootScene } from './game/scenes/BootScene';
 import { TownScene } from './game/scenes/TownScene';
 import { SimulationSocket } from './network/SimulationSocket';
 import { DebugPanel } from './ui/DebugPanel';
+import { HighlightsReelPanel } from './ui/HighlightsReelPanel';
 import { InspectorPanel } from './ui/InspectorPanel';
 import { LogPanel } from './ui/LogPanel';
 import { ModeSwitcherPanel } from './ui/ModeSwitcherPanel';
@@ -121,6 +122,7 @@ const promptViewer = new PromptViewer({
 });
 const timelinePanel = new TimelinePanel();
 const storyDigestPanel = new StoryDigestPanel();
+const highlightsReelPanel = new HighlightsReelPanel();
 const relationshipHeatmapPanel = new RelationshipHeatmapPanel({
   getSelectedAgentId: () => getTownScene()?.getSelectedAgentId() ?? null,
 });
@@ -181,6 +183,9 @@ uiManager.registerPanel(onboardingPanel, {
   visibleIn: ['spectator', 'story', 'debug'],
 });
 uiManager.registerPanel(storyDigestPanel, {
+  visibleIn: ['spectator', 'story'],
+});
+uiManager.registerPanel(highlightsReelPanel, {
   visibleIn: ['spectator', 'story'],
 });
 uiManager.registerPanel(timelinePanel, {

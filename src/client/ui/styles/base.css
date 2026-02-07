@@ -232,6 +232,32 @@ body::before {
   pointer-events: none;
 }
 
+.highlights-reel-panel {
+  left: 10px;
+  top: 118px;
+  width: min(36vw, 460px);
+  max-height: 28vh;
+  overflow: auto;
+}
+
+.highlights-summary {
+  margin: 0 0 6px 0;
+  font-size: 9px;
+  line-height: 1.45;
+  color: var(--ui-text);
+}
+
+.highlights-list {
+  margin: 0;
+  padding-left: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 9px;
+  line-height: 1.35;
+  color: var(--ui-muted);
+}
+
 .onboarding-panel {
   left: 50%;
   top: 50%;
@@ -572,6 +598,16 @@ body[data-ui-density='compact'] .story-digest-bar {
   width: min(44vw, 560px);
 }
 
+body[data-ui-density='compact'] .highlights-reel-panel {
+  width: min(30vw, 360px);
+  max-height: 22vh;
+}
+
+body[data-ui-density='compact'] .highlights-list {
+  gap: 3px;
+  font-size: 8px;
+}
+
 @media (max-width: 900px) {
   .log-panel,
   .timeline-panel {
@@ -583,7 +619,8 @@ body[data-ui-density='compact'] .story-digest-bar {
   .mode-switcher-panel,
   .debug-panel,
   .prompt-viewer,
-  .relationship-heatmap-panel {
+  .relationship-heatmap-panel,
+  .highlights-reel-panel {
     width: calc(50vw - 15px);
   }
 
