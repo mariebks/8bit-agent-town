@@ -14,12 +14,14 @@ This phase upgrades the app from "technically complete MVP" to "pleasant and leg
   - D2 Smart defaults: mode defaults to `Cinematic`, startup selection uses activity/proximity heuristic in server mode.
   - E2 Coverage added for mode persistence and timeline rendering in fullstack E2E.
   - E1 conversation quality harness script added (`npm run quality:conversations`) with report output in `output/quality/`.
+  - C2 partial scene pass: day-part tinting + cinematic ambient particles + mode-aware debug overlay suppression.
+  - C1 partial readability pass: consistent agent outlines/selection contrast.
   - Server event surface expanded with `relationshipShift` and `locationArrival`.
   - Conversation depth pass started: topic/intent/tone/arc state, memory hints, topic propagation, repetition guard, natural end reasons.
 - In progress:
   - B3 topic/gossip behavior tuning and observability.
   - B4 safeguard tuning under long-run stress.
-  - C1/C2/C3 visual art-direction pass beyond panel UX (scene/sprite/lighting polish).
+  - C1/C2/C3 full visual art-direction pass beyond panel UX (scene/sprite/tile identity polish).
   - E1 baseline/threshold calibration and CI gating policy (`QUALITY_ENFORCE` rollout).
 
 Focus areas:

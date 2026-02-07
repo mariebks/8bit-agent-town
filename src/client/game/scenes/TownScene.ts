@@ -7,6 +7,8 @@ import { AgentSprite } from '../sprites/AgentSprite';
 import { classifyAgentLod, movementUpdateInterval, shouldRenderBubble } from './CullingMath';
 import { overlayQualityProfileForFps } from './OverlayQuality';
 
+type SceneUiMode = 'cinematic' | 'story' | 'debug';
+
 export interface DebugOverlayState {
   pathEnabled: boolean;
   perceptionEnabled: boolean;
@@ -23,6 +25,8 @@ export class TownScene extends Phaser.Scene {
   private infoText!: Phaser.GameObjects.Text;
   private blockedMarker!: Phaser.GameObjects.Rectangle;
   private blockedMarkerTimerMs = 0;
+  private dayTintOverlay!: Phaser.GameObjects.Rectangle;
+  private dayTintTimerMs = 0;
 
   private readonly agents: AgentSprite[] = [];
   private readonly agentsById = new Map<string, AgentSprite>();
@@ -47,6 +51,8 @@ export class TownScene extends Phaser.Scene {
   private overlayPathSampleStep = 1;
   private overlayPerceptionSuppressed = false;
   private followSelectedAgent = false;
+  private uiMode: SceneUiMode = 'cinematic';
+  private readonly ambientParticles: Array<{ dot: Phaser.GameObjects.Arc; vx: number; vy: number }> = [];
 
   constructor() {
     super('TownScene');
@@ -63,12 +69,17 @@ export class TownScene extends Phaser.Scene {
     this.createMap();
     this.spawnDebugAgents();
     this.createOverlays();
+    this.createAmbientParticles();
 
     this.selectAgent(this.agents[0] ?? null);
 
     this.cameraController = new CameraController(this, this.map.widthInPixels, this.map.heightInPixels);
     this.cameras.main.centerOn(this.map.widthInPixels / 2, this.map.heightInPixels / 2);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.cameraController.destroy());
+    this.scale.on('resize', this.syncScreenOverlayBounds, this);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scale.off('resize', this.syncScreenOverlayBounds, this));
+    this.syncScreenOverlayBounds();
+    this.applySceneUiMode();
 
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
       if (pointer.button !== 0 || this.spacePanKey.isDown) {
@@ -110,6 +121,8 @@ export class TownScene extends Phaser.Scene {
     this.cameraController.update(delta);
     this.updateFollowCamera();
     this.updateAgentCullingAndMovement(delta);
+    this.updateAmbientParticles(delta);
+    this.updateDayTint(delta);
 
     this.renderDebugOverlays();
     this.updateBlockedMarker(delta);
@@ -147,6 +160,11 @@ export class TownScene extends Phaser.Scene {
 
   getSelectedAgentId(): string | null {
     return this.selectedAgent?.agentId ?? null;
+  }
+
+  setUiMode(mode: SceneUiMode): void {
+    this.uiMode = mode;
+    this.applySceneUiMode();
   }
 
   focusAgentById(agentId: string): boolean {
@@ -278,7 +296,98 @@ export class TownScene extends Phaser.Scene {
     });
     this.infoText.setScrollFactor(0);
     this.infoText.setDepth(1000);
+
+    this.dayTintOverlay = this.add.rectangle(0, 0, this.scale.width, this.scale.height, 0x111827, 0);
+    this.dayTintOverlay.setOrigin(0, 0);
+    this.dayTintOverlay.setScrollFactor(0);
+    this.dayTintOverlay.setDepth(980);
+
     this.updateInfoText();
+  }
+
+  private createAmbientParticles(): void {
+    for (let index = 0; index < 20; index += 1) {
+      const dot = this.add.circle(
+        this.rngFloat(0, this.map.widthInPixels),
+        this.rngFloat(0, this.map.heightInPixels),
+        this.rngFloat(0.6, 1.8),
+        0xe6f7bc,
+        this.rngFloat(0.05, 0.2),
+      );
+      dot.setDepth(6);
+      this.ambientParticles.push({
+        dot,
+        vx: this.rngFloat(-4, 4),
+        vy: this.rngFloat(-3, 3),
+      });
+    }
+  }
+
+  private updateAmbientParticles(deltaMs: number): void {
+    const visible = this.uiMode === 'cinematic';
+    const dt = deltaMs / 1000;
+
+    for (const particle of this.ambientParticles) {
+      particle.dot.setVisible(visible);
+      if (!visible) {
+        continue;
+      }
+
+      particle.dot.x += particle.vx * dt;
+      particle.dot.y += particle.vy * dt;
+
+      if (particle.dot.x < 0) {
+        particle.dot.x = this.map.widthInPixels;
+      } else if (particle.dot.x > this.map.widthInPixels) {
+        particle.dot.x = 0;
+      }
+
+      if (particle.dot.y < 0) {
+        particle.dot.y = this.map.heightInPixels;
+      } else if (particle.dot.y > this.map.heightInPixels) {
+        particle.dot.y = 0;
+      }
+    }
+  }
+
+  private updateDayTint(deltaMs: number): void {
+    this.dayTintTimerMs += deltaMs;
+    if (this.dayTintTimerMs < 400) {
+      return;
+    }
+    this.dayTintTimerMs = 0;
+
+    const time = this.serverGameTime;
+    if (!time) {
+      this.dayTintOverlay.setFillStyle(0x1f2937, this.uiMode === 'cinematic' ? 0.03 : 0);
+      return;
+    }
+
+    if (time.hour >= 6 && time.hour < 9) {
+      this.dayTintOverlay.setFillStyle(0xf59e0b, this.uiMode === 'cinematic' ? 0.05 : 0.02);
+      return;
+    }
+
+    if (time.hour >= 9 && time.hour < 18) {
+      this.dayTintOverlay.setFillStyle(0xffffff, 0);
+      return;
+    }
+
+    if (time.hour >= 18 && time.hour < 21) {
+      this.dayTintOverlay.setFillStyle(0xff8b3d, this.uiMode === 'cinematic' ? 0.08 : 0.04);
+      return;
+    }
+
+    this.dayTintOverlay.setFillStyle(0x0f172a, this.uiMode === 'cinematic' ? 0.13 : 0.08);
+  }
+
+  private syncScreenOverlayBounds(): void {
+    if (!this.dayTintOverlay) {
+      return;
+    }
+
+    this.dayTintOverlay.setPosition(0, 0);
+    this.dayTintOverlay.setSize(this.scale.width, this.scale.height);
   }
 
   private selectAgent(agent: AgentSprite | null): void {
@@ -311,6 +420,16 @@ export class TownScene extends Phaser.Scene {
   }
 
   private renderDebugOverlays(force = false): void {
+    if (!this.pathGraphics || !this.perceptionGraphics) {
+      return;
+    }
+
+    if (this.uiMode !== 'debug') {
+      this.pathGraphics.clear();
+      this.perceptionGraphics.clear();
+      return;
+    }
+
     if (!force && this.frameCounter % this.overlayUpdateStride !== 0) {
       return;
     }
@@ -477,6 +596,13 @@ export class TownScene extends Phaser.Scene {
     camera.scrollY = Phaser.Math.Linear(camera.scrollY, boundedY, clampedLerp);
   }
 
+  private applySceneUiMode(): void {
+    const debugMode = this.uiMode === 'debug';
+    this.infoText?.setVisible(debugMode);
+    this.renderDebugOverlays(true);
+    this.updateInfoText();
+  }
+
   private getCameraCenter(): { x: number; y: number } {
     const worldView = this.cameras.main.worldView;
     return {
@@ -562,6 +688,10 @@ export class TownScene extends Phaser.Scene {
     }
 
     return bestSprite ?? this.agents[0] ?? null;
+  }
+
+  private rngFloat(min: number, max: number): number {
+    return min + Math.random() * (max - min);
   }
 
   private createAgentData(

@@ -191,6 +191,7 @@ simulationSocket.onControlAck((ack) => {
 
 uiEventBus.on('ui:modeChanged', (mode) => {
   uiState.uiMode = mode as UISimulationState['uiMode'];
+  getTownScene()?.setUiMode(uiState.uiMode);
   uiState.events = [
     ...uiState.events,
     {
@@ -287,6 +288,7 @@ window.addEventListener('keydown', (event: KeyboardEvent) => {
 
 // Decouple DOM panel updates from render frames.
 window.setInterval(() => {
+  getTownScene()?.setUiMode(uiState.uiMode);
   uiManager.updateAll(uiState);
   uiState.events = [];
 }, 120);

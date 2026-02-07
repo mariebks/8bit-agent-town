@@ -12,12 +12,14 @@ export class AgentSprite extends Phaser.GameObjects.Rectangle {
   private pathIndex = 0;
   private readonly speedPxPerSecond: number;
   private selected = false;
+  private readonly baseColor: number;
 
   constructor(scene: Phaser.Scene, data: AgentData) {
     super(scene, data.position.x, data.position.y, 12, 12, data.color);
 
     this.agentId = data.id;
     this.agentName = data.name;
+    this.baseColor = data.color;
     this.currentTile = { ...data.tilePosition };
     this.speedPxPerSecond = DEFAULT_AGENT_SPEED * TILE_SIZE;
 
@@ -72,9 +74,11 @@ export class AgentSprite extends Phaser.GameObjects.Rectangle {
 
   private applySelectionStyle(): void {
     if (this.selected) {
-      this.setStrokeStyle(2, 0xffffff);
+      this.setStrokeStyle(2, 0xffffff, 1);
+      this.setFillStyle(this.baseColor, 1);
     } else {
-      this.setStrokeStyle();
+      this.setStrokeStyle(1, 0x0f172a, 0.85);
+      this.setFillStyle(this.baseColor, 0.95);
     }
   }
 }
