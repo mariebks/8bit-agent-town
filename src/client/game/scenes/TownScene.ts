@@ -4,6 +4,7 @@ import { AgentData, AgentState, GameTime } from '@shared/Types';
 import { CameraController } from '../camera/CameraController';
 import { AStar } from '../pathfinding/AStar';
 import { AgentSprite } from '../sprites/AgentSprite';
+import { classifyAgentLod, movementUpdateInterval, shouldRenderBubble } from './CullingMath';
 
 export class TownScene extends Phaser.Scene {
   private map!: Phaser.Tilemaps.Tilemap;
@@ -27,6 +28,7 @@ export class TownScene extends Phaser.Scene {
   private serverConnected = false;
   private serverGameTime: GameTime | null = null;
   private readonly speechBubbles = new Map<string, { container: Phaser.GameObjects.Container; remainingMs: number }>();
+  private frameCounter = 0;
 
   constructor() {
     super('TownScene');
@@ -84,13 +86,9 @@ export class TownScene extends Phaser.Scene {
   }
 
   update(_time: number, delta: number): void {
+    this.frameCounter += 1;
     this.cameraController.update(delta);
-
-    if (!this.serverAuthoritative) {
-      for (const agent of this.agents) {
-        agent.updateMovement(delta);
-      }
-    }
+    this.updateAgentCullingAndMovement(delta);
 
     this.renderSelectedPath();
     this.updateBlockedMarker(delta);
@@ -281,6 +279,8 @@ export class TownScene extends Phaser.Scene {
   }
 
   private updateSpeechBubbles(deltaMs: number): void {
+    const cameraCenter = this.getCameraCenter();
+
     for (const [agentId, bubble] of this.speechBubbles.entries()) {
       const sprite = this.agentsById.get(agentId);
       if (!sprite) {
@@ -290,6 +290,10 @@ export class TownScene extends Phaser.Scene {
       }
 
       bubble.container.setPosition(sprite.x, sprite.y - 14);
+      const selected = this.selectedAgent?.agentId === sprite.agentId;
+      const bubbleVisible = selected || (sprite.visible && shouldRenderBubble(sprite.x, sprite.y, cameraCenter.x, cameraCenter.y));
+      bubble.container.setVisible(bubbleVisible);
+
       bubble.remainingMs -= deltaMs;
       if (bubble.remainingMs <= 0) {
         bubble.container.destroy();
@@ -332,6 +336,30 @@ export class TownScene extends Phaser.Scene {
       container,
       remainingMs: durationMs,
     });
+  }
+
+  private updateAgentCullingAndMovement(deltaMs: number): void {
+    const cameraCenter = this.getCameraCenter();
+
+    for (const agent of this.agents) {
+      const lod = classifyAgentLod(agent.x, agent.y, cameraCenter.x, cameraCenter.y);
+      const interval = movementUpdateInterval(lod);
+      const selected = this.selectedAgent?.agentId === agent.agentId;
+
+      if (!this.serverAuthoritative && this.frameCounter % interval === 0) {
+        agent.updateMovement(deltaMs * interval);
+      }
+
+      agent.setVisible(selected || lod !== 'culled');
+    }
+  }
+
+  private getCameraCenter(): { x: number; y: number } {
+    const worldView = this.cameras.main.worldView;
+    return {
+      x: worldView.centerX,
+      y: worldView.centerY,
+    };
   }
 
   private syncServerAgents(agents: AgentData[]): void {
