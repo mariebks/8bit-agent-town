@@ -16,6 +16,30 @@
 
 body {
   background: linear-gradient(180deg, #6ca4d6 0%, #a4cf90 55%, #8db572 100%);
+  margin: 0;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(
+      180deg,
+      rgba(16, 42, 33, 0.04) 0px,
+      rgba(16, 42, 33, 0.04) 1px,
+      transparent 1px,
+      transparent 3px
+    ),
+    linear-gradient(180deg, rgba(247, 240, 194, 0.08) 0%, rgba(25, 58, 46, 0.12) 100%);
+  z-index: 1;
+}
+
+#game-container,
+.ui-overlay {
+  position: relative;
+  z-index: 2;
 }
 
 .ui-overlay {
@@ -270,6 +294,28 @@ body {
 
 body[data-ui-mode='cinematic'] .ui-panel {
   background: rgba(16, 37, 30, 0.72);
+}
+
+body[data-ui-mode='cinematic'] .mode-switcher-panel {
+  width: min(26vw, 320px);
+}
+
+body[data-ui-mode='cinematic'] .timeline-panel {
+  width: min(34vw, 480px);
+  max-height: 27vh;
+}
+
+body[data-ui-mode='cinematic'] .timeline-list {
+  max-height: 18vh;
+  gap: 4px;
+}
+
+body[data-ui-mode='cinematic'] .timeline-card {
+  padding: 5px;
+}
+
+body[data-ui-mode='cinematic'] .timeline-detail {
+  display: none;
 }
 
 @media (max-width: 900px) {

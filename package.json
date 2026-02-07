@@ -18,7 +18,8 @@
     "stress:long": "STRESS_DAYS=10 tsx src/server/testing/runStress.ts --profile both",
     "quality:conversations": "tsx src/server/testing/runConversationQuality.ts",
     "quality:baseline": "QUALITY_WRITE_BASELINE=1 tsx src/server/testing/runConversationQuality.ts",
-    "quality:check": "QUALITY_ENFORCE=1 tsx src/server/testing/runConversationQuality.ts"
+    "quality:check": "QUALITY_ENFORCE=1 tsx src/server/testing/runConversationQuality.ts",
+    "verify:phase8": "npm run test -- --run && npm run build && npm run test:e2e && npm run test:e2e:fullstack && npm run quality:check"
   },
   "dependencies": {
     "express": "^4.18.0",

@@ -18,14 +18,15 @@ This phase upgrades the app from "technically complete MVP" to "pleasant and leg
   - C2 partial scene pass: day-part tinting + cinematic ambient particles + mode-aware debug overlay suppression.
   - C1 partial readability pass: consistent agent outlines/selection contrast.
   - C3 partial world pass: shared town landmark metadata + route/landmark guides rendered in Story/Cinematic.
+  - A2 readability follow-up: mode-aware timeline compaction in Cinematic mode (system noise suppressed, compact card density).
   - Server event surface expanded with `relationshipShift` and `locationArrival`.
   - Conversation depth pass expanded: topic/intent/tone/arc state, memory hints, topic propagation, repetition guard, natural end reasons.
   - Topic graph safeguards added: confidence decay/pruning, topic spread events, backpressure-aware conversation start throttling, periodic hot-topic reports.
+  - B3 tuning completed: relationship/distance/novelty-aware social propagation with source-aware topic spread events and social provenance memories.
+  - B4 safeguards completed: queue-pressure conversation trimming plus temporary per-agent cooldowns after rewrite-streak/topic-exhaustion and queue timeout cases.
+  - E1 rollout completed: enforced quality workflow (`quality:baseline`, `quality:check`) plus full pre-merge validation script (`verify:phase8`).
 - In progress:
-  - B3 topic/gossip behavior tuning toward richer multi-hop social propagation.
-  - B4 safeguard tuning under longer-than-1-day stress profiles.
-  - C1/C2/C3 full visual art-direction pass beyond panel UX (scene/sprite/tile identity polish).
-  - E1 CI gating policy rollout (when to require `quality:check` in pre-merge path).
+  - C1/C2/C3 continued art-direction pass for deeper custom asset identity (optional follow-on beyond MVP polish baseline).
 
 Focus areas:
 - Make the game easier to use without reading docs.
@@ -313,3 +314,4 @@ Phase is done when all are true:
 
 Optional quality harness (new in this phase):
 - `npm run quality:conversations`
+- `npm run verify:phase8`

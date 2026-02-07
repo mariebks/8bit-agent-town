@@ -21,7 +21,7 @@ import { DecisionMaker } from '../agents/DecisionMaker';
 import { ConversationManager } from '../agents/behaviors/Conversation';
 import { RelationshipManager } from '../agents/behaviors/Relationships';
 import { OllamaClient, RequestQueue } from '../llm';
-import { Memory, MemoryStream, MemorySource, Pruner } from '../memory';
+import { Memory, MemorySource, MemoryStream, Pruner } from '../memory';
 import { RollingStats } from '../util/RollingStats';
 import { SeededRng } from '../util/SeededRng';
 import { NavGrid, TiledMapData } from '../world/NavGrid';
@@ -72,6 +72,8 @@ const MAX_TOPICS_PER_AGENT = 32;
 const MIN_TOPIC_CONFIDENCE = 0.11;
 const MAX_TOPIC_SPREAD_EVENTS_PER_TURN = 2;
 const MAX_REWRITE_STREAK = 3;
+const AGENT_REWRITE_COOLDOWN_MINUTES = 45;
+const AGENT_QUEUE_PRESSURE_COOLDOWN_MINUTES = 20;
 
 export class Simulation {
   readonly timeManager: TimeManager;
@@ -97,6 +99,7 @@ export class Simulation {
   private readonly recentLogEvents: LogEvent[] = [];
   private readonly lastLocationByAgent = new Map<AgentId, string | null>();
   private readonly conversationStateById = new Map<string, ConversationState>();
+  private readonly conversationCooldownUntilByAgent = new Map<AgentId, number>();
   private readonly knownTopicsByAgent = new Map<AgentId, Map<string, number>>();
   private readonly topicLastMentioned = new Map<string, number>();
   private readonly topicUsageCount = new Map<string, number>();
@@ -264,6 +267,8 @@ export class Simulation {
   }
 
   private tryStartConversations(gameTime: GameTime): void {
+    this.clearExpiredConversationCooldown(gameTime.totalMinutes);
+
     const backpressure = this.llmQueue.getBackpressureLevel();
     const startChance = backpressure === 'critical' ? 0.02 : backpressure === 'elevated' ? 0.05 : 0.08;
     const maxActiveConversations = backpressure === 'critical' ? 2 : backpressure === 'elevated' ? 4 : 8;
@@ -275,6 +280,14 @@ export class Simulation {
     for (const [left, right] of this.agentManager.getNearbyPairs(1)) {
       if (this.conversationManager.getActiveConversations().length >= maxActiveConversations) {
         break;
+      }
+
+      if (this.isAgentConversationCoolingDown(left.id, gameTime.totalMinutes)) {
+        continue;
+      }
+
+      if (this.isAgentConversationCoolingDown(right.id, gameTime.totalMinutes)) {
+        continue;
       }
 
       const relationshipWeight = this.relationships.getWeight(left.id, right.id);
@@ -324,6 +337,7 @@ export class Simulation {
   }
 
   private runConversationTurns(gameTime: GameTime): void {
+    this.trimConversationsForQueuePressure(gameTime);
     const activeMap = new Map(this.conversationManager.getActiveConversations().map((conversation) => [conversation.id, conversation]));
 
     const result = this.conversationManager.tick(gameTime, ({ speakerId, listenerId, turnNumber, timedOut }) => {
@@ -354,6 +368,32 @@ export class Simulation {
     }
 
     this.endConversationsNaturally(gameTime);
+  }
+
+  private trimConversationsForQueuePressure(gameTime: GameTime): void {
+    if (this.llmQueue.getBackpressureLevel() !== 'critical') {
+      return;
+    }
+
+    const active = this.conversationManager.getActiveConversations();
+    const maxActive = 2;
+    if (active.length <= maxActive) {
+      return;
+    }
+
+    const excess = active
+      .sort((left, right) => right.turns.length - left.turns.length)
+      .slice(maxActive);
+
+    for (const conversation of excess) {
+      const endEvent = this.conversationManager.endConversation(conversation.id, 'timeout', gameTime);
+      this.conversationStateById.delete(conversation.id);
+      this.applyConversationCooldown(
+        conversation.participants,
+        gameTime.totalMinutes + AGENT_QUEUE_PRESSURE_COOLDOWN_MINUTES,
+      );
+      this.enqueueServerEvent(endEvent);
+    }
   }
 
   private handleConversationTurnEvent(
@@ -651,7 +691,7 @@ export class Simulation {
       return `I have been thinking about ${topic}`;
     }
 
-    return summarizeMemory(top);
+    return summarizeMemory(top, (subjectId) => this.agentManager.getById(subjectId)?.name ?? subjectId);
   }
 
   private pickPlanPressureHint(agentId: AgentId, gameMinute: number): string {
@@ -733,17 +773,40 @@ export class Simulation {
 
       const map = this.knownTopicsByAgent.get(candidate.id) ?? new Map<string, number>();
       const before = map.get(normalizedTopic) ?? 0;
-      this.noteTopicMention(topic, gameTime.totalMinutes, candidate.id, 0.52);
+      const sourceId = distFromSpeaker <= distFromListener ? speakerId : listenerId;
+      const sourceDistance = sourceId === speakerId ? distFromSpeaker : distFromListener;
+      const closeness = Math.max(0, (4 - sourceDistance) / 4);
+      const relationshipWeight = this.relationships.getWeight(candidate.id, sourceId);
+      const relationshipAffinity = Math.max(0, Math.min(1, (relationshipWeight + 25) / 125));
+      const topicNovelty = 1 - Math.min(1, before);
+      const spreadChance = Math.min(0.72, 0.12 + closeness * 0.24 + relationshipAffinity * 0.2 + topicNovelty * 0.22);
+      if (!this.rng.chance(spreadChance)) {
+        continue;
+      }
+
+      const confidence = Math.min(0.9, 0.35 + closeness * 0.22 + relationshipAffinity * 0.16 + topicNovelty * 0.18);
+      this.noteTopicMention(topic, gameTime.totalMinutes, candidate.id, confidence);
       const after = this.knownTopicsByAgent.get(candidate.id)?.get(normalizedTopic) ?? 0;
       if (after - before < 0.08) {
         continue;
       }
 
       if (emitted < MAX_TOPIC_SPREAD_EVENTS_PER_TURN) {
+        this.memoryByAgent.get(candidate.id)?.addObservation({
+          content: `${this.agentManager.getById(sourceId)?.name ?? sourceId} mentioned ${normalizedTopic}.`,
+          gameTime: gameTime.totalMinutes,
+          location: this.town.getLocationAtPosition(candidate.getTilePosition())?.id ?? 'plaza',
+          subjects: [sourceId, candidate.id],
+          source: MemorySource.Social,
+          confidence: Math.round(after * 1000) / 1000,
+          hopCount: 2,
+          importance: 4,
+        });
+
         const event: TopicSpreadEvent = {
           type: 'topicSpread',
           topic: normalizedTopic,
-          sourceId: speakerId,
+          sourceId,
           targetId: candidate.id,
           confidence: Math.round(after * 1000) / 1000,
           gameTime,
@@ -827,6 +890,7 @@ export class Simulation {
 
       if (shouldCloseByRewrite) {
         generatedEnds.push(this.conversationManager.endConversation(conversation.id, 'topicExhausted', gameTime));
+        this.applyConversationCooldown([a, b], gameTime.totalMinutes + AGENT_REWRITE_COOLDOWN_MINUTES);
         continue;
       }
 
@@ -861,6 +925,28 @@ export class Simulation {
       }
       return item.targetTime - gameMinute <= 30;
     });
+  }
+
+  private isAgentConversationCoolingDown(agentId: AgentId, gameMinute: number): boolean {
+    const until = this.conversationCooldownUntilByAgent.get(agentId) ?? -1;
+    return gameMinute < until;
+  }
+
+  private applyConversationCooldown(agentIds: AgentId[], untilMinute: number): void {
+    for (const agentId of agentIds) {
+      const previous = this.conversationCooldownUntilByAgent.get(agentId) ?? -1;
+      if (untilMinute > previous) {
+        this.conversationCooldownUntilByAgent.set(agentId, untilMinute);
+      }
+    }
+  }
+
+  private clearExpiredConversationCooldown(gameMinute: number): void {
+    for (const [agentId, until] of this.conversationCooldownUntilByAgent.entries()) {
+      if (gameMinute >= until) {
+        this.conversationCooldownUntilByAgent.delete(agentId);
+      }
+    }
   }
 
   private enqueueServerEvent(event: ServerEvent): void {
@@ -975,17 +1061,27 @@ function intentToVerb(intent: ConversationIntent): string {
   return 'share notes';
 }
 
-function summarizeMemory(memory: Memory): string {
-  const base = memory.content
+function summarizeMemory(memory: Memory, resolveName: (agentId: string) => string): string {
+  const baseContent = memory.content
     .replace(/I told [^:]+:\s*/i, '')
     .replace(/^[^.?!]{90,}[.?!].*$/, (value) => value.slice(0, 90))
     .trim();
 
-  if (base.length === 0) {
+  if (baseContent.length === 0) {
     return 'something from earlier still stands out';
   }
 
-  return base.length > 92 ? `${base.slice(0, 89)}...` : base;
+  const clipped = baseContent.length > 92 ? `${baseContent.slice(0, 89)}...` : baseContent;
+  if (memory.source !== MemorySource.Social) {
+    return clipped;
+  }
+
+  const source = memory.subjects.find((subject) => subject.length > 0);
+  if (!source) {
+    return `I heard this around town: ${clipped}`;
+  }
+
+  return `I heard from ${resolveName(source)}: ${clipped}`;
 }
 
 function extractTopics(text: string): string[] {

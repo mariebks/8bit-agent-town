@@ -7,20 +7,22 @@ export class TimelinePanel implements UIPanel {
   readonly id = 'timeline-panel';
   readonly element: HTMLElement;
 
+  private readonly headerElement: HTMLElement;
   private readonly listElement: HTMLElement;
   private readonly footerElement: HTMLElement;
   private readonly entries: TimelineEntry[] = [];
   private readonly seenIds = new Set<string>();
   private readonly interestingAgentQueue: string[] = [];
   private nextInterestingIndex = 0;
+  private lastRenderedMode: UISimulationState['uiMode'] | null = null;
 
   constructor() {
     this.element = document.createElement('section');
     this.element.className = 'ui-panel timeline-panel';
 
-    const header = document.createElement('header');
-    header.className = 'panel-header';
-    header.textContent = 'Timeline';
+    this.headerElement = document.createElement('header');
+    this.headerElement.className = 'panel-header';
+    this.headerElement.textContent = 'Timeline';
 
     this.listElement = document.createElement('div');
     this.listElement.className = 'timeline-list';
@@ -28,7 +30,7 @@ export class TimelinePanel implements UIPanel {
     this.footerElement = document.createElement('div');
     this.footerElement.className = 'panel-footer';
 
-    this.element.append(header, this.listElement, this.footerElement);
+    this.element.append(this.headerElement, this.listElement, this.footerElement);
   }
 
   show(): void {
@@ -61,10 +63,13 @@ export class TimelinePanel implements UIPanel {
           this.seenIds.delete(entry.id);
         }
       }
-
-      this.render();
     }
 
+    this.headerElement.textContent = state.uiMode === 'cinematic' ? 'Story Stream' : 'Timeline';
+    if (state.events.length > 0 || this.lastRenderedMode !== state.uiMode) {
+      this.render(state.uiMode);
+      this.lastRenderedMode = state.uiMode;
+    }
     this.footerElement.textContent = `events: ${this.entries.length} | tick: ${state.tickId} | mode: ${state.uiMode}`;
   }
 
@@ -82,9 +87,11 @@ export class TimelinePanel implements UIPanel {
     return resolved;
   }
 
-  private render(): void {
+  private render(mode: UISimulationState['uiMode']): void {
     this.listElement.innerHTML = '';
-    const recent = this.entries.slice(Math.max(0, this.entries.length - 18));
+    const sourceEntries = mode === 'cinematic' ? this.entries.filter((entry) => entry.kind !== 'system') : this.entries;
+    const limit = mode === 'cinematic' ? 10 : mode === 'story' ? 14 : 18;
+    const recent = sourceEntries.slice(Math.max(0, sourceEntries.length - limit));
 
     for (const entry of recent) {
       const item = document.createElement('article');
