@@ -36,6 +36,7 @@ export class TownScene extends Phaser.Scene {
 
   private serverAuthoritative = false;
   private serverConnected = false;
+  private serverSelectionInitialized = false;
   private serverGameTime: GameTime | null = null;
   private readonly speechBubbles = new Map<string, { container: Phaser.GameObjects.Container; remainingMs: number }>();
   private frameCounter = 0;
@@ -78,17 +79,17 @@ export class TownScene extends Phaser.Scene {
         return;
       }
 
+      if (this.serverAuthoritative) {
+        this.selectAgent(null);
+        return;
+      }
+
       if (!this.selectedAgent) {
         return;
       }
 
       const tileX = Math.floor(pointer.worldX / TILE_SIZE);
       const tileY = Math.floor(pointer.worldY / TILE_SIZE);
-
-      if (this.serverAuthoritative) {
-        this.showBlockedMarker(tileX, tileY);
-        return;
-      }
 
       const path = this.astar.findPath(this.selectedAgent.currentTile, { tileX, tileY });
       if (!path || path.length === 0) {
@@ -452,8 +453,11 @@ export class TownScene extends Phaser.Scene {
       this.selectedAgent = null;
     }
 
-    if (!this.selectedAgent) {
-      this.selectAgent(this.agents[0] ?? null);
+    if (!this.serverSelectionInitialized) {
+      if (!this.selectedAgent) {
+        this.selectAgent(this.agents[0] ?? null);
+      }
+      this.serverSelectionInitialized = true;
     }
   }
 

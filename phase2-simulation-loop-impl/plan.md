@@ -38,6 +38,7 @@ This phase moves simulation authority from the client to a Node.js server, estab
 - [x] Client stale/out-of-order delta protection added via monotonic tick gating.
 - [x] Tick event schemas now enforce non-negative integer `tickId`.
 - [x] Determinism tests added for same-seed replay parity and different-seed divergence.
+- [x] Transport tests added for join handshake, protocol mismatch rejection, control gating, and joined-only delta broadcast.
 
 ## Dependencies
 

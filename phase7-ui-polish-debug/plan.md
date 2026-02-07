@@ -17,6 +17,13 @@ Deliver an observer-friendly user interface with inspection tools and debugging 
 - [x] Toggleable path/perception overlays implemented (`V`/`R` + panel buttons) with FPS-based downsample/suppression.
 - [x] Keyboard shortcut layer implemented for panel toggles (`D`, `I`, `P`, `L`) with focus-safe input handling.
 
+## Validation Status (2026-02-07)
+
+- [x] Added full-stack Playwright suite (`e2e/fullstack.spec.ts`) for online UI verification.
+- [x] Verified pause/resume behavior against authoritative server time controls.
+- [x] Verified server-mode select/deselect behavior, including persistent background deselection.
+- [x] Verified keyboard toggles for panels/overlays and JSON log export flow.
+
 ## Expert corrections (supersedes conflicting details below)
 
 1. UI update budgets are required:

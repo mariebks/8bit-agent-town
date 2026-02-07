@@ -1,0 +1,318 @@
+import { expect, test } from '@playwright/test';
+import { readFile } from 'node:fs/promises';
+
+type ClockMinutes = number;
+
+function parseClockMinutes(statusText: string): ClockMinutes | null {
+  const match = statusText.match(/Day (\d+) (\d{2}):(\d{2})/);
+  if (!match) {
+    return null;
+  }
+
+  const day = Number(match[1]);
+  const hour = Number(match[2]);
+  const minute = Number(match[3]);
+  return day * 24 * 60 + hour * 60 + minute;
+}
+
+async function waitForTownScene(page: import('@playwright/test').Page): Promise<void> {
+  await expect
+    .poll(
+      async () => {
+        return page.evaluate(() => {
+          return window.__agentTownGame?.scene.isActive('TownScene') ?? false;
+        });
+      },
+      { timeout: 15_000, intervals: [100, 200, 500] },
+    )
+    .toBe(true);
+}
+
+async function getSelectedAgentId(page: import('@playwright/test').Page): Promise<string | null> {
+  return page.evaluate(() => {
+    const scene = window.__agentTownGame?.scene.getScene('TownScene') as Record<string, unknown> | undefined;
+    const selectedAgent = scene?.selectedAgent as { agentId: string } | undefined;
+    return selectedAgent?.agentId ?? null;
+  });
+}
+
+test.describe('8-bit Agent Town fullstack', () => {
+  test('connects to simulation server and pause/resume controls affect game clock', async ({ page }) => {
+    await page.goto('/');
+    await waitForTownScene(page);
+
+    const status = page.locator('.time-controls .panel-footer');
+    await expect(status).toContainText('online');
+
+    const initialText = (await status.textContent()) ?? '';
+    const initialMinutes = parseClockMinutes(initialText);
+    expect(initialMinutes).not.toBeNull();
+
+    await page.waitForTimeout(700);
+    const advancedText = (await status.textContent()) ?? '';
+    const advancedMinutes = parseClockMinutes(advancedText);
+    expect(advancedMinutes).not.toBeNull();
+    expect(advancedMinutes).toBeGreaterThan(initialMinutes ?? -1);
+
+    await page.locator('.time-controls .ui-btn', { hasText: 'Pause' }).click();
+    await page.waitForTimeout(1_200);
+    const pausedStartText = (await status.textContent()) ?? '';
+    const pausedStartMinutes = parseClockMinutes(pausedStartText);
+    expect(pausedStartMinutes).not.toBeNull();
+
+    await page.waitForTimeout(1_200);
+    const pausedEndText = (await status.textContent()) ?? '';
+    const pausedEndMinutes = parseClockMinutes(pausedEndText);
+    expect(pausedEndMinutes).not.toBeNull();
+    expect((pausedEndMinutes ?? 0) - (pausedStartMinutes ?? 0)).toBeLessThanOrEqual(1);
+
+    await page.locator('.time-controls .ui-btn', { hasText: 'Resume' }).click();
+    await expect
+      .poll(async () => parseClockMinutes((await status.textContent()) ?? ''), {
+        timeout: 5_000,
+        intervals: [200, 400],
+      })
+      .toBeGreaterThan(pausedEndMinutes ?? -1);
+  });
+
+  test('supports agent select/deselect, overlay hotkeys, panel toggles, and log export', async ({ page }) => {
+    await page.goto('/');
+    await waitForTownScene(page);
+    await expect(page.locator('.time-controls .panel-footer')).toContainText('online');
+
+    await page.locator('.time-controls .ui-btn', { hasText: 'Pause' }).click();
+
+    const clickTargets = await page.evaluate(() => {
+      const game = window.__agentTownGame;
+      if (!game) {
+        return null;
+      }
+
+      const scene = game.scene.getScene('TownScene') as Record<string, unknown>;
+      const camera = (scene.cameras as { main: { worldView: { x: number; y: number; width: number; height: number } } })
+        .main;
+      const worldView = camera.worldView;
+      const agents = (scene.agents as Array<{ agentId: string; x: number; y: number }> | undefined) ?? [];
+
+      if (agents.length === 0) {
+        return null;
+      }
+
+      const tileSize = 16;
+      let emptyWorld: { x: number; y: number } | null = null;
+      for (let y = worldView.y + tileSize; y < worldView.y + worldView.height - tileSize; y += tileSize * 2) {
+        for (let x = worldView.x + tileSize; x < worldView.x + worldView.width - tileSize; x += tileSize * 2) {
+          const overlapsAgent = agents.some((agent) => Math.hypot(agent.x - x, agent.y - y) < tileSize * 2);
+          if (!overlapsAgent) {
+            emptyWorld = { x, y };
+            break;
+          }
+        }
+
+        if (emptyWorld) {
+          break;
+        }
+      }
+
+      if (!emptyWorld) {
+        emptyWorld = {
+          x: worldView.x + tileSize,
+          y: worldView.y + tileSize,
+        };
+      }
+
+      return {
+        selectWorld: { x: agents[0].x, y: agents[0].y },
+        deselectWorld: { x: emptyWorld.x, y: emptyWorld.y },
+      };
+    });
+
+    expect(clickTargets).not.toBeNull();
+
+    await page.evaluate((point) => {
+      const game = window.__agentTownGame;
+      if (!game || !point) {
+        return;
+      }
+
+      const scene = game.scene.getScene('TownScene') as Record<string, unknown>;
+      const input = scene.input as {
+        emit: (
+          eventName: string,
+          payload: {
+            button: number;
+            worldX: number;
+            worldY: number;
+            x: number;
+            y: number;
+            middleButtonDown: () => boolean;
+            rightButtonDown: () => boolean;
+            leftButtonDown: () => boolean;
+          },
+        ) => void;
+      };
+      input.emit('pointerdown', {
+        button: 0,
+        worldX: point.x,
+        worldY: point.y,
+        x: point.x,
+        y: point.y,
+        middleButtonDown: () => false,
+        rightButtonDown: () => false,
+        leftButtonDown: () => true,
+      });
+    }, clickTargets?.deselectWorld ?? null);
+
+    await expect
+      .poll(async () => getSelectedAgentId(page), {
+        timeout: 3_000,
+        intervals: [100, 200, 400],
+      })
+      .toBeNull();
+
+    await page.evaluate((point) => {
+      const game = window.__agentTownGame;
+      if (!game || !point) {
+        return;
+      }
+
+      const scene = game.scene.getScene('TownScene') as Record<string, unknown>;
+      const input = scene.input as {
+        emit: (
+          eventName: string,
+          payload: {
+            button: number;
+            worldX: number;
+            worldY: number;
+            x: number;
+            y: number;
+            middleButtonDown: () => boolean;
+            rightButtonDown: () => boolean;
+            leftButtonDown: () => boolean;
+          },
+        ) => void;
+      };
+      input.emit('pointerdown', {
+        button: 0,
+        worldX: point.x,
+        worldY: point.y,
+        x: point.x,
+        y: point.y,
+        middleButtonDown: () => false,
+        rightButtonDown: () => false,
+        leftButtonDown: () => true,
+      });
+    }, clickTargets?.selectWorld ?? null);
+
+    await expect
+      .poll(async () => getSelectedAgentId(page), {
+        timeout: 3_000,
+        intervals: [100, 200, 400],
+      })
+      .not.toBeNull();
+
+    await page.evaluate((point) => {
+      const game = window.__agentTownGame;
+      if (!game || !point) {
+        return;
+      }
+
+      const scene = game.scene.getScene('TownScene') as Record<string, unknown>;
+      const input = scene.input as {
+        emit: (
+          eventName: string,
+          payload: {
+            button: number;
+            worldX: number;
+            worldY: number;
+            x: number;
+            y: number;
+            middleButtonDown: () => boolean;
+            rightButtonDown: () => boolean;
+            leftButtonDown: () => boolean;
+          },
+        ) => void;
+      };
+      input.emit('pointerdown', {
+        button: 0,
+        worldX: point.x,
+        worldY: point.y,
+        x: point.x,
+        y: point.y,
+        middleButtonDown: () => false,
+        rightButtonDown: () => false,
+        leftButtonDown: () => true,
+      });
+    }, clickTargets?.deselectWorld ?? null);
+
+    await expect
+      .poll(async () => getSelectedAgentId(page), {
+        timeout: 3_000,
+        intervals: [100, 200, 400],
+      })
+      .toBeNull();
+
+    const debugPanel = page.locator('.debug-panel');
+    const inspectorPanel = page.locator('.inspector-panel');
+    const promptPanel = page.locator('.prompt-viewer');
+    const logPanel = page.locator('.log-panel');
+    await expect(debugPanel).toBeVisible();
+    await expect(inspectorPanel).toBeVisible();
+    await expect(promptPanel).toBeVisible();
+    await expect(logPanel).toBeVisible();
+
+    await page.keyboard.press('d');
+    await page.keyboard.press('i');
+    await page.keyboard.press('p');
+    await page.keyboard.press('l');
+
+    await expect(debugPanel).toBeHidden();
+    await expect(inspectorPanel).toBeHidden();
+    await expect(promptPanel).toBeHidden();
+    await expect(logPanel).toBeHidden();
+
+    await page.keyboard.press('d');
+    await page.keyboard.press('i');
+    await page.keyboard.press('p');
+    await page.keyboard.press('l');
+
+    await expect(debugPanel).toBeVisible();
+    await expect(inspectorPanel).toBeVisible();
+    await expect(promptPanel).toBeVisible();
+    await expect(logPanel).toBeVisible();
+
+    const pathButton = debugPanel.locator('.ui-btn').nth(0);
+    const perceptionButton = debugPanel.locator('.ui-btn').nth(1);
+    const initialPathLabel = (await pathButton.textContent()) ?? '';
+    const initialPerceptionLabel = (await perceptionButton.textContent()) ?? '';
+
+    await page.keyboard.press('v');
+    await expect
+      .poll(async () => (await pathButton.textContent()) ?? '', { timeout: 3_000, intervals: [100, 200, 400] })
+      .not.toBe(initialPathLabel);
+
+    await page.keyboard.press('r');
+    await expect
+      .poll(async () => (await perceptionButton.textContent()) ?? '', {
+        timeout: 3_000,
+        intervals: [100, 200, 400],
+      })
+      .not.toBe(initialPerceptionLabel);
+
+    await page.keyboard.press('d');
+    await page.keyboard.press('d');
+
+    const [download] = await Promise.all([
+      page.waitForEvent('download'),
+      logPanel.getByRole('button', { name: 'Export JSON' }).click(),
+    ]);
+
+    const downloadedPath = await download.path();
+    expect(downloadedPath).not.toBeNull();
+    const payload = await readFile(downloadedPath ?? '', 'utf8');
+    const parsed = JSON.parse(payload) as unknown[];
+
+    expect(Array.isArray(parsed)).toBe(true);
+    expect(parsed.length).toBeGreaterThan(0);
+  });
+});
