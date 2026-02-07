@@ -15,7 +15,7 @@ Improve legibility and charm so the simulation feels closer to a polished retro 
 2. Sprite readability at zoom levels
 - [x] Add optional outline/shadow tuning based on camera zoom.
 - [x] Verify selected-agent ring remains visible over bright ground tiles.
-- [ ] Add visual regression checklist via Playwright screenshots.
+- [x] Add visual regression checklist via Playwright screenshots.
 
 3. Environment visual cohesion
 - [x] Add low-cost tile tint variance to reduce flat terrain repetition.
