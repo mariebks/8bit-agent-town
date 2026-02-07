@@ -94,4 +94,15 @@ describe('Events schemas', () => {
 
     expect(parsed.success).toBe(true);
   });
+
+  test('rejects negative tick ids in ticked server events', () => {
+    const negativeSnapshot = SnapshotEventSchema.safeParse({
+      type: 'snapshot',
+      tickId: -1,
+      gameTime: { day: 0, hour: 8, minute: 0, totalMinutes: 480 },
+      agents: [],
+    });
+
+    expect(negativeSnapshot.success).toBe(false);
+  });
 });

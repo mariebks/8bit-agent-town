@@ -71,7 +71,7 @@ export const SimulationMetricsSchema = z.object({
 
 export const SnapshotEventSchema = z.object({
   type: z.literal('snapshot'),
-  tickId: z.number(),
+  tickId: z.number().int().nonnegative(),
   gameTime: GameTimeSchema,
   agents: z.array(AgentDataSchema),
   metrics: SimulationMetricsSchema.optional(),
@@ -80,7 +80,7 @@ export const SnapshotEventSchema = z.object({
 
 export const DeltaEventSchema = z.object({
   type: z.literal('delta'),
-  tickId: z.number(),
+  tickId: z.number().int().nonnegative(),
   gameTime: GameTimeSchema,
   agents: z.array(AgentDataSchema),
   metrics: SimulationMetricsSchema.optional(),
@@ -105,7 +105,7 @@ export const JoinAckEventSchema = z.object({
   type: z.literal('joinAck'),
   protocolVersion: z.number().int().min(0),
   accepted: z.boolean(),
-  tickId: z.number(),
+  tickId: z.number().int().nonnegative(),
   reason: z.string().optional(),
 });
 
@@ -113,7 +113,7 @@ export const ControlAckEventSchema = z.object({
   type: z.literal('controlAck'),
   action: ControlActionSchema,
   accepted: z.boolean(),
-  tickId: z.number(),
+  tickId: z.number().int().nonnegative(),
   reason: z.string().optional(),
 });
 

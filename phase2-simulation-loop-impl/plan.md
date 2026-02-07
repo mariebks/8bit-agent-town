@@ -32,6 +32,13 @@ This phase moves simulation authority from the client to a Node.js server, estab
 5. **Time Controls**: Pause, resume, and speed multipliers (1x, 2x, 4x, 10x) synchronized across clients
 6. **Staggered Decisions**: Per-agent decision scheduling using rule-based choices only (no LLM)
 
+## Implementation Status (2026-02-07)
+
+- [x] Server-authoritative simulation loop, scheduling, and WebSocket sync are implemented.
+- [x] Client stale/out-of-order delta protection added via monotonic tick gating.
+- [x] Tick event schemas now enforce non-negative integer `tickId`.
+- [x] Determinism tests added for same-seed replay parity and different-seed divergence.
+
 ## Dependencies
 
 ### From Phase 1 (assumed complete)

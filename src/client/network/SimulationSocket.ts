@@ -23,6 +23,21 @@ interface SimulationSocketOptions {
   maxReconnectAttempts?: number;
 }
 
+export function resolveNextServerTick(
+  lastServerTick: number,
+  event: SnapshotEvent | DeltaEvent,
+): number | null {
+  if (event.type === 'snapshot') {
+    return event.tickId;
+  }
+
+  if (event.tickId <= lastServerTick) {
+    return null;
+  }
+
+  return event.tickId;
+}
+
 export class SimulationSocket {
   private readonly url: string;
   private readonly reconnectDelayMs: number;
@@ -31,6 +46,7 @@ export class SimulationSocket {
   private socket: WebSocket | null = null;
   private closedByClient = false;
   private reconnectAttempts = 0;
+  private lastServerTick = -1;
 
   private readonly snapshotHandlers = new Set<SnapshotHandler>();
   private readonly deltaHandlers = new Set<DeltaHandler>();
@@ -55,6 +71,7 @@ export class SimulationSocket {
 
     this.socket.onopen = () => {
       this.reconnectAttempts = 0;
+      this.lastServerTick = -1;
       this.sendJoin();
     };
 
@@ -104,6 +121,11 @@ export class SimulationSocket {
       }
 
       if (payload.type === 'snapshot') {
+        const nextTick = resolveNextServerTick(this.lastServerTick, payload);
+        if (nextTick === null) {
+          return;
+        }
+        this.lastServerTick = nextTick;
         for (const handler of this.snapshotHandlers) {
           handler(payload);
         }
@@ -111,6 +133,11 @@ export class SimulationSocket {
       }
 
       if (payload.type === 'delta') {
+        const nextTick = resolveNextServerTick(this.lastServerTick, payload);
+        if (nextTick === null) {
+          return;
+        }
+        this.lastServerTick = nextTick;
         for (const handler of this.deltaHandlers) {
           handler(payload);
         }
