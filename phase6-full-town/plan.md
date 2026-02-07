@@ -35,7 +35,7 @@ This phase scales the 8-bit agent town simulation from a small prototype to a fu
 - [x] Debug panel now shows queue pressure/health and path cache metrics.
 - [x] Unit coverage added for queue backpressure/health and path cache invalidation behavior.
 - [x] Stress harness added for profile runs (baseline no-LLM + LLM-on), with JSON report output.
-- [ ] Backpressure-driven cadence throttling strategy in scheduler.
+- [x] Backpressure-driven decision throttling now reduces LLM enqueues and increases cadence under load.
 - [ ] Long-run memory/tick budget reporting artifacts.
 
 ## Prerequisites

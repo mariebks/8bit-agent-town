@@ -9,6 +9,14 @@ import { NavGrid } from '../world/NavGrid';
 import { Pathfinding } from '../world/Pathfinding';
 import { Town } from '../world/Town';
 
+function createDeferred<T>() {
+  let resolve: (value: T) => void = () => {};
+  const promise = new Promise<T>((resolver) => {
+    resolve = resolver;
+  });
+  return { promise, resolve };
+}
+
 function createAgent(agentId: string, startTile = { tileX: 3, tileY: 3 }): Agent {
   return new Agent(
     {
@@ -128,5 +136,116 @@ describe('DecisionMaker', () => {
     expect(trace?.lastPrompt).toBeTruthy();
     expect(trace?.lastOutcome).toBe('ok');
     expect(trace?.lastResponse).toContain('"action":"WAIT"');
+  });
+
+  test('throttles llm enqueues when queue backpressure is elevated', async () => {
+    const firstAgent = createAgent('agent-elevated-1');
+    const secondAgent = createAgent('agent-elevated-2', { tileX: 4, tileY: 3 });
+    const manager = new AgentManager([firstAgent, secondAgent]);
+    const town = createTown();
+    const nav = new NavGrid(Array.from({ length: 20 }, () => Array.from({ length: 20 }, () => true)));
+    const pathfinding = new Pathfinding(nav);
+    const decisionMaker = new DecisionMaker(33, { llmEnabledAgents: 2, minDecisionIntervalTicks: 1, maxDecisionIntervalTicks: 1 });
+    const llmQueue = new RequestQueue({ concurrency: 1, elevatedThreshold: 1, criticalThreshold: 10 });
+    const gate = createDeferred<number>();
+
+    let generateCalls = 0;
+    const llmClient = {
+      async generate() {
+        generateCalls += 1;
+        return {
+          success: true,
+          content: '{"action":"WAIT","reason":"rest","urgency":5}',
+          latencyMs: 1,
+          retries: 0,
+        };
+      },
+    } as unknown as OllamaClient;
+
+    void llmQueue.enqueue({
+      id: 'preload-elevated',
+      priority: 1,
+      ttlMs: 10_000,
+      execute: async () => gate.promise,
+    });
+
+    await Promise.resolve();
+    expect(llmQueue.getBackpressureLevel()).toBe('elevated');
+
+    decisionMaker.update({
+      tickId: 3,
+      gameTime: { day: 0, hour: 8, minute: 20, totalMinutes: 500 },
+      agentManager: manager,
+      pathfinding,
+      walkableWaypoints: [{ tileX: 10, tileY: 10 }],
+      town,
+      llmClient,
+      llmQueue,
+      memoryByAgent: new Map(),
+    });
+
+    gate.resolve(1);
+    await llmQueue.onIdle();
+
+    expect(generateCalls).toBe(1);
+  });
+
+  test('falls back to rule decisions when queue backpressure is critical', async () => {
+    const agent = createAgent('agent-critical');
+    const manager = new AgentManager([agent]);
+    const town = createTown();
+    const nav = new NavGrid(Array.from({ length: 20 }, () => Array.from({ length: 20 }, () => true)));
+    const pathfinding = new Pathfinding(nav);
+    const decisionMaker = new DecisionMaker(47, { llmEnabledAgents: 1, minDecisionIntervalTicks: 2, maxDecisionIntervalTicks: 2 });
+    const llmQueue = new RequestQueue({ concurrency: 1, elevatedThreshold: 1, criticalThreshold: 2 });
+    const gate = createDeferred<number>();
+
+    let generateCalls = 0;
+    const llmClient = {
+      async generate() {
+        generateCalls += 1;
+        return {
+          success: true,
+          content: '{"action":"WAIT","reason":"rest","urgency":5}',
+          latencyMs: 1,
+          retries: 0,
+        };
+      },
+    } as unknown as OllamaClient;
+
+    void llmQueue.enqueue({
+      id: 'preload-critical-1',
+      priority: 1,
+      ttlMs: 10_000,
+      execute: async () => gate.promise,
+    });
+    void llmQueue.enqueue({
+      id: 'preload-critical-2',
+      priority: 1,
+      ttlMs: 10_000,
+      execute: async () => 2,
+    });
+
+    await Promise.resolve();
+    expect(llmQueue.getBackpressureLevel()).toBe('critical');
+
+    decisionMaker.update({
+      tickId: 1,
+      gameTime: { day: 0, hour: 8, minute: 0, totalMinutes: 480 },
+      agentManager: manager,
+      pathfinding,
+      walkableWaypoints: [{ tileX: 10, tileY: 10 }],
+      town,
+      llmClient,
+      llmQueue,
+      memoryByAgent: new Map(),
+    });
+
+    expect(agent.hasActivePath()).toBe(true);
+    expect(agent.getNextDecisionTick()).toBe(5);
+
+    gate.resolve(1);
+    await llmQueue.onIdle();
+    expect(generateCalls).toBe(0);
   });
 });

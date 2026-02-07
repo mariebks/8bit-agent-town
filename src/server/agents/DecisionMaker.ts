@@ -66,6 +66,10 @@ export class DecisionMaker {
     const events = this.flushDeferredLogs();
     const agents = context.agentManager.getAll();
     const llmEnabledIds = new Set(agents.slice(0, this.config.llmEnabledAgents).map((agent) => agent.id));
+    const queueBackpressure = context.llmQueue?.getBackpressureLevel() ?? 'normal';
+    const cadenceMultiplier = this.cadenceMultiplierForBackpressure(queueBackpressure);
+    const maxLlmEnqueues = this.maxLlmEnqueuesForBackpressure(queueBackpressure);
+    let llmEnqueuesThisTick = 0;
 
     for (const agent of agents) {
       if (agent.getState() === AgentState.Conversing) {
@@ -77,17 +81,22 @@ export class DecisionMaker {
       }
 
       if (this.applyPlannedAction(agent, context)) {
-        agent.setNextDecisionTick(this.nextDecisionTick(context.tickId));
+        agent.setNextDecisionTick(this.nextDecisionTick(context.tickId, cadenceMultiplier));
         continue;
       }
 
       if (llmEnabledIds.has(agent.id) && context.llmClient && context.llmQueue && !this.pendingLlmByAgent.has(agent.id)) {
-        this.enqueueLlmDecision(agent, context);
+        if (llmEnqueuesThisTick < maxLlmEnqueues) {
+          llmEnqueuesThisTick += 1;
+          this.enqueueLlmDecision(agent, context);
+        } else {
+          this.applyRuleBasedDecision(agent, context.pathfinding, context.walkableWaypoints);
+        }
       } else {
         this.applyRuleBasedDecision(agent, context.pathfinding, context.walkableWaypoints);
       }
 
-      agent.setNextDecisionTick(this.nextDecisionTick(context.tickId));
+      agent.setNextDecisionTick(this.nextDecisionTick(context.tickId, cadenceMultiplier));
     }
 
     return events;
@@ -322,8 +331,30 @@ export class DecisionMaker {
     agent.clearPath();
   }
 
-  private nextDecisionTick(currentTick: number): number {
-    return currentTick + this.rng.range(this.config.minDecisionIntervalTicks, this.config.maxDecisionIntervalTicks);
+  private nextDecisionTick(currentTick: number, cadenceMultiplier = 1): number {
+    const baseInterval = this.rng.range(this.config.minDecisionIntervalTicks, this.config.maxDecisionIntervalTicks);
+    const scaledInterval = Math.max(1, Math.round(baseInterval * cadenceMultiplier));
+    return currentTick + scaledInterval;
+  }
+
+  private cadenceMultiplierForBackpressure(level: 'normal' | 'elevated' | 'critical'): number {
+    if (level === 'critical') {
+      return 2;
+    }
+    if (level === 'elevated') {
+      return 1.5;
+    }
+    return 1;
+  }
+
+  private maxLlmEnqueuesForBackpressure(level: 'normal' | 'elevated' | 'critical'): number {
+    if (level === 'critical') {
+      return 0;
+    }
+    if (level === 'elevated') {
+      return 1;
+    }
+    return 2;
   }
 
   private pickWaypoints(waypoints: TilePosition[], count: number): TilePosition[] {
