@@ -42,7 +42,9 @@ export class TownScene extends Phaser.Scene {
   private dayTintOverlay!: Phaser.GameObjects.Rectangle;
   private dayTintTimerMs = 0;
   private landmarkGuideTimerMs = 0;
+  private landmarkAccentPulseMs = 0;
   private routeGraphics!: Phaser.GameObjects.Graphics;
+  private terrainVarianceGraphics!: Phaser.GameObjects.Graphics;
 
   private readonly agents: AgentSprite[] = [];
   private readonly agentsById = new Map<string, AgentSprite>();
@@ -81,6 +83,8 @@ export class TownScene extends Phaser.Scene {
     locationId: string;
     marker: Phaser.GameObjects.Rectangle;
     label: Phaser.GameObjects.Text;
+    accent: Phaser.GameObjects.Arc;
+    accentRadius: number;
     centerX: number;
     centerY: number;
   }> = [];
@@ -333,11 +337,32 @@ export class TownScene extends Phaser.Scene {
     aboveLayer?.setDepth(100);
     collisionLayer?.setVisible(false);
 
+    this.createTerrainVariance();
+
     if (!collisionLayer) {
       throw new Error('Map is missing required collision layer');
     }
 
     this.astar = AStar.fromTilemapLayer(collisionLayer.layer);
+  }
+
+  private createTerrainVariance(): void {
+    this.terrainVarianceGraphics = this.add.graphics();
+    this.terrainVarianceGraphics.setDepth(1);
+
+    const palette = [0x4f7f4c, 0x5b8a52, 0x496f43];
+    for (let tileY = 0; tileY < this.map.height; tileY += 1) {
+      for (let tileX = 0; tileX < this.map.width; tileX += 1) {
+        const seed = this.terrainSeed(tileX, tileY);
+        if (seed % 11 !== 0) {
+          continue;
+        }
+        const color = palette[seed % palette.length];
+        const alpha = 0.024 + (seed % 5) * 0.006;
+        this.terrainVarianceGraphics.fillStyle(color, alpha);
+        this.terrainVarianceGraphics.fillRect(tileX * TILE_SIZE, tileY * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+      }
+    }
   }
 
   private spawnDebugAgents(): void {
@@ -425,6 +450,10 @@ export class TownScene extends Phaser.Scene {
       marker.setStrokeStyle(1, 0xb9db90, 0.24);
       marker.setDepth(7);
 
+      const accentRadius = Math.max(6, Math.min(location.bounds.width, location.bounds.height) * TILE_SIZE * 0.5);
+      const accent = this.add.circle(centerX, centerY, accentRadius, 0xffe5a3, 0.03);
+      accent.setDepth(6);
+
       const label = this.add.text(centerX, centerY - location.bounds.height * TILE_SIZE * 0.5 - 2, location.name, {
         fontFamily: 'monospace',
         fontSize: '9px',
@@ -438,6 +467,8 @@ export class TownScene extends Phaser.Scene {
         locationId: location.id,
         marker,
         label,
+        accent,
+        accentRadius,
         centerX,
         centerY,
       });
@@ -521,6 +552,7 @@ export class TownScene extends Phaser.Scene {
   }
 
   private updateLandmarkGuides(deltaMs: number): void {
+    this.landmarkAccentPulseMs += deltaMs;
     this.landmarkGuideTimerMs += deltaMs;
     if (this.landmarkGuideTimerMs < 220) {
       return;
@@ -533,17 +565,25 @@ export class TownScene extends Phaser.Scene {
       for (const guide of this.landmarkGuides) {
         guide.marker.setVisible(false);
         guide.label.setVisible(false);
+        guide.accent.setVisible(false);
       }
       return;
     }
 
     const center = this.getCameraCenter();
     const maxDistance = this.uiMode === 'spectator' ? 220 : 320;
+    const accentAlpha = resolveLandmarkAccentAlpha(this.serverGameTime);
     for (const guide of this.landmarkGuides) {
       const distance = Math.hypot(guide.centerX - center.x, guide.centerY - center.y);
       const visible = distance <= maxDistance;
       guide.marker.setVisible(visible);
       guide.label.setVisible(visible);
+      guide.accent.setVisible(visible);
+      if (visible) {
+        const pulse = 0.78 + Math.sin(this.landmarkAccentPulseMs * 0.003 + guide.centerX * 0.01 + guide.centerY * 0.01) * 0.22;
+        guide.accent.setFillStyle(0xffe5a3, accentAlpha * pulse);
+        guide.accent.setRadius(guide.accentRadius * (0.88 + pulse * 0.16));
+      }
     }
   }
 
@@ -1040,6 +1080,13 @@ export class TownScene extends Phaser.Scene {
     return min + Math.random() * (max - min);
   }
 
+  private terrainSeed(tileX: number, tileY: number): number {
+    let n = Math.imul(tileX + 1, 374761393) ^ Math.imul(tileY + 1, 668265263);
+    n = (n ^ (n >>> 13)) >>> 0;
+    n = Math.imul(n, 1274126177) >>> 0;
+    return n ^ (n >>> 16);
+  }
+
   private createAgentData(
     id: string,
     name: string,
@@ -1059,4 +1106,24 @@ export class TownScene extends Phaser.Scene {
       position: { x, y },
     };
   }
+}
+
+function resolveLandmarkAccentAlpha(gameTime: GameTime | null): number {
+  if (!gameTime) {
+    return 0.05;
+  }
+
+  if (gameTime.hour >= 19 || gameTime.hour < 6) {
+    return 0.14;
+  }
+
+  if (gameTime.hour >= 17 && gameTime.hour < 19) {
+    return 0.1;
+  }
+
+  if (gameTime.hour >= 6 && gameTime.hour < 8) {
+    return 0.08;
+  }
+
+  return 0.04;
 }

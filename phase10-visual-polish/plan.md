@@ -18,9 +18,9 @@ Improve legibility and charm so the simulation feels closer to a polished retro 
 - [ ] Add visual regression checklist via Playwright screenshots.
 
 3. Environment visual cohesion
-- [ ] Add low-cost tile tint variance to reduce flat terrain repetition.
-- [ ] Add day-part ambience pass for landmarks (lights/signage accents).
-- [ ] Validate FPS impact with stress profiles.
+- [x] Add low-cost tile tint variance to reduce flat terrain repetition.
+- [x] Add day-part ambience pass for landmarks (lights/signage accents).
+- [x] Validate FPS impact with stress profiles.
 
 4. Conversation readability
 - [x] Add bubble collision avoidance priority for selected/inspected agents.
