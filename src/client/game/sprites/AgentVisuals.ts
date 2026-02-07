@@ -9,6 +9,13 @@ export interface AgentPalette {
   accent: number;
 }
 
+export interface OccupationSpriteTraits {
+  headwear: 'none' | 'cap' | 'bandana' | 'wideHat';
+  accessory: 'none' | 'apron' | 'satchel' | 'robe';
+  hairStyle: 'short' | 'tuft' | 'bun';
+  badge: boolean;
+}
+
 const SKIN_TONES = [0xf5d5b5, 0xe8be96, 0xd0996c, 0xaf7b4f];
 const HAIR_TONES = [0x2b1f18, 0x4b3628, 0x6e4d2d, 0x4d4d4d];
 
@@ -59,6 +66,35 @@ export function spriteTextureKeyForAgent(agentId: string, baseColor: number, occ
   return `agent-sprite-${seed.toString(36)}`;
 }
 
+export function resolveOccupationSpriteTraits(occupation?: string, agentId = ''): OccupationSpriteTraits {
+  const normalized = (occupation ?? '').trim().toLowerCase();
+  const seed = hashString(`${agentId}:${normalized}`);
+  const fallback: OccupationSpriteTraits[] = [
+    { headwear: 'cap', accessory: 'none', hairStyle: 'short', badge: false },
+    { headwear: 'bandana', accessory: 'satchel', hairStyle: 'tuft', badge: false },
+    { headwear: 'none', accessory: 'apron', hairStyle: 'short', badge: false },
+    { headwear: 'wideHat', accessory: 'robe', hairStyle: 'bun', badge: false },
+  ];
+
+  if (matchesAny(normalized, ['farmer', 'gardener', 'rancher', 'orchard'])) {
+    return { headwear: 'wideHat', accessory: 'apron', hairStyle: 'tuft', badge: false };
+  }
+  if (matchesAny(normalized, ['librarian', 'scholar', 'teacher', 'scribe'])) {
+    return { headwear: 'none', accessory: 'robe', hairStyle: 'bun', badge: false };
+  }
+  if (matchesAny(normalized, ['merchant', 'shopkeeper', 'vendor', 'trader'])) {
+    return { headwear: 'cap', accessory: 'satchel', hairStyle: 'short', badge: false };
+  }
+  if (matchesAny(normalized, ['fisher', 'sailor', 'mariner'])) {
+    return { headwear: 'bandana', accessory: 'apron', hairStyle: 'tuft', badge: false };
+  }
+  if (matchesAny(normalized, ['guard', 'captain', 'watch', 'warden'])) {
+    return { headwear: 'cap', accessory: 'none', hairStyle: 'short', badge: true };
+  }
+
+  return fallback[seed % fallback.length];
+}
+
 function hashString(value: string): number {
   let hash = 2166136261;
   for (let index = 0; index < value.length; index += 1) {
@@ -66,6 +102,15 @@ function hashString(value: string): number {
     hash = Math.imul(hash, 16777619);
   }
   return hash >>> 0;
+}
+
+function matchesAny(value: string, keywords: string[]): boolean {
+  for (const keyword of keywords) {
+    if (value.includes(keyword)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function shade(color: number, factor: number): number {

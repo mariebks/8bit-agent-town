@@ -1,5 +1,11 @@
 import { describe, expect, test } from 'vitest';
-import { deriveAgentPalette, frameIndexFor, resolveFacingDirection, spriteTextureKeyForAgent } from './AgentVisuals';
+import {
+  deriveAgentPalette,
+  frameIndexFor,
+  resolveFacingDirection,
+  resolveOccupationSpriteTraits,
+  spriteTextureKeyForAgent,
+} from './AgentVisuals';
 
 describe('AgentVisuals', () => {
   test('resolves facing direction from movement deltas', () => {
@@ -42,5 +48,22 @@ describe('AgentVisuals', () => {
     expect(keyA).toBe(keyARepeat);
     expect(keyA).not.toBe(keyB);
     expect(keyA).not.toBe(keyRoleVariant);
+  });
+
+  test('maps occupations to stable sprite trait profiles', () => {
+    const farmer = resolveOccupationSpriteTraits('Farmer', 'a1');
+    const librarian = resolveOccupationSpriteTraits('Librarian', 'a2');
+    const guard = resolveOccupationSpriteTraits('Town Guard', 'a3');
+    const unknownA = resolveOccupationSpriteTraits('Inventor', 'seed-a');
+    const unknownARepeat = resolveOccupationSpriteTraits('Inventor', 'seed-a');
+    const unknownB = resolveOccupationSpriteTraits('Inventor', 'seed-b');
+
+    expect(farmer.headwear).toBe('wideHat');
+    expect(farmer.accessory).toBe('apron');
+    expect(librarian.accessory).toBe('robe');
+    expect(guard.badge).toBe(true);
+
+    expect(unknownA).toEqual(unknownARepeat);
+    expect(unknownA).not.toEqual(unknownB);
   });
 });

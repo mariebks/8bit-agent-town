@@ -2,7 +2,14 @@ import Phaser from 'phaser';
 import { DEFAULT_AGENT_SPEED, TILE_SIZE } from '@shared/Constants';
 import { AgentData, AgentState, TilePosition } from '@shared/Types';
 import { stepDistance, stepToward, tileToWorld } from './MovementMath';
-import { deriveAgentPalette, FacingDirection, frameIndexFor, resolveFacingDirection, spriteTextureKeyForAgent } from './AgentVisuals';
+import {
+  deriveAgentPalette,
+  FacingDirection,
+  frameIndexFor,
+  resolveFacingDirection,
+  resolveOccupationSpriteTraits,
+  spriteTextureKeyForAgent,
+} from './AgentVisuals';
 import { ensureAgentSpriteSheet } from './AgentTextureFactory';
 
 export class AgentSprite extends Phaser.GameObjects.Container {
@@ -32,7 +39,12 @@ export class AgentSprite extends Phaser.GameObjects.Container {
     this.currentState = data.state;
 
     const textureKey = spriteTextureKeyForAgent(data.id, data.color, data.occupation);
-    ensureAgentSpriteSheet(scene, textureKey, deriveAgentPalette(data.color, data.id, data.occupation));
+    ensureAgentSpriteSheet(
+      scene,
+      textureKey,
+      deriveAgentPalette(data.color, data.id, data.occupation),
+      resolveOccupationSpriteTraits(data.occupation, data.id),
+    );
 
     this.shadow = scene.add.ellipse(0, 5, 10, 4, 0x09111a, 0.28);
     this.selectionRing = scene.add.ellipse(0, 5, 15, 7, 0xb8f77b, 0.14);
