@@ -105,3 +105,4 @@ Ship eight UX upgrades that make the town readable, cinematic, and fun to observ
 - [x] 18. Power-user shortcuts: `/` focuses Agent Finder input, `Shift+F` toggles Focus UI declutter mode.
 - [x] 19. Conversation declutter control: optional selected-agent-only speech bubbles in crowded scenes.
 - [x] 20. Persistent selected-agent restore: preserve preferred agent selection across refreshes and server sync churn.
+- [x] 21. Agent Finder relevance upgrade: typo-tolerant and token-aware ranking for faster camera jumps.

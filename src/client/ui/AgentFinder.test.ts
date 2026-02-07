@@ -29,4 +29,18 @@ describe('AgentFinder', () => {
   test('returns empty list for empty query', () => {
     expect(searchAgents('   ', [agent('a1', 'Alex')], 5)).toEqual([]);
   });
+
+  test('matches minor typos in names and occupations', () => {
+    const hits = searchAgents(
+      'gard',
+      [agent('a1', 'Ari', 'Town Guard'), agent('a2', 'Bea', 'Gardener'), agent('a3', 'Cora', 'Teacher')],
+      5,
+    );
+    expect(hits.map((hit) => hit.id)).toEqual(['a2', 'a1']);
+  });
+
+  test('matches by name initials for multi-word names', () => {
+    const hits = searchAgents('aj', [agent('a1', 'Alice June'), agent('a2', 'Ari Stone')], 5);
+    expect(hits[0]?.id).toBe('a1');
+  });
 });
