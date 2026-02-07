@@ -7,3 +7,4 @@ playwright-report/
 test-results/
 output/playwright/
 output/stress/
+output/quality/

@@ -13,13 +13,14 @@ This phase upgrades the app from "technically complete MVP" to "pleasant and leg
   - D1 First-run guided onboarding overlay (dismiss + remember).
   - D2 Smart defaults: mode defaults to `Cinematic`, startup selection uses activity/proximity heuristic in server mode.
   - E2 Coverage added for mode persistence and timeline rendering in fullstack E2E.
+  - E1 conversation quality harness script added (`npm run quality:conversations`) with report output in `output/quality/`.
   - Server event surface expanded with `relationshipShift` and `locationArrival`.
   - Conversation depth pass started: topic/intent/tone/arc state, memory hints, topic propagation, repetition guard, natural end reasons.
 - In progress:
   - B3 topic/gossip behavior tuning and observability.
   - B4 safeguard tuning under long-run stress.
   - C1/C2/C3 visual art-direction pass beyond panel UX (scene/sprite/lighting polish).
-  - E1 quality harness + baseline/after scoring script and CI thresholds.
+  - E1 baseline/threshold calibration and CI gating policy (`QUALITY_ENFORCE` rollout).
 
 Focus areas:
 - Make the game easier to use without reading docs.
