@@ -5,6 +5,7 @@ import {
   JoinAckEventSchema,
   LocationArrivalEventSchema,
   RelationshipShiftEventSchema,
+  TopicSpreadEventSchema,
   SnapshotEventSchema,
   ServerEventSchema,
 } from './Events';
@@ -67,6 +68,17 @@ describe('Events schemas', () => {
     });
     expect(arrival.success).toBe(true);
     expect(ServerEventSchema.safeParse(arrival.success ? arrival.data : null).success).toBe(true);
+
+    const topicSpread = TopicSpreadEventSchema.safeParse({
+      type: 'topicSpread',
+      topic: 'market prices',
+      sourceId: 'agent-1',
+      targetId: 'agent-3',
+      confidence: 0.72,
+      gameTime: { day: 0, hour: 9, minute: 6, totalMinutes: 546 },
+    });
+    expect(topicSpread.success).toBe(true);
+    expect(ServerEventSchema.safeParse(topicSpread.success ? topicSpread.data : null).success).toBe(true);
   });
 
   test('parses snapshot with cognition and relationship fields', () => {

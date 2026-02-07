@@ -351,8 +351,39 @@ test.describe('8-bit Agent Town fullstack', () => {
 
     await expect(page.locator('.mode-switcher-panel .ui-btn.active')).toContainText('Story');
     await expect(page.locator('.timeline-panel')).toBeVisible();
+    await expect
+      .poll(
+        async () =>
+          await page.evaluate(() => {
+            const scene = window.__agentTownGame?.scene.getScene('TownScene') as
+              | { landmarkGuides?: Array<{ marker: { visible: boolean } }> }
+              | undefined;
+            if (!scene?.landmarkGuides) {
+              return 0;
+            }
+            return scene.landmarkGuides.filter((guide) => guide.marker.visible).length;
+          }),
+        { timeout: 5_000, intervals: [200, 400] },
+      )
+      .toBeGreaterThan(0);
 
     await setUiMode(page, 'Debug');
+    await expect
+      .poll(
+        async () =>
+          await page.evaluate(() => {
+            const scene = window.__agentTownGame?.scene.getScene('TownScene') as
+              | { landmarkGuides?: Array<{ marker: { visible: boolean } }> }
+              | undefined;
+            if (!scene?.landmarkGuides) {
+              return 0;
+            }
+            return scene.landmarkGuides.filter((guide) => guide.marker.visible).length;
+          }),
+        { timeout: 5_000, intervals: [200, 400] },
+      )
+      .toBe(0);
+
     await page.locator('.time-controls .ui-btn', { hasText: 'Pause' }).click();
     await page.locator('.time-controls .ui-btn', { hasText: 'Resume' }).click();
     await setUiMode(page, 'Story');

@@ -18,6 +18,7 @@ describe('ConversationQuality', () => {
     const metrics = scoreConversationQuality([], []);
     expect(metrics.totalTurns).toBe(0);
     expect(metrics.conversationCount).toBe(0);
+    expect(metrics.topicSpreadCount).toBe(0);
     expect(metrics.topicalityScore).toBe(0);
   });
 
@@ -29,7 +30,9 @@ describe('ConversationQuality', () => {
       turn('c2', 'a2', 'Honestly, weather shifts are a problem for transport.'),
     ];
 
-    const metrics = scoreConversationQuality(turns, [
+    const metrics = scoreConversationQuality(
+      turns,
+      [
       {
         id: 'a1',
         name: 'Alex',
@@ -56,10 +59,14 @@ describe('ConversationQuality', () => {
           averageWeight: -8,
         },
       },
-    ]);
+      ],
+      5,
+    );
 
     expect(metrics.totalTurns).toBe(4);
     expect(metrics.conversationCount).toBe(2);
+    expect(metrics.topicSpreadCount).toBe(5);
+    expect(metrics.topicSpreadRate).toBeGreaterThan(1);
     expect(metrics.topicalityScore).toBeGreaterThan(0.45);
     expect(metrics.repetitionRate).toBeGreaterThan(0);
     expect(metrics.memoryReferenceRate).toBeGreaterThan(0);

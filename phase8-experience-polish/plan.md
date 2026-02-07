@@ -14,15 +14,18 @@ This phase upgrades the app from "technically complete MVP" to "pleasant and leg
   - D2 Smart defaults: mode defaults to `Cinematic`, startup selection uses activity/proximity heuristic in server mode.
   - E2 Coverage added for mode persistence and timeline rendering in fullstack E2E.
   - E1 conversation quality harness script added (`npm run quality:conversations`) with report output in `output/quality/`.
+  - E1 baseline/check workflow added (`npm run quality:baseline`, `npm run quality:check`) with threshold enforcement support.
   - C2 partial scene pass: day-part tinting + cinematic ambient particles + mode-aware debug overlay suppression.
   - C1 partial readability pass: consistent agent outlines/selection contrast.
+  - C3 partial world pass: shared town landmark metadata + route/landmark guides rendered in Story/Cinematic.
   - Server event surface expanded with `relationshipShift` and `locationArrival`.
-  - Conversation depth pass started: topic/intent/tone/arc state, memory hints, topic propagation, repetition guard, natural end reasons.
+  - Conversation depth pass expanded: topic/intent/tone/arc state, memory hints, topic propagation, repetition guard, natural end reasons.
+  - Topic graph safeguards added: confidence decay/pruning, topic spread events, backpressure-aware conversation start throttling, periodic hot-topic reports.
 - In progress:
-  - B3 topic/gossip behavior tuning and observability.
-  - B4 safeguard tuning under long-run stress.
+  - B3 topic/gossip behavior tuning toward richer multi-hop social propagation.
+  - B4 safeguard tuning under longer-than-1-day stress profiles.
   - C1/C2/C3 full visual art-direction pass beyond panel UX (scene/sprite/tile identity polish).
-  - E1 baseline/threshold calibration and CI gating policy (`QUALITY_ENFORCE` rollout).
+  - E1 CI gating policy rollout (when to require `quality:check` in pre-merge path).
 
 Focus areas:
 - Make the game easier to use without reading docs.

@@ -45,7 +45,17 @@ export class LogPanel implements UIPanel {
 
     this.typeFilterSelect = document.createElement('select');
     this.typeFilterSelect.className = 'ui-select';
-    for (const option of ['all', 'log', 'conversationTurn', 'speechBubble', 'conversationStart', 'conversationEnd']) {
+    for (const option of [
+      'all',
+      'log',
+      'conversationTurn',
+      'speechBubble',
+      'conversationStart',
+      'conversationEnd',
+      'relationshipShift',
+      'locationArrival',
+      'topicSpread',
+    ]) {
       const selectOption = document.createElement('option');
       selectOption.value = option;
       selectOption.textContent = option === 'all' ? 'all events' : option;

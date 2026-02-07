@@ -10,6 +10,7 @@
   --ui-card-reflection: rgba(94, 84, 128, 0.44);
   --ui-card-relationship: rgba(114, 78, 71, 0.44);
   --ui-card-arrival: rgba(67, 100, 92, 0.44);
+  --ui-card-topic: rgba(68, 92, 56, 0.5);
   --ui-card-system: rgba(70, 70, 70, 0.44);
 }
 
@@ -257,6 +258,10 @@ body {
 
 .timeline-arrival {
   background: var(--ui-card-arrival);
+}
+
+.timeline-topic {
+  background: var(--ui-card-topic);
 }
 
 .timeline-system {

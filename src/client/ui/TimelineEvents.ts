@@ -3,7 +3,7 @@ interface AgentLabel {
   name?: string;
 }
 
-export type TimelineEventKind = 'plan' | 'reflection' | 'conversation' | 'relationship' | 'arrival' | 'system';
+export type TimelineEventKind = 'plan' | 'reflection' | 'conversation' | 'relationship' | 'arrival' | 'topic' | 'system';
 
 export interface TimelineEntry {
   id: string;
@@ -111,6 +111,21 @@ function toTimelineEntry(event: unknown, context: TimelineContext): TimelineEntr
       headline: `${resolveAgentName(context.agents, agentId)} arrived at ${humanizeToken(locationId)}`,
       actorIds: [agentId],
       agentId,
+    };
+  }
+
+  if (type === 'topicSpread') {
+    const sourceId = typeof typed.sourceId === 'string' ? typed.sourceId : 'agent';
+    const targetId = typeof typed.targetId === 'string' ? typed.targetId : 'agent';
+    const topic = typeof typed.topic === 'string' ? typed.topic : 'topic';
+    return {
+      id: `${context.tickId}:topic:${sourceId}:${targetId}:${topic}`,
+      tickId: context.tickId,
+      kind: 'topic',
+      headline: `${resolveAgentName(context.agents, sourceId)} shared "${topic}" with ${resolveAgentName(context.agents, targetId)}`,
+      detail: `confidence: ${typed.confidence ?? 'n/a'}`,
+      actorIds: [sourceId, targetId],
+      agentId: sourceId,
     };
   }
 

@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { TICK_INTERVAL_MS, TILE_SIZE } from '@shared/Constants';
+import { DEFAULT_TOWN_LOCATIONS, HIGHLIGHTED_LANDMARK_IDS } from '@shared/TownLocations';
 import { AgentData, AgentState, GameTime } from '@shared/Types';
 import { CameraController } from '../camera/CameraController';
 import { AStar } from '../pathfinding/AStar';
@@ -27,6 +28,8 @@ export class TownScene extends Phaser.Scene {
   private blockedMarkerTimerMs = 0;
   private dayTintOverlay!: Phaser.GameObjects.Rectangle;
   private dayTintTimerMs = 0;
+  private landmarkGuideTimerMs = 0;
+  private routeGraphics!: Phaser.GameObjects.Graphics;
 
   private readonly agents: AgentSprite[] = [];
   private readonly agentsById = new Map<string, AgentSprite>();
@@ -53,6 +56,13 @@ export class TownScene extends Phaser.Scene {
   private followSelectedAgent = false;
   private uiMode: SceneUiMode = 'cinematic';
   private readonly ambientParticles: Array<{ dot: Phaser.GameObjects.Arc; vx: number; vy: number }> = [];
+  private readonly landmarkGuides: Array<{
+    locationId: string;
+    marker: Phaser.GameObjects.Rectangle;
+    label: Phaser.GameObjects.Text;
+    centerX: number;
+    centerY: number;
+  }> = [];
 
   constructor() {
     super('TownScene');
@@ -70,6 +80,7 @@ export class TownScene extends Phaser.Scene {
     this.spawnDebugAgents();
     this.createOverlays();
     this.createAmbientParticles();
+    this.createLandmarkGuides();
 
     this.selectAgent(this.agents[0] ?? null);
 
@@ -123,6 +134,7 @@ export class TownScene extends Phaser.Scene {
     this.updateAgentCullingAndMovement(delta);
     this.updateAmbientParticles(delta);
     this.updateDayTint(delta);
+    this.updateLandmarkGuides(delta);
 
     this.renderDebugOverlays();
     this.updateBlockedMarker(delta);
@@ -305,6 +317,65 @@ export class TownScene extends Phaser.Scene {
     this.updateInfoText();
   }
 
+  private createLandmarkGuides(): void {
+    this.routeGraphics = this.add.graphics();
+    this.routeGraphics.setDepth(4);
+    this.routeGraphics.lineStyle(2, 0xb5de74, 0.28);
+
+    const highlighted = DEFAULT_TOWN_LOCATIONS.filter((location) =>
+      HIGHLIGHTED_LANDMARK_IDS.includes(location.id as (typeof HIGHLIGHTED_LANDMARK_IDS)[number]),
+    );
+
+    const routePoints = highlighted
+      .map((location) => location.spawnPoint)
+      .filter((point): point is { tileX: number; tileY: number } => Boolean(point))
+      .map((point) => ({
+        x: point.tileX * TILE_SIZE + TILE_SIZE / 2,
+        y: point.tileY * TILE_SIZE + TILE_SIZE / 2,
+      }));
+
+    if (routePoints.length > 1) {
+      this.routeGraphics.beginPath();
+      this.routeGraphics.moveTo(routePoints[0].x, routePoints[0].y);
+      for (let index = 1; index < routePoints.length; index += 1) {
+        this.routeGraphics.lineTo(routePoints[index].x, routePoints[index].y);
+      }
+      this.routeGraphics.strokePath();
+    }
+
+    for (const location of highlighted) {
+      const centerX = (location.bounds.x + location.bounds.width / 2) * TILE_SIZE;
+      const centerY = (location.bounds.y + location.bounds.height / 2) * TILE_SIZE;
+      const marker = this.add.rectangle(
+        centerX,
+        centerY,
+        location.bounds.width * TILE_SIZE,
+        location.bounds.height * TILE_SIZE,
+        0x1f3b30,
+        0.08,
+      );
+      marker.setStrokeStyle(1, 0xb9db90, 0.24);
+      marker.setDepth(7);
+
+      const label = this.add.text(centerX, centerY - location.bounds.height * TILE_SIZE * 0.5 - 2, location.name, {
+        fontFamily: 'monospace',
+        fontSize: '9px',
+        color: '#e8f6dc',
+        backgroundColor: 'rgba(15, 29, 21, 0.38)',
+      });
+      label.setOrigin(0.5, 1);
+      label.setDepth(8);
+
+      this.landmarkGuides.push({
+        locationId: location.id,
+        marker,
+        label,
+        centerX,
+        centerY,
+      });
+    }
+  }
+
   private createAmbientParticles(): void {
     for (let index = 0; index < 20; index += 1) {
       const dot = this.add.circle(
@@ -379,6 +450,33 @@ export class TownScene extends Phaser.Scene {
     }
 
     this.dayTintOverlay.setFillStyle(0x0f172a, this.uiMode === 'cinematic' ? 0.13 : 0.08);
+  }
+
+  private updateLandmarkGuides(deltaMs: number): void {
+    this.landmarkGuideTimerMs += deltaMs;
+    if (this.landmarkGuideTimerMs < 220) {
+      return;
+    }
+    this.landmarkGuideTimerMs = 0;
+
+    const showGuides = this.uiMode !== 'debug';
+    this.routeGraphics?.setVisible(showGuides);
+    if (!showGuides) {
+      for (const guide of this.landmarkGuides) {
+        guide.marker.setVisible(false);
+        guide.label.setVisible(false);
+      }
+      return;
+    }
+
+    const center = this.getCameraCenter();
+    const maxDistance = this.uiMode === 'cinematic' ? 220 : 320;
+    for (const guide of this.landmarkGuides) {
+      const distance = Math.hypot(guide.centerX - center.x, guide.centerY - center.y);
+      const visible = distance <= maxDistance;
+      guide.marker.setVisible(visible);
+      guide.label.setVisible(visible);
+    }
   }
 
   private syncScreenOverlayBounds(): void {
@@ -600,6 +698,7 @@ export class TownScene extends Phaser.Scene {
     const debugMode = this.uiMode === 'debug';
     this.infoText?.setVisible(debugMode);
     this.renderDebugOverlays(true);
+    this.updateLandmarkGuides(220);
     this.updateInfoText();
   }
 

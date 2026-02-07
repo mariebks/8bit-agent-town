@@ -19,6 +19,7 @@ const REGRESSION_THRESHOLDS = {
   memoryReferenceRate: -0.05,
   relationshipConsistencyScore: -0.05,
   uniqueTurnRatio: -0.05,
+  topicSpreadRate: -0.08,
 };
 
 async function main(): Promise<void> {
@@ -36,6 +37,7 @@ async function main(): Promise<void> {
   });
 
   const turnEvents: ConversationTurnEvent[] = [];
+  let topicSpreadCount = 0;
   for (let tickId = 1; tickId <= totalTicks; tickId += 1) {
     simulation.tick(tickId);
     const delta = simulation.createDeltaEvent(tickId);
@@ -43,13 +45,18 @@ async function main(): Promise<void> {
       const turn = asConversationTurn(event);
       if (turn) {
         turnEvents.push(turn);
+        continue;
+      }
+
+      if (isTopicSpreadEvent(event)) {
+        topicSpreadCount += 1;
       }
     }
   }
 
   await simulation.waitForIdle();
   const snapshot = simulation.createSnapshotEvent(totalTicks);
-  const metrics = scoreConversationQuality(turnEvents, snapshot.agents);
+  const metrics = scoreConversationQuality(turnEvents, snapshot.agents, topicSpreadCount);
 
   const report: ConversationQualityReport = {
     generatedAt: new Date().toISOString(),
@@ -90,6 +97,7 @@ async function main(): Promise<void> {
       `conversations=${metrics.conversationCount}`,
       `topicality=${metrics.topicalityScore.toFixed(3)}`,
       `repetition=${(metrics.repetitionRate * 100).toFixed(1)}%`,
+      `topicSpreadRate=${(metrics.topicSpreadRate * 100).toFixed(1)}%`,
       `memoryRefs=${(metrics.memoryReferenceRate * 100).toFixed(1)}%`,
       `relationship=${metrics.relationshipConsistencyScore.toFixed(3)}`,
       `unique=${(metrics.uniqueTurnRatio * 100).toFixed(1)}%`,
@@ -127,6 +135,7 @@ function evaluateThresholds(current: ConversationQualityReport, baseline: Conver
     memoryReferenceRate: current.metrics.memoryReferenceRate - baseline.metrics.memoryReferenceRate,
     relationshipConsistencyScore: current.metrics.relationshipConsistencyScore - baseline.metrics.relationshipConsistencyScore,
     uniqueTurnRatio: current.metrics.uniqueTurnRatio - baseline.metrics.uniqueTurnRatio,
+    topicSpreadRate: current.metrics.topicSpreadRate - baseline.metrics.topicSpreadRate,
   };
 
   const passed =
@@ -134,7 +143,8 @@ function evaluateThresholds(current: ConversationQualityReport, baseline: Conver
     deltas.repetitionRate <= REGRESSION_THRESHOLDS.repetitionRate &&
     deltas.memoryReferenceRate >= REGRESSION_THRESHOLDS.memoryReferenceRate &&
     deltas.relationshipConsistencyScore >= REGRESSION_THRESHOLDS.relationshipConsistencyScore &&
-    deltas.uniqueTurnRatio >= REGRESSION_THRESHOLDS.uniqueTurnRatio;
+    deltas.uniqueTurnRatio >= REGRESSION_THRESHOLDS.uniqueTurnRatio &&
+    deltas.topicSpreadRate >= REGRESSION_THRESHOLDS.topicSpreadRate;
 
   return { passed, deltas };
 }
@@ -157,6 +167,7 @@ function buildSummaryMarkdown(
     `| conversationCount | ${report.metrics.conversationCount} |`,
     `| topicalityScore | ${report.metrics.topicalityScore.toFixed(4)} |`,
     `| repetitionRate | ${(report.metrics.repetitionRate * 100).toFixed(2)}% |`,
+    `| topicSpreadRate | ${(report.metrics.topicSpreadRate * 100).toFixed(2)}% |`,
     `| memoryReferenceRate | ${(report.metrics.memoryReferenceRate * 100).toFixed(2)}% |`,
     `| relationshipConsistencyScore | ${report.metrics.relationshipConsistencyScore.toFixed(4)} |`,
     `| uniqueTurnRatio | ${(report.metrics.uniqueTurnRatio * 100).toFixed(2)}% |`,
@@ -174,6 +185,7 @@ function buildSummaryMarkdown(
     lines.push('|---|---:|---:|');
     lines.push(`| topicalityScore | ${status.deltas.topicalityScore.toFixed(4)} | >= ${REGRESSION_THRESHOLDS.topicalityScore} |`);
     lines.push(`| repetitionRate | ${status.deltas.repetitionRate.toFixed(4)} | <= ${REGRESSION_THRESHOLDS.repetitionRate} |`);
+    lines.push(`| topicSpreadRate | ${status.deltas.topicSpreadRate.toFixed(4)} | >= ${REGRESSION_THRESHOLDS.topicSpreadRate} |`);
     lines.push(
       `| memoryReferenceRate | ${status.deltas.memoryReferenceRate.toFixed(4)} | >= ${REGRESSION_THRESHOLDS.memoryReferenceRate} |`,
     );
@@ -201,6 +213,14 @@ function asConversationTurn(event: unknown): ConversationTurnEvent | null {
   }
 
   return typed as ConversationTurnEvent;
+}
+
+function isTopicSpreadEvent(event: unknown): boolean {
+  if (!event || typeof event !== 'object') {
+    return false;
+  }
+  const typed = event as Record<string, unknown>;
+  return typed.type === 'topicSpread';
 }
 
 function readEnvNumber(name: string, fallback: number): number {

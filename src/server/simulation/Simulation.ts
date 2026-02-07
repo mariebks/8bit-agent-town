@@ -8,6 +8,7 @@ import {
   RelationshipShiftEvent,
   ServerEvent,
   SnapshotEvent,
+  TopicSpreadEvent,
 } from '@shared/Events';
 import { AgentData, AgentId, ConversationData, GameTime, TilePosition } from '@shared/Types';
 import { TICK_INTERVAL_MS } from '@shared/Constants';
@@ -51,6 +52,7 @@ interface ConversationState {
   turnGoal: string;
   conversationArc: ConversationArc;
   lastLines: string[];
+  rewriteStreak: number;
 }
 
 const FALLBACK_TOPICS = [
@@ -61,6 +63,15 @@ const FALLBACK_TOPICS = [
   'work progress',
   'park activity',
 ];
+
+const TOPIC_DECAY_FACTOR = 0.92;
+const TOPIC_USAGE_DECAY_FACTOR = 0.95;
+const TOPIC_DECAY_INTERVAL_TICKS = 60;
+const TOPIC_REPORT_INTERVAL_TICKS = 360;
+const MAX_TOPICS_PER_AGENT = 32;
+const MIN_TOPIC_CONFIDENCE = 0.11;
+const MAX_TOPIC_SPREAD_EVENTS_PER_TURN = 2;
+const MAX_REWRITE_STREAK = 3;
 
 export class Simulation {
   readonly timeManager: TimeManager;
@@ -88,6 +99,7 @@ export class Simulation {
   private readonly conversationStateById = new Map<string, ConversationState>();
   private readonly knownTopicsByAgent = new Map<AgentId, Map<string, number>>();
   private readonly topicLastMentioned = new Map<string, number>();
+  private readonly topicUsageCount = new Map<string, number>();
 
   constructor(mapData: TiledMapData, config: Partial<SimulationConfig> = {}) {
     const resolvedConfig = { ...DEFAULT_CONFIG, ...config };
@@ -204,6 +216,13 @@ export class Simulation {
     this.syncConversationStates();
     this.emitLocationArrivalEvents(gameTime);
 
+    if (tickId % TOPIC_DECAY_INTERVAL_TICKS === 0) {
+      this.decayTopicGraph();
+    }
+    if (tickId % TOPIC_REPORT_INTERVAL_TICKS === 0) {
+      this.emitTopicGraphReport(gameTime);
+    }
+
     if (tickId % 120 === 0) {
       for (const stream of this.memoryByAgent.values()) {
         this.pruner.compact(stream, gameTime.totalMinutes);
@@ -245,13 +264,25 @@ export class Simulation {
   }
 
   private tryStartConversations(gameTime: GameTime): void {
+    const backpressure = this.llmQueue.getBackpressureLevel();
+    const startChance = backpressure === 'critical' ? 0.02 : backpressure === 'elevated' ? 0.05 : 0.08;
+    const maxActiveConversations = backpressure === 'critical' ? 2 : backpressure === 'elevated' ? 4 : 8;
+
+    if (this.conversationManager.getActiveConversations().length >= maxActiveConversations) {
+      return;
+    }
+
     for (const [left, right] of this.agentManager.getNearbyPairs(1)) {
+      if (this.conversationManager.getActiveConversations().length >= maxActiveConversations) {
+        break;
+      }
+
       const relationshipWeight = this.relationships.getWeight(left.id, right.id);
       if (!this.conversationManager.canStartConversation(left.id, right.id, gameTime.totalMinutes, relationshipWeight)) {
         continue;
       }
 
-      if (!this.rng.chance(0.08)) {
+      if (!this.rng.chance(startChance)) {
         continue;
       }
 
@@ -377,7 +408,7 @@ export class Simulation {
       importance: 5,
     });
 
-    this.registerTopicsFromTurn(turnEvent.speakerId, listenerId, turnEvent.message, gameTime.totalMinutes);
+    this.registerTopicsFromTurn(turnEvent.speakerId, listenerId, turnEvent.message, gameTime);
   }
 
   private syncConversationStates(): void {
@@ -430,6 +461,7 @@ export class Simulation {
       turnGoal: `introduce ${topic}`,
       conversationArc: 'opening',
       lastLines: [],
+      rewriteStreak: 0,
     });
     this.noteTopicMention(topic, gameTime.totalMinutes, speakerId, 0.7);
     this.noteTopicMention(topic, gameTime.totalMinutes, listenerId, 0.7);
@@ -467,7 +499,13 @@ export class Simulation {
       planPressureHint,
     });
 
-    const safeLine = this.rewriteIfRepetitive(phrase, state);
+    const rewritten = this.rewriteIfWeakOrRepetitive(phrase, state);
+    const safeLine = rewritten.line;
+    state.rewriteStreak = rewritten.rewritten ? state.rewriteStreak + 1 : 0;
+    if (state.rewriteStreak >= MAX_REWRITE_STREAK) {
+      state.conversationArc = 'closing';
+    }
+
     state.lastLines.push(safeLine);
     if (state.lastLines.length > 4) {
       state.lastLines.shift();
@@ -513,11 +551,12 @@ export class Simulation {
     return `Let's pause ${input.topic} for now; ${input.planPressureHint}.`;
   }
 
-  private rewriteIfRepetitive(candidate: string, state: ConversationState): string {
+  private rewriteIfWeakOrRepetitive(candidate: string, state: ConversationState): { line: string; rewritten: boolean } {
     const normalizedCandidate = normalizeDialogue(candidate);
     const duplicate = state.lastLines.some((line) => similarity(normalizeDialogue(line), normalizedCandidate) >= 0.84);
-    if (!duplicate) {
-      return candidate.slice(0, 120);
+    const weak = normalizedCandidate.length < 24 || !normalizedCandidate.includes(normalizeDialogue(state.topic));
+    if (!duplicate && !weak) {
+      return { line: candidate.slice(0, 120), rewritten: false };
     }
 
     const fallback = this.rng.pick([
@@ -525,7 +564,7 @@ export class Simulation {
       `Let us revisit ${state.topic} after we gather more details.`,
       `I do not want to loop on ${state.topic}; we can test a small step first.`,
     ]);
-    return fallback.slice(0, 120);
+    return { line: fallback.slice(0, 120), rewritten: true };
   }
 
   private resolveConversationArc(turnNumber: number): ConversationArc {
@@ -580,10 +619,14 @@ export class Simulation {
   }
 
   private scoreTopicChoice(topic: string, speakerConfidence: number, listenerConfidence: number, gameMinute: number): number {
-    const recentMention = this.topicLastMentioned.get(topic) ?? Number.NEGATIVE_INFINITY;
+    const normalizedTopic = topic.toLowerCase();
+    const recentMention = this.topicLastMentioned.get(normalizedTopic) ?? Number.NEGATIVE_INFINITY;
     const freshness = Number.isFinite(recentMention) ? Math.min(2, (gameMinute - recentMention) / 180) : 2;
-    const novelty = 1 - Math.min(1, (speakerConfidence + listenerConfidence) / 2);
-    return freshness * 1.2 + novelty + this.rng.next() * 0.2;
+    const sharedConfidence = (speakerConfidence + listenerConfidence) / 2;
+    const novelty = 1 - Math.min(1, sharedConfidence);
+    const salience = Math.min(1.5, (this.topicUsageCount.get(normalizedTopic) ?? 0) / 6);
+    const overexposedPenalty = this.topicUsageCount.get(normalizedTopic) && (this.topicUsageCount.get(normalizedTopic) ?? 0) > 18 ? 0.6 : 0;
+    return freshness * 1.1 + novelty * 0.9 + salience * 0.6 - overexposedPenalty + this.rng.next() * 0.2;
   }
 
   private extractMemoryTopics(agentId: AgentId, gameMinute: number): string[] {
@@ -624,15 +667,16 @@ export class Simulation {
     return `I should get back to "${nextGoal.toLowerCase()}"`;
   }
 
-  private registerTopicsFromTurn(speakerId: AgentId, listenerId: AgentId, message: string, gameMinute: number): void {
+  private registerTopicsFromTurn(speakerId: AgentId, listenerId: AgentId, message: string, gameTime: GameTime): void {
     const topics = extractTopics(message).slice(0, 3);
     if (topics.length === 0) {
       return;
     }
 
     for (const topic of topics) {
-      this.noteTopicMention(topic, gameMinute, speakerId, 0.85);
-      this.noteTopicMention(topic, gameMinute, listenerId, 0.7);
+      this.noteTopicMention(topic, gameTime.totalMinutes, speakerId, 0.85);
+      this.noteTopicMention(topic, gameTime.totalMinutes, listenerId, 0.7);
+      this.propagateTopicToNearbyAgents(topic, speakerId, listenerId, gameTime);
     }
   }
 
@@ -642,8 +686,16 @@ export class Simulation {
     const previous = topicMap.get(normalizedTopic) ?? 0;
     const next = Math.min(1, previous * 0.7 + confidence * 0.6);
     topicMap.set(normalizedTopic, next);
+    if (topicMap.size > MAX_TOPICS_PER_AGENT) {
+      const sorted = [...topicMap.entries()].sort((left, right) => right[1] - left[1]).slice(0, MAX_TOPICS_PER_AGENT);
+      topicMap.clear();
+      for (const [key, value] of sorted) {
+        topicMap.set(key, value);
+      }
+    }
     this.knownTopicsByAgent.set(agentId, topicMap);
     this.topicLastMentioned.set(normalizedTopic, gameMinute);
+    this.topicUsageCount.set(normalizedTopic, (this.topicUsageCount.get(normalizedTopic) ?? 0) + 1);
   }
 
   private seedAgentTopics(agentId: AgentId, topics: string[]): void {
@@ -652,6 +704,93 @@ export class Simulation {
       topicMap.set(topic.toLowerCase(), 0.45);
     }
     this.knownTopicsByAgent.set(agentId, topicMap);
+  }
+
+  private propagateTopicToNearbyAgents(topic: string, speakerId: AgentId, listenerId: AgentId, gameTime: GameTime): void {
+    const normalizedTopic = topic.toLowerCase();
+    const speaker = this.agentManager.getById(speakerId);
+    const listener = this.agentManager.getById(listenerId);
+    if (!speaker || !listener) {
+      return;
+    }
+
+    const speakerTile = speaker.getTilePosition();
+    const listenerTile = listener.getTilePosition();
+    let emitted = 0;
+
+    for (const candidate of this.agentManager.getAll()) {
+      if (candidate.id === speakerId || candidate.id === listenerId) {
+        continue;
+      }
+
+      const tile = candidate.getTilePosition();
+      const distFromSpeaker = Math.abs(tile.tileX - speakerTile.tileX) + Math.abs(tile.tileY - speakerTile.tileY);
+      const distFromListener = Math.abs(tile.tileX - listenerTile.tileX) + Math.abs(tile.tileY - listenerTile.tileY);
+      const closeEnough = Math.min(distFromSpeaker, distFromListener) <= 3;
+      if (!closeEnough || !this.rng.chance(0.28)) {
+        continue;
+      }
+
+      const map = this.knownTopicsByAgent.get(candidate.id) ?? new Map<string, number>();
+      const before = map.get(normalizedTopic) ?? 0;
+      this.noteTopicMention(topic, gameTime.totalMinutes, candidate.id, 0.52);
+      const after = this.knownTopicsByAgent.get(candidate.id)?.get(normalizedTopic) ?? 0;
+      if (after - before < 0.08) {
+        continue;
+      }
+
+      if (emitted < MAX_TOPIC_SPREAD_EVENTS_PER_TURN) {
+        const event: TopicSpreadEvent = {
+          type: 'topicSpread',
+          topic: normalizedTopic,
+          sourceId: speakerId,
+          targetId: candidate.id,
+          confidence: Math.round(after * 1000) / 1000,
+          gameTime,
+        };
+        this.enqueueServerEvent(event);
+        emitted += 1;
+      }
+    }
+  }
+
+  private decayTopicGraph(): void {
+    for (const topicMap of this.knownTopicsByAgent.values()) {
+      for (const [topic, confidence] of topicMap.entries()) {
+        const decayed = confidence * TOPIC_DECAY_FACTOR;
+        if (decayed < MIN_TOPIC_CONFIDENCE) {
+          topicMap.delete(topic);
+          continue;
+        }
+        topicMap.set(topic, Math.round(decayed * 1000) / 1000);
+      }
+    }
+
+    for (const [topic, usage] of this.topicUsageCount.entries()) {
+      const decayed = usage * TOPIC_USAGE_DECAY_FACTOR;
+      if (decayed < 0.2) {
+        this.topicUsageCount.delete(topic);
+      } else {
+        this.topicUsageCount.set(topic, decayed);
+      }
+    }
+  }
+
+  private emitTopicGraphReport(gameTime: GameTime): void {
+    const top = [...this.topicUsageCount.entries()]
+      .sort((left, right) => right[1] - left[1])
+      .slice(0, 4)
+      .map(([topic, score]) => `${topic}:${score.toFixed(1)}`);
+    if (top.length === 0) {
+      return;
+    }
+
+    this.enqueueServerEvent({
+      type: 'log',
+      level: 'debug',
+      gameTime,
+      message: `topic graph hot: ${top.join(', ')}`,
+    });
   }
 
   private endConversationsNaturally(gameTime: GameTime): void {
@@ -674,6 +813,7 @@ export class Simulation {
       const shouldCloseByTopic = state.conversationArc === 'closing' && this.rng.chance(0.28);
       const shouldCloseBySchedule = schedulePressure && this.rng.chance(0.35);
       const shouldCloseByDiscomfort = state.tone === 'tense' && turnCount >= 3 && this.rng.chance(0.22);
+      const shouldCloseByRewrite = state.rewriteStreak >= MAX_REWRITE_STREAK;
 
       if (shouldCloseBySchedule) {
         generatedEnds.push(this.conversationManager.endConversation(conversation.id, 'schedulePressure', gameTime));
@@ -682,6 +822,11 @@ export class Simulation {
 
       if (shouldCloseByDiscomfort) {
         generatedEnds.push(this.conversationManager.endConversation(conversation.id, 'socialDiscomfort', gameTime));
+        continue;
+      }
+
+      if (shouldCloseByRewrite) {
+        generatedEnds.push(this.conversationManager.endConversation(conversation.id, 'topicExhausted', gameTime));
         continue;
       }
 

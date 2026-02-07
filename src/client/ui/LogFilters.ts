@@ -45,6 +45,14 @@ export function parseLogEvent(event: unknown): ParsedLogEvent {
     };
   }
 
+  if (type === 'topicSpread') {
+    return {
+      type,
+      agentId: typeof typed.sourceId === 'string' ? typed.sourceId : agentId,
+      text: `topic: ${String(typed.sourceId ?? 'agent')} -> ${String(typed.targetId ?? 'agent')} (${String(typed.topic ?? 'topic')})`,
+    };
+  }
+
   if (type === 'log') {
     return {
       type,

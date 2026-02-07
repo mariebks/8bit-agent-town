@@ -172,6 +172,15 @@ export const LocationArrivalEventSchema = z.object({
   gameTime: GameTimeSchema,
 });
 
+export const TopicSpreadEventSchema = z.object({
+  type: z.literal('topicSpread'),
+  topic: z.string(),
+  sourceId: z.string(),
+  targetId: z.string(),
+  confidence: z.number(),
+  gameTime: GameTimeSchema,
+});
+
 export const LogEventSchema = z.object({
   type: z.literal('log'),
   level: z.enum(['debug', 'info', 'warn', 'error']),
@@ -193,6 +202,7 @@ export const ServerEventSchema = z.discriminatedUnion('type', [
   SpeechBubbleEventSchema,
   RelationshipShiftEventSchema,
   LocationArrivalEventSchema,
+  TopicSpreadEventSchema,
   LogEventSchema,
 ]);
 
@@ -208,6 +218,7 @@ export type ConversationEndEvent = z.infer<typeof ConversationEndEventSchema>;
 export type SpeechBubbleEvent = z.infer<typeof SpeechBubbleEventSchema>;
 export type RelationshipShiftEvent = z.infer<typeof RelationshipShiftEventSchema>;
 export type LocationArrivalEvent = z.infer<typeof LocationArrivalEventSchema>;
+export type TopicSpreadEvent = z.infer<typeof TopicSpreadEventSchema>;
 export type LogEvent = z.infer<typeof LogEventSchema>;
 export type ServerEvent = z.infer<typeof ServerEventSchema>;
 export type ClientEvent = z.infer<typeof ClientEventSchema>;

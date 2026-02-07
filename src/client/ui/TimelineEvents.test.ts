@@ -25,6 +25,13 @@ describe('TimelineEvents', () => {
           locationId: 'market',
         },
         {
+          type: 'topicSpread',
+          sourceId: 'a1',
+          targetId: 'a2',
+          topic: 'market prices',
+          confidence: 0.7,
+        },
+        {
           type: 'log',
           level: 'info',
           message: 'Generated daily plan for Alex',
@@ -46,11 +53,12 @@ describe('TimelineEvents', () => {
       },
     );
 
-    expect(entries).toHaveLength(5);
+    expect(entries).toHaveLength(6);
     expect(entries.map((entry) => entry.kind)).toEqual([
       'conversation',
       'relationship',
       'arrival',
+      'topic',
       'plan',
       'reflection',
     ]);

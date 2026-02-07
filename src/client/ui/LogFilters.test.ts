@@ -44,6 +44,15 @@ describe('LogFilters', () => {
     });
     expect(arrival.agentId).toBe('agent-9');
     expect(arrival.text).toContain('market');
+
+    const topicSpread = parseLogEvent({
+      type: 'topicSpread',
+      sourceId: 'agent-9',
+      targetId: 'agent-3',
+      topic: 'weather',
+    });
+    expect(topicSpread.agentId).toBe('agent-9');
+    expect(topicSpread.text).toContain('weather');
   });
 
   test('filters by type and partial agent id', () => {

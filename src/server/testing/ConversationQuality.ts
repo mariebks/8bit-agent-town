@@ -4,6 +4,8 @@ import { AgentData } from '@shared/Types';
 export interface ConversationQualityMetrics {
   totalTurns: number;
   conversationCount: number;
+  topicSpreadCount: number;
+  topicSpreadRate: number;
   topicalityScore: number;
   repetitionRate: number;
   memoryReferenceRate: number;
@@ -23,12 +25,18 @@ export interface ConversationQualityReport {
   };
 }
 
-export function scoreConversationQuality(turnEvents: ConversationTurnEvent[], agents: AgentData[]): ConversationQualityMetrics {
+export function scoreConversationQuality(
+  turnEvents: ConversationTurnEvent[],
+  agents: AgentData[],
+  topicSpreadCount = 0,
+): ConversationQualityMetrics {
   const totalTurns = turnEvents.length;
   if (totalTurns === 0) {
     return {
       totalTurns: 0,
       conversationCount: 0,
+      topicSpreadCount,
+      topicSpreadRate: 0,
       topicalityScore: 0,
       repetitionRate: 0,
       memoryReferenceRate: 0,
@@ -81,6 +89,8 @@ export function scoreConversationQuality(turnEvents: ConversationTurnEvent[], ag
   return {
     totalTurns,
     conversationCount: turnsByConversation.size,
+    topicSpreadCount,
+    topicSpreadRate: round4(topicSpreadCount / totalTurns),
     topicalityScore,
     repetitionRate: round4(duplicateTurns / totalTurns),
     memoryReferenceRate: round4(memoryReferenceTurns / totalTurns),
