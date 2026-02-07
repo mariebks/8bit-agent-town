@@ -26,6 +26,27 @@ function formatAgent(agent: AgentData, relationshipTrend: string): string {
   ].join('\n');
 }
 
+export function appendRelationshipSummarySamples(
+  historyByAgent: Map<string, number[]>,
+  agents: AgentData[],
+  currentTickId: number,
+  sampledTickByAgent: Map<string, number>,
+  maxSamples = 24,
+): void {
+  for (const agent of agents) {
+    const value = agent.relationshipSummary?.averageWeight;
+    if (typeof value !== 'number') {
+      continue;
+    }
+    if (sampledTickByAgent.get(agent.id) === currentTickId) {
+      continue;
+    }
+    const current = historyByAgent.get(agent.id) ?? [];
+    historyByAgent.set(agent.id, appendRelationshipSample(current, value, maxSamples));
+    sampledTickByAgent.set(agent.id, currentTickId);
+  }
+}
+
 export class InspectorPanel implements UIPanel {
   readonly id = 'inspector-panel';
   readonly element: HTMLElement;
@@ -35,6 +56,7 @@ export class InspectorPanel implements UIPanel {
   private readonly trendElement: HTMLElement;
   private readonly getSelectedAgentId: () => string | null;
   private readonly relationshipHistoryByAgent = new Map<string, number[]>();
+  private readonly sampledRelationshipTickByAgent = new Map<string, number>();
 
   constructor(options: InspectorOptions) {
     this.getSelectedAgentId = options.getSelectedAgentId;
@@ -67,6 +89,12 @@ export class InspectorPanel implements UIPanel {
   }
 
   update(state: UISimulationState): void {
+    appendRelationshipSummarySamples(
+      this.relationshipHistoryByAgent,
+      state.agents,
+      state.tickId,
+      this.sampledRelationshipTickByAgent,
+    );
     this.captureRelationshipSamples(state.events);
 
     const selectedAgentId = this.getSelectedAgentId();

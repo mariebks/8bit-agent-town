@@ -1,12 +1,12 @@
 import { AgentState } from '@shared/Types';
 import { describe, expect, test } from 'vitest';
-import { buildHighlightsReel } from './HighlightsReel';
-import { TimelineEntry } from './TimelineEvents';
+import { buildHighlightsReel, HighlightsEntry } from './HighlightsReel';
 
-function entry(overrides: Partial<TimelineEntry> = {}): TimelineEntry {
+function entry(overrides: Partial<HighlightsEntry> = {}): HighlightsEntry {
   return {
     id: 'entry',
     tickId: 100,
+    gameMinute: 100,
     kind: 'conversation',
     headline: 'Agents started talking',
     actorIds: ['a1', 'a2'],
@@ -55,8 +55,8 @@ describe('HighlightsReel', () => {
   test('drops events outside the configured window', () => {
     const reel = buildHighlightsReel(
       [
-        entry({ id: 'old', tickId: 20, kind: 'conversation' }),
-        entry({ id: 'new', tickId: 99, kind: 'plan' }),
+        entry({ id: 'old', tickId: 20, gameMinute: 20, kind: 'conversation' }),
+        entry({ id: 'new', tickId: 99, gameMinute: 99, kind: 'plan' }),
       ],
       [agent('a1', 'Ada')],
       100,
@@ -64,5 +64,22 @@ describe('HighlightsReel', () => {
     );
     expect(reel.eventCount).toBe(1);
     expect(reel.bullets).toEqual(['Agents started talking']);
+  });
+
+  test('uses game-minute windows when available', () => {
+    const reel = buildHighlightsReel(
+      [
+        entry({ id: 'old-minute', tickId: 149, gameMinute: 80, kind: 'relationship', headline: 'old relationship' }),
+        entry({ id: 'new-minute', tickId: 140, gameMinute: 160, kind: 'topic', headline: 'fresh topic' }),
+      ],
+      [agent('a1', 'Ada')],
+      150,
+      60,
+      180,
+      60,
+    );
+
+    expect(reel.eventCount).toBe(1);
+    expect(reel.bullets).toEqual(['fresh topic']);
   });
 });

@@ -19,4 +19,9 @@ describe('WeatherProfile', () => {
     expect(profile.kind).toBe('clear');
     expect(profile.rainIntensity).toBe(0);
   });
+
+  test('allows clear weather for high mood with neutral topic feed', () => {
+    const profile = resolveWeatherProfile(82, []);
+    expect(profile.kind).toBe('clear');
+  });
 });

@@ -1,8 +1,9 @@
 import { UIPanel, UISimulationState } from './types';
-import { buildHighlightsReel } from './HighlightsReel';
-import { TimelineEntry, extractTimelineEntries } from './TimelineEvents';
+import { buildHighlightsReel, HighlightsEntry } from './HighlightsReel';
+import { extractTimelineEntries } from './TimelineEvents';
 
 const HIGHLIGHT_WINDOW_TICKS = 60;
+const HIGHLIGHT_WINDOW_MINUTES = 60;
 const MAX_ENTRIES = 180;
 
 export class HighlightsReelPanel implements UIPanel {
@@ -12,7 +13,7 @@ export class HighlightsReelPanel implements UIPanel {
   private readonly summaryElement: HTMLElement;
   private readonly bulletList: HTMLElement;
   private readonly footerElement: HTMLElement;
-  private readonly entries: TimelineEntry[] = [];
+  private readonly entries: HighlightsEntry[] = [];
   private readonly seenIds = new Set<string>();
 
   constructor() {
@@ -54,13 +55,23 @@ export class HighlightsReelPanel implements UIPanel {
         if (this.seenIds.has(entry.id)) {
           continue;
         }
-        this.entries.push(entry);
+        this.entries.push({
+          ...entry,
+          gameMinute: state.gameTime?.totalMinutes,
+        });
         this.seenIds.add(entry.id);
       }
     }
 
-    const pruneThreshold = state.tickId - HIGHLIGHT_WINDOW_TICKS - 120;
-    while (this.entries.length > 0 && this.entries[0].tickId < pruneThreshold) {
+    const pruneTickThreshold = state.tickId - HIGHLIGHT_WINDOW_TICKS - 120;
+    const pruneMinuteThreshold =
+      state.gameTime !== null ? state.gameTime.totalMinutes - (HIGHLIGHT_WINDOW_MINUTES + 120) : null;
+    while (
+      this.entries.length > 0 &&
+      (pruneMinuteThreshold !== null && typeof this.entries[0].gameMinute === 'number'
+        ? this.entries[0].gameMinute < pruneMinuteThreshold
+        : this.entries[0].tickId < pruneTickThreshold)
+    ) {
       const removed = this.entries.shift();
       if (removed) {
         this.seenIds.delete(removed.id);
@@ -74,7 +85,14 @@ export class HighlightsReelPanel implements UIPanel {
       }
     }
 
-    const reel = buildHighlightsReel(this.entries, state.agents, state.tickId, HIGHLIGHT_WINDOW_TICKS);
+    const reel = buildHighlightsReel(
+      this.entries,
+      state.agents,
+      state.tickId,
+      HIGHLIGHT_WINDOW_TICKS,
+      state.gameTime?.totalMinutes ?? null,
+      HIGHLIGHT_WINDOW_MINUTES,
+    );
     this.summaryElement.textContent = reel.summary;
 
     this.bulletList.innerHTML = '';

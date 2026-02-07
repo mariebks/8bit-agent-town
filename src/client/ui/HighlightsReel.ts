@@ -1,6 +1,10 @@
 import { AgentData } from '@shared/Types';
 import { TimelineEntry } from './TimelineEvents';
 
+export interface HighlightsEntry extends TimelineEntry {
+  gameMinute?: number;
+}
+
 export interface HighlightsReelSnapshot {
   summary: string;
   bullets: string[];
@@ -9,12 +13,23 @@ export interface HighlightsReelSnapshot {
 }
 
 export function buildHighlightsReel(
-  entries: TimelineEntry[],
+  entries: HighlightsEntry[],
   agents: AgentData[],
   currentTickId: number,
   windowTicks = 60,
+  currentGameMinute: number | null = null,
+  windowMinutes = 60,
 ): HighlightsReelSnapshot {
-  const recent = entries.filter((entry) => currentTickId - entry.tickId <= windowTicks);
+  const useMinuteWindow = currentGameMinute !== null && entries.some((entry) => typeof entry.gameMinute === 'number');
+  const recent = entries.filter((entry) => {
+    if (useMinuteWindow) {
+      if (typeof entry.gameMinute !== 'number') {
+        return currentTickId - entry.tickId <= windowTicks;
+      }
+      return currentGameMinute - entry.gameMinute <= windowMinutes;
+    }
+    return currentTickId - entry.tickId <= windowTicks;
+  });
   if (recent.length === 0) {
     return {
       summary: 'No major moments in the last hour yet.',
@@ -56,8 +71,8 @@ export function buildHighlightsReel(
   };
 }
 
-function scoreHighlight(entry: TimelineEntry): number {
-  const kindWeight: Record<TimelineEntry['kind'], number> = {
+function scoreHighlight(entry: HighlightsEntry): number {
+  const kindWeight: Record<HighlightsEntry['kind'], number> = {
     relationship: 10,
     conversation: 9,
     topic: 8,

@@ -33,7 +33,7 @@ export function resolveWeatherProfile(averageMood: number | null, recentTopics: 
     };
   }
 
-  if (topicScore === 0 || normalizedMood < 54) {
+  if (topicScore < 0 || normalizedMood < 54) {
     return {
       kind: 'cloudy',
       tintColor: 0x5d6872,
