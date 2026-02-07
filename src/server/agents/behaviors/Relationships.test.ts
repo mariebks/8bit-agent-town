@@ -8,12 +8,29 @@ describe('RelationshipManager', () => {
 
     expect(manager.getWeight('a1', 'a2')).toBe(0);
 
-    manager.applyConversationDelta('a1', 'a2', 30, 100);
+    const noShift = manager.applyConversationDelta('a1', 'a2', 30, 100);
     expect(manager.getWeight('a1', 'a2')).toBe(30);
     expect(manager.getWeight('a2', 'a1')).toBe(24);
+    expect(noShift).toEqual([]);
 
-    manager.applyConversationDelta('a1', 'a2', 200, 101);
+    const shift = manager.applyConversationDelta('a1', 'a2', 200, 101);
     expect(manager.getWeight('a1', 'a2')).toBe(100);
+    expect(shift).toEqual([
+      {
+        sourceId: 'a1',
+        targetId: 'a2',
+        fromWeight: 30,
+        toWeight: 100,
+        stance: 'friend',
+      },
+      {
+        sourceId: 'a2',
+        targetId: 'a1',
+        fromWeight: 24,
+        toWeight: 100,
+        stance: 'friend',
+      },
+    ]);
 
     const summary = manager.getSummary('a1');
     expect(summary.friendCount).toBe(1);

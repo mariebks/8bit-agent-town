@@ -7,12 +7,16 @@ import { SimulationSocket } from './network/SimulationSocket';
 import { DebugPanel } from './ui/DebugPanel';
 import { InspectorPanel } from './ui/InspectorPanel';
 import { LogPanel } from './ui/LogPanel';
+import { ModeSwitcherPanel } from './ui/ModeSwitcherPanel';
+import { OnboardingPanel } from './ui/OnboardingPanel';
 import { PromptViewer } from './ui/PromptViewer';
+import { TimelinePanel } from './ui/TimelinePanel';
 import { UIEventBus } from './ui/UIEventBus';
 import { UIManager } from './ui/UIManager';
-import { resolveOverlayShortcut, resolvePanelShortcut } from './ui/KeyboardShortcuts';
+import { resolveModeShortcut, resolveOverlayShortcut, resolvePanelShortcut } from './ui/KeyboardShortcuts';
 import { TimeControls } from './ui/TimeControls';
 import { UISimulationState } from './ui/types';
+import { nextUiMode } from './ui/UiMode';
 import './ui/styles/base.css';
 
 const fallbackWidthPx = MAP_WIDTH_TILES * TILE_SIZE;
@@ -89,15 +93,62 @@ const debugPanel = new DebugPanel({
 const promptViewer = new PromptViewer({
   getSelectedAgentId: () => getTownScene()?.getSelectedAgentId() ?? null,
 });
+const timelinePanel = new TimelinePanel();
+const onboardingPanel = new OnboardingPanel();
 const timeControls = new TimeControls({
   onControl: (action, value) => simulationSocket.sendControl(action, value),
+  onToggleFollowSelected: () => getTownScene()?.toggleFollowSelectedAgent() ?? false,
+  getFollowSelectedEnabled: () => getTownScene()?.isFollowingSelectedAgent() ?? false,
+  onJumpToInteresting: () => {
+    const nextAgentId = timelinePanel.nextInterestingAgentId();
+    if (!nextAgentId) {
+      return null;
+    }
+
+    return getTownScene()?.focusAgentById(nextAgentId) ? nextAgentId : null;
+  },
+});
+const modeSwitcherPanel = new ModeSwitcherPanel({
+  getMode: () => uiManager.getMode(),
+  onModeChange: (mode) => {
+    uiManager.setMode(mode);
+  },
 });
 
-uiManager.registerPanel(timeControls);
-uiManager.registerPanel(inspectorPanel);
-uiManager.registerPanel(debugPanel);
-uiManager.registerPanel(promptViewer);
-uiManager.registerPanel(logPanel);
+uiManager.registerPanel(modeSwitcherPanel, {
+  visibleIn: ['cinematic', 'story', 'debug'],
+});
+uiManager.registerPanel(onboardingPanel, {
+  visibleIn: ['cinematic', 'story', 'debug'],
+});
+uiManager.registerPanel(timelinePanel, {
+  visibleIn: ['cinematic', 'story', 'debug'],
+});
+uiManager.registerPanel(timeControls, {
+  visibleIn: ['story', 'debug'],
+});
+uiManager.registerPanel(inspectorPanel, {
+  visibleIn: ['story', 'debug'],
+});
+uiManager.registerPanel(debugPanel, {
+  visibleIn: ['debug'],
+  updateEvery: {
+    cinematic: 2,
+    story: 2,
+    debug: 1,
+  },
+});
+uiManager.registerPanel(promptViewer, {
+  visibleIn: ['debug'],
+  updateEvery: {
+    cinematic: 2,
+    story: 2,
+    debug: 1,
+  },
+});
+uiManager.registerPanel(logPanel, {
+  visibleIn: ['debug'],
+});
 
 const uiState: UISimulationState = {
   connected: false,
@@ -106,6 +157,7 @@ const uiState: UISimulationState = {
   metrics: null,
   agents: [],
   events: [],
+  uiMode: uiManager.getMode(),
 };
 
 simulationSocket.onConnection((connected) => {
@@ -133,6 +185,18 @@ simulationSocket.onControlAck((ack) => {
       type: 'log',
       level: ack.accepted ? 'info' : 'warn',
       message: ack.accepted ? `control accepted: ${ack.action}` : `control rejected: ${ack.reason ?? ack.action}`,
+    },
+  ];
+});
+
+uiEventBus.on('ui:modeChanged', (mode) => {
+  uiState.uiMode = mode as UISimulationState['uiMode'];
+  uiState.events = [
+    ...uiState.events,
+    {
+      type: 'log',
+      level: 'info',
+      message: `mode switched: ${uiState.uiMode}`,
     },
   ];
 });
@@ -167,12 +231,18 @@ window.addEventListener('keydown', (event: KeyboardEvent) => {
   };
   const panelShortcut = resolvePanelShortcut(shortcutInput);
   const overlayShortcut = resolveOverlayShortcut(shortcutInput);
+  const modeShortcut = resolveModeShortcut(shortcutInput);
 
-  if (!panelShortcut && !overlayShortcut) {
+  if (!panelShortcut && !overlayShortcut && !modeShortcut) {
     return;
   }
 
   event.preventDefault();
+  if (modeShortcut === 'cycle-ui-mode') {
+    uiManager.setMode(nextUiMode(uiManager.getMode()));
+    return;
+  }
+
   if (panelShortcut) {
     const isVisible = uiManager.togglePanel(panelShortcut);
     uiState.events = [

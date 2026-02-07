@@ -1,4 +1,4 @@
-export type UIEventType = 'agent:selected' | 'state:updated' | 'log:new' | 'debug:toggle';
+export type UIEventType = 'agent:selected' | 'state:updated' | 'log:new' | 'debug:toggle' | 'ui:modeChanged';
 
 type Listener<T = unknown> = (payload: T) => void;
 

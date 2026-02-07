@@ -54,9 +54,13 @@ export class RelationshipManager {
     };
   }
 
-  applyConversationDelta(sourceId: AgentId, targetId: AgentId, delta: number, gameTime: number): void {
+  applyConversationDelta(sourceId: AgentId, targetId: AgentId, delta: number, gameTime: number): RelationshipShift[] {
     const sourceEdge = this.ensureEdge(sourceId, targetId, gameTime);
     const targetEdge = this.ensureEdge(targetId, sourceId, gameTime);
+    const beforeSource = classifyRelationshipStance(sourceEdge.weight);
+    const beforeTarget = classifyRelationshipStance(targetEdge.weight);
+    const beforeSourceWeight = sourceEdge.weight;
+    const beforeTargetWeight = targetEdge.weight;
 
     sourceEdge.weight = clampWeight(sourceEdge.weight + delta);
     targetEdge.weight = clampWeight(targetEdge.weight + Math.round(delta * 0.8));
@@ -66,6 +70,31 @@ export class RelationshipManager {
 
     this.refreshTags(sourceEdge);
     this.refreshTags(targetEdge);
+
+    const shifts: RelationshipShift[] = [];
+    const afterSource = classifyRelationshipStance(sourceEdge.weight);
+    if (beforeSource !== afterSource) {
+      shifts.push({
+        sourceId,
+        targetId,
+        fromWeight: beforeSourceWeight,
+        toWeight: sourceEdge.weight,
+        stance: afterSource,
+      });
+    }
+
+    const afterTarget = classifyRelationshipStance(targetEdge.weight);
+    if (beforeTarget !== afterTarget) {
+      shifts.push({
+        sourceId: targetId,
+        targetId: sourceId,
+        fromWeight: beforeTargetWeight,
+        toWeight: targetEdge.weight,
+        stance: afterTarget,
+      });
+    }
+
+    return shifts;
   }
 
   toSerializable(): RelationshipGraph {
@@ -112,4 +141,22 @@ export class RelationshipManager {
 
     edge.tags = ['acquaintance'];
   }
+}
+
+export interface RelationshipShift {
+  sourceId: AgentId;
+  targetId: AgentId;
+  fromWeight: number;
+  toWeight: number;
+  stance: 'friend' | 'rival' | 'acquaintance';
+}
+
+function classifyRelationshipStance(weight: number): RelationshipShift['stance'] {
+  if (weight >= 60) {
+    return 'friend';
+  }
+  if (weight <= -60) {
+    return 'rival';
+  }
+  return 'acquaintance';
 }

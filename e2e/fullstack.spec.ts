@@ -28,6 +28,11 @@ async function waitForTownScene(page: import('@playwright/test').Page): Promise<
     .toBe(true);
 }
 
+async function setUiMode(page: import('@playwright/test').Page, label: 'Cinematic' | 'Story' | 'Debug'): Promise<void> {
+  await page.locator('.mode-switcher-panel .ui-btn', { hasText: label }).click();
+  await expect(page.locator('.mode-switcher-panel .ui-btn.active')).toContainText(label);
+}
+
 async function getSelectedAgentId(page: import('@playwright/test').Page): Promise<string | null> {
   return page.evaluate(() => {
     const scene = window.__agentTownGame?.scene.getScene('TownScene') as Record<string, unknown> | undefined;
@@ -40,6 +45,7 @@ test.describe('8-bit Agent Town fullstack', () => {
   test('connects to simulation server and pause/resume controls affect game clock', async ({ page }) => {
     await page.goto('/');
     await waitForTownScene(page);
+    await setUiMode(page, 'Debug');
 
     const status = page.locator('.time-controls .panel-footer');
     await expect(status).toContainText('online');
@@ -48,11 +54,12 @@ test.describe('8-bit Agent Town fullstack', () => {
     const initialMinutes = parseClockMinutes(initialText);
     expect(initialMinutes).not.toBeNull();
 
-    await page.waitForTimeout(700);
-    const advancedText = (await status.textContent()) ?? '';
-    const advancedMinutes = parseClockMinutes(advancedText);
-    expect(advancedMinutes).not.toBeNull();
-    expect(advancedMinutes).toBeGreaterThan(initialMinutes ?? -1);
+    await expect
+      .poll(async () => parseClockMinutes((await status.textContent()) ?? ''), {
+        timeout: 5_000,
+        intervals: [200, 400],
+      })
+      .toBeGreaterThan(initialMinutes ?? -1);
 
     await page.locator('.time-controls .ui-btn', { hasText: 'Pause' }).click();
     await page.waitForTimeout(1_200);
@@ -78,6 +85,7 @@ test.describe('8-bit Agent Town fullstack', () => {
   test('supports agent select/deselect, overlay hotkeys, panel toggles, and log export', async ({ page }) => {
     await page.goto('/');
     await waitForTownScene(page);
+    await setUiMode(page, 'Debug');
     await expect(page.locator('.time-controls .panel-footer')).toContainText('online');
 
     await page.locator('.time-controls .ui-btn', { hasText: 'Pause' }).click();
@@ -331,5 +339,29 @@ test.describe('8-bit Agent Town fullstack', () => {
 
     expect(Array.isArray(parsed)).toBe(true);
     expect(parsed.length).toBeGreaterThan(0);
+  });
+
+  test('persists ui mode and surfaces timeline cards', async ({ page }) => {
+    await page.goto('/');
+    await waitForTownScene(page);
+
+    await setUiMode(page, 'Story');
+    await page.reload();
+    await waitForTownScene(page);
+
+    await expect(page.locator('.mode-switcher-panel .ui-btn.active')).toContainText('Story');
+    await expect(page.locator('.timeline-panel')).toBeVisible();
+
+    await setUiMode(page, 'Debug');
+    await page.locator('.time-controls .ui-btn', { hasText: 'Pause' }).click();
+    await page.locator('.time-controls .ui-btn', { hasText: 'Resume' }).click();
+    await setUiMode(page, 'Story');
+
+    await expect
+      .poll(async () => await page.locator('.timeline-panel .timeline-card').count(), {
+        timeout: 10_000,
+        intervals: [200, 400, 800],
+      })
+      .toBeGreaterThan(0);
   });
 });

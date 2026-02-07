@@ -1,7 +1,14 @@
 import { AgentId, ConversationData, ConversationId, GameTime, LocationId } from '@shared/Types';
 import { ConversationEndEvent, ConversationStartEvent, ConversationTurnEvent, SpeechBubbleEvent } from '@shared/Events';
 
-export type ConversationEndReason = 'maxTurns' | 'agentEnded' | 'timeout' | 'interrupted';
+export type ConversationEndReason =
+  | 'maxTurns'
+  | 'agentEnded'
+  | 'timeout'
+  | 'interrupted'
+  | 'topicExhausted'
+  | 'schedulePressure'
+  | 'socialDiscomfort';
 
 interface ActiveConversation {
   data: ConversationData;

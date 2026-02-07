@@ -136,7 +136,15 @@ export const ConversationTurnEventSchema = z.object({
 export const ConversationEndEventSchema = z.object({
   type: z.literal('conversationEnd'),
   conversationId: z.string(),
-  reason: z.enum(['maxTurns', 'agentEnded', 'timeout', 'interrupted']),
+  reason: z.enum([
+    'maxTurns',
+    'agentEnded',
+    'timeout',
+    'interrupted',
+    'topicExhausted',
+    'schedulePressure',
+    'socialDiscomfort',
+  ]),
   gameTime: GameTimeSchema,
 });
 
@@ -145,6 +153,23 @@ export const SpeechBubbleEventSchema = z.object({
   agentId: z.string(),
   message: z.string(),
   durationTicks: z.number(),
+});
+
+export const RelationshipShiftEventSchema = z.object({
+  type: z.literal('relationshipShift'),
+  sourceId: z.string(),
+  targetId: z.string(),
+  fromWeight: z.number(),
+  toWeight: z.number(),
+  stance: z.enum(['friend', 'rival', 'acquaintance']),
+  gameTime: GameTimeSchema,
+});
+
+export const LocationArrivalEventSchema = z.object({
+  type: z.literal('locationArrival'),
+  agentId: z.string(),
+  locationId: z.string(),
+  gameTime: GameTimeSchema,
 });
 
 export const LogEventSchema = z.object({
@@ -166,6 +191,8 @@ export const ServerEventSchema = z.discriminatedUnion('type', [
   ConversationTurnEventSchema,
   ConversationEndEventSchema,
   SpeechBubbleEventSchema,
+  RelationshipShiftEventSchema,
+  LocationArrivalEventSchema,
   LogEventSchema,
 ]);
 
@@ -179,6 +206,8 @@ export type ConversationStartEvent = z.infer<typeof ConversationStartEventSchema
 export type ConversationTurnEvent = z.infer<typeof ConversationTurnEventSchema>;
 export type ConversationEndEvent = z.infer<typeof ConversationEndEventSchema>;
 export type SpeechBubbleEvent = z.infer<typeof SpeechBubbleEventSchema>;
+export type RelationshipShiftEvent = z.infer<typeof RelationshipShiftEventSchema>;
+export type LocationArrivalEvent = z.infer<typeof LocationArrivalEventSchema>;
 export type LogEvent = z.infer<typeof LogEventSchema>;
 export type ServerEvent = z.infer<typeof ServerEventSchema>;
 export type ClientEvent = z.infer<typeof ClientEventSchema>;

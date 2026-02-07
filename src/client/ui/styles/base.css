@@ -1,9 +1,20 @@
 :root {
-  --ui-bg: rgba(8, 16, 28, 0.86);
-  --ui-border: #3a5166;
-  --ui-text: #edf2f7;
-  --ui-accent: #7dd3fc;
-  --ui-muted: #93a6b8;
+  --ui-bg: rgba(19, 40, 34, 0.88);
+  --ui-border: #4d7058;
+  --ui-text: #eef6ee;
+  --ui-accent: #b8f77b;
+  --ui-muted: #95b6a1;
+  --ui-bg-soft: rgba(12, 28, 24, 0.74);
+  --ui-card-plan: rgba(77, 112, 88, 0.4);
+  --ui-card-conversation: rgba(72, 93, 126, 0.44);
+  --ui-card-reflection: rgba(94, 84, 128, 0.44);
+  --ui-card-relationship: rgba(114, 78, 71, 0.44);
+  --ui-card-arrival: rgba(67, 100, 92, 0.44);
+  --ui-card-system: rgba(70, 70, 70, 0.44);
+}
+
+body {
+  background: linear-gradient(180deg, #6ca4d6 0%, #a4cf90 55%, #8db572 100%);
 }
 
 .ui-overlay {
@@ -11,7 +22,7 @@
   inset: 0;
   pointer-events: none;
   z-index: 1200;
-  font-family: 'Courier New', monospace;
+  font-family: 'Press Start 2P', 'Courier New', monospace;
   color: var(--ui-text);
 }
 
@@ -20,7 +31,7 @@
   pointer-events: auto;
   background: var(--ui-bg);
   border: 1px solid var(--ui-border);
-  border-radius: 6px;
+  border-radius: 8px;
   backdrop-filter: blur(2px);
   padding: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
@@ -55,7 +66,7 @@
 .log-panel {
   left: 10px;
   bottom: 10px;
-  width: min(40vw, 500px);
+  width: min(42vw, 520px);
   max-height: 34vh;
 }
 
@@ -72,7 +83,7 @@
 
 .inspector-panel {
   right: 10px;
-  top: 10px;
+  top: 72px;
   width: min(28vw, 340px);
 }
 
@@ -84,9 +95,10 @@
 }
 
 .time-controls {
-  left: 10px;
+  left: 50%;
   top: 10px;
-  width: min(28vw, 320px);
+  transform: translateX(-50%);
+  width: min(36vw, 440px);
 }
 
 .time-controls-row {
@@ -96,8 +108,8 @@
 }
 
 .ui-btn {
-  background: #1f2e3f;
-  border: 1px solid #405c77;
+  background: #244136;
+  border: 1px solid #5a8167;
   color: var(--ui-text);
   border-radius: 4px;
   font-size: 10px;
@@ -106,12 +118,18 @@
 }
 
 .ui-btn:hover {
-  background: #2a3d52;
+  background: #2f5245;
+}
+
+.ui-btn.active {
+  background: #8fbf52;
+  color: #102215;
+  border-color: #c6f58b;
 }
 
 .ui-btn-ghost {
   background: transparent;
-  border-color: #4a6075;
+  border-color: #5d7c67;
   color: var(--ui-accent);
 }
 
@@ -121,8 +139,8 @@
 
 .ui-input,
 .ui-select {
-  background: #152232;
-  border: 1px solid #405c77;
+  background: #1b332b;
+  border: 1px solid #52705e;
   color: var(--ui-text);
   border-radius: 4px;
   font-size: 10px;
@@ -140,7 +158,7 @@
 
 .debug-panel {
   right: 10px;
-  top: 220px;
+  top: 304px;
   width: min(30vw, 380px);
 }
 
@@ -161,15 +179,110 @@
   overflow: auto;
 }
 
+.mode-switcher-panel {
+  left: 10px;
+  top: 10px;
+  width: min(34vw, 440px);
+}
+
+.timeline-panel {
+  left: 10px;
+  bottom: 10px;
+  width: min(40vw, 560px);
+  max-height: 34vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.onboarding-panel {
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(56vw, 620px);
+  background: rgba(10, 28, 23, 0.95);
+  z-index: 1400;
+}
+
+.onboarding-steps {
+  margin: 0 0 10px 20px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.timeline-list {
+  max-height: 26vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.timeline-card {
+  border: 1px solid var(--ui-border);
+  border-radius: 6px;
+  padding: 6px;
+  background: var(--ui-bg-soft);
+}
+
+.timeline-headline {
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.timeline-detail {
+  margin-top: 4px;
+  font-size: 9px;
+  color: var(--ui-muted);
+}
+
+.timeline-plan {
+  background: var(--ui-card-plan);
+}
+
+.timeline-conversation {
+  background: var(--ui-card-conversation);
+}
+
+.timeline-reflection {
+  background: var(--ui-card-reflection);
+}
+
+.timeline-relationship {
+  background: var(--ui-card-relationship);
+}
+
+.timeline-arrival {
+  background: var(--ui-card-arrival);
+}
+
+.timeline-system {
+  background: var(--ui-card-system);
+}
+
+body[data-ui-mode='cinematic'] .ui-panel {
+  background: rgba(16, 37, 30, 0.72);
+}
+
 @media (max-width: 900px) {
-  .log-panel {
+  .log-panel,
+  .timeline-panel {
     width: calc(100vw - 20px);
   }
 
   .inspector-panel,
   .time-controls,
+  .mode-switcher-panel,
   .debug-panel,
   .prompt-viewer {
     width: calc(50vw - 15px);
+  }
+
+  .time-controls {
+    left: 10px;
+    transform: none;
   }
 }

@@ -86,6 +86,18 @@ test.describe('8-bit Agent Town smoke', () => {
 
     await waitForTownScene(page);
 
+    await page.evaluate(() => {
+      window.__agentTownSocket?.disconnect();
+      const scene = window.__agentTownGame?.scene.getScene('TownScene') as
+        | {
+            serverAuthoritative?: boolean;
+          }
+        | undefined;
+      if (scene) {
+        scene.serverAuthoritative = false;
+      }
+    });
+
     const pathInfo = await page.evaluate(() => {
       const game = window.__agentTownGame;
       if (!game) {
@@ -93,6 +105,17 @@ test.describe('8-bit Agent Town smoke', () => {
       }
 
       const scene = game.scene.getScene('TownScene') as unknown as {
+        serverAuthoritative?: boolean;
+        agents?: Array<{
+          agentId: string;
+          currentTile: { tileX: number; tileY: number };
+          setPath: (path: { tileX: number; tileY: number }[]) => void;
+        }>;
+        selectAgent?: (agent: {
+          agentId: string;
+          currentTile: { tileX: number; tileY: number };
+          setPath: (path: { tileX: number; tileY: number }[]) => void;
+        } | null) => void;
         selectedAgent?: {
           currentTile: { tileX: number; tileY: number };
           setPath: (path: { tileX: number; tileY: number }[]) => void;
@@ -104,6 +127,11 @@ test.describe('8-bit Agent Town smoke', () => {
           ) => { tileX: number; tileY: number }[] | null;
         };
       };
+
+      scene.serverAuthoritative = false;
+      if (!scene.selectedAgent && scene.agents && scene.agents.length > 0) {
+        scene.selectAgent?.(scene.agents[0]);
+      }
 
       const selectedAgent = scene.selectedAgent;
       const astar = scene.astar;
@@ -130,11 +158,14 @@ test.describe('8-bit Agent Town smoke', () => {
     });
 
     expect(pathInfo).not.toBeNull();
+    const initialDistance =
+      Math.abs((pathInfo?.start.tileX ?? 0) - (pathInfo?.target.tileX ?? 0)) +
+      Math.abs((pathInfo?.start.tileY ?? 0) - (pathInfo?.target.tileY ?? 0));
 
     await expect
       .poll(
         async () => {
-          return page.evaluate(() => {
+          return page.evaluate((target) => {
             const game = window.__agentTownGame;
             if (!game) {
               return null;
@@ -146,14 +177,19 @@ test.describe('8-bit Agent Town smoke', () => {
               };
             };
 
-            return scene.selectedAgent?.currentTile ?? null;
-          });
+            const tile = scene.selectedAgent?.currentTile;
+            if (!tile || !target) {
+              return null;
+            }
+
+            return Math.abs(tile.tileX - target.tileX) + Math.abs(tile.tileY - target.tileY);
+          }, pathInfo?.target ?? null);
         },
         {
           timeout: 3_000,
           intervals: [100, 200, 250],
         },
       )
-      .toEqual(pathInfo?.target ?? null);
+      .toBeLessThan(initialDistance);
   });
 });

@@ -1,4 +1,5 @@
 import { AgentData, GameTime, SimulationMetrics } from '@shared/Types';
+import { UiMode } from './UiMode';
 
 export interface UISimulationState {
   connected: boolean;
@@ -7,6 +8,7 @@ export interface UISimulationState {
   metrics: SimulationMetrics | null;
   agents: AgentData[];
   events: unknown[];
+  uiMode: UiMode;
 }
 
 export interface UIPanel {

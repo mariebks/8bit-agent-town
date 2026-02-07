@@ -27,6 +27,25 @@ describe('LogFilters', () => {
     expect(parsed.text).toContain('fallback used');
   });
 
+  test('parses relationship and arrival events with agent context', () => {
+    const relationship = parseLogEvent({
+      type: 'relationshipShift',
+      sourceId: 'agent-3',
+      targetId: 'agent-4',
+      stance: 'friend',
+    });
+    expect(relationship.agentId).toBe('agent-3');
+    expect(relationship.text).toContain('friend');
+
+    const arrival = parseLogEvent({
+      type: 'locationArrival',
+      agentId: 'agent-9',
+      locationId: 'market',
+    });
+    expect(arrival.agentId).toBe('agent-9');
+    expect(arrival.text).toContain('market');
+  });
+
   test('filters by type and partial agent id', () => {
     const entries = [
       { type: 'log', agentId: 'agent-1' },

@@ -1,5 +1,12 @@
-export type PanelShortcutTarget = 'debug-panel' | 'inspector-panel' | 'prompt-viewer' | 'log-panel';
+export type PanelShortcutTarget =
+  | 'debug-panel'
+  | 'inspector-panel'
+  | 'prompt-viewer'
+  | 'log-panel'
+  | 'timeline-panel'
+  | 'time-controls';
 export type OverlayShortcutTarget = 'path-overlay' | 'perception-overlay';
+export type ModeShortcutTarget = 'cycle-ui-mode';
 
 export interface ShortcutInput {
   key: string;
@@ -32,6 +39,12 @@ export function resolvePanelShortcut(input: ShortcutInput): PanelShortcutTarget 
   if (key === 'l') {
     return 'log-panel';
   }
+  if (key === 't') {
+    return 'timeline-panel';
+  }
+  if (key === 'c') {
+    return 'time-controls';
+  }
   return null;
 }
 
@@ -50,6 +63,21 @@ export function resolveOverlayShortcut(input: ShortcutInput): OverlayShortcutTar
   }
   if (key === 'r') {
     return 'perception-overlay';
+  }
+  return null;
+}
+
+export function resolveModeShortcut(input: ShortcutInput): ModeShortcutTarget | null {
+  if (input.ctrlKey || input.metaKey || input.altKey) {
+    return null;
+  }
+
+  if (isEditableTarget(input.targetTagName, input.targetIsContentEditable)) {
+    return null;
+  }
+
+  if (input.key.toLowerCase() === 'm') {
+    return 'cycle-ui-mode';
   }
   return null;
 }

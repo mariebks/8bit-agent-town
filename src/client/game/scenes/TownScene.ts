@@ -38,6 +38,7 @@ export class TownScene extends Phaser.Scene {
   private serverConnected = false;
   private serverSelectionInitialized = false;
   private serverGameTime: GameTime | null = null;
+  private manualSelectionMade = false;
   private readonly speechBubbles = new Map<string, { container: Phaser.GameObjects.Container; remainingMs: number }>();
   private frameCounter = 0;
   private pathOverlayEnabled = true;
@@ -45,6 +46,7 @@ export class TownScene extends Phaser.Scene {
   private overlayUpdateStride = 1;
   private overlayPathSampleStep = 1;
   private overlayPerceptionSuppressed = false;
+  private followSelectedAgent = false;
 
   constructor() {
     super('TownScene');
@@ -75,11 +77,13 @@ export class TownScene extends Phaser.Scene {
 
       const clickedAgent = this.findAgentAtWorld(pointer.worldX, pointer.worldY);
       if (clickedAgent) {
+        this.manualSelectionMade = true;
         this.selectAgent(clickedAgent);
         return;
       }
 
       if (this.serverAuthoritative) {
+        this.manualSelectionMade = true;
         this.selectAgent(null);
         return;
       }
@@ -104,6 +108,7 @@ export class TownScene extends Phaser.Scene {
   update(_time: number, delta: number): void {
     this.frameCounter += 1;
     this.cameraController.update(delta);
+    this.updateFollowCamera();
     this.updateAgentCullingAndMovement(delta);
 
     this.renderDebugOverlays();
@@ -142,6 +147,31 @@ export class TownScene extends Phaser.Scene {
 
   getSelectedAgentId(): string | null {
     return this.selectedAgent?.agentId ?? null;
+  }
+
+  focusAgentById(agentId: string): boolean {
+    const sprite = this.agentsById.get(agentId);
+    if (!sprite) {
+      return false;
+    }
+
+    this.manualSelectionMade = true;
+    this.selectAgent(sprite);
+    this.centerCameraOn(sprite, 1);
+    return true;
+  }
+
+  toggleFollowSelectedAgent(): boolean {
+    this.followSelectedAgent = !this.followSelectedAgent;
+    if (this.followSelectedAgent && this.selectedAgent) {
+      this.centerCameraOn(this.selectedAgent, 0.25);
+    }
+    this.updateInfoText();
+    return this.followSelectedAgent;
+  }
+
+  isFollowingSelectedAgent(): boolean {
+    return this.followSelectedAgent;
   }
 
   togglePathOverlay(): boolean {
@@ -264,9 +294,10 @@ export class TownScene extends Phaser.Scene {
     const timeText = this.serverGameTime
       ? `Day ${this.serverGameTime.day} ${String(this.serverGameTime.hour).padStart(2, '0')}:${String(this.serverGameTime.minute).padStart(2, '0')}`
       : 'No sim time';
+    const followText = this.followSelectedAgent ? 'On' : 'Off';
 
     this.infoText?.setText(
-      `Mode: ${mode} | ${timeText} | Selected: ${selected} | Click agent to select | Hold Space + Drag to pan`,
+      `Mode: ${mode} | ${timeText} | Selected: ${selected} | Follow: ${followText} | Click agent to select | Hold Space + Drag to pan`,
     );
   }
 
@@ -420,6 +451,32 @@ export class TownScene extends Phaser.Scene {
     }
   }
 
+  private updateFollowCamera(): void {
+    if (!this.followSelectedAgent || !this.selectedAgent) {
+      return;
+    }
+
+    if (this.cameraController.isPanModifierPressed()) {
+      return;
+    }
+
+    this.centerCameraOn(this.selectedAgent, 0.18);
+  }
+
+  private centerCameraOn(agent: AgentSprite, lerpAmount: number): void {
+    const camera = this.cameras.main;
+    const clampedLerp = Math.max(0, Math.min(1, lerpAmount));
+    const targetX = agent.x - camera.width / 2;
+    const targetY = agent.y - camera.height / 2;
+    const maxScrollX = Math.max(0, this.map.widthInPixels - camera.width);
+    const maxScrollY = Math.max(0, this.map.heightInPixels - camera.height);
+    const boundedX = Phaser.Math.Clamp(targetX, 0, maxScrollX);
+    const boundedY = Phaser.Math.Clamp(targetY, 0, maxScrollY);
+
+    camera.scrollX = Phaser.Math.Linear(camera.scrollX, boundedX, clampedLerp);
+    camera.scrollY = Phaser.Math.Linear(camera.scrollY, boundedY, clampedLerp);
+  }
+
   private getCameraCenter(): { x: number; y: number } {
     const worldView = this.cameras.main.worldView;
     return {
@@ -455,7 +512,8 @@ export class TownScene extends Phaser.Scene {
 
     if (!this.serverSelectionInitialized) {
       if (!this.selectedAgent) {
-        this.selectAgent(this.agents[0] ?? null);
+        const defaultSelection = this.manualSelectionMade ? this.agents[0] ?? null : this.pickMostActiveServerAgent(agents);
+        this.selectAgent(defaultSelection);
       }
       this.serverSelectionInitialized = true;
     }
@@ -471,6 +529,39 @@ export class TownScene extends Phaser.Scene {
     const sprite = new AgentSprite(this, data);
     this.agentsById.set(data.id, sprite);
     this.agents.push(sprite);
+  }
+
+  private pickMostActiveServerAgent(snapshotAgents: AgentData[]): AgentSprite | null {
+    const cameraCenter = this.getCameraCenter();
+    let bestSprite: AgentSprite | null = null;
+    let bestScore = Number.NEGATIVE_INFINITY;
+
+    for (const data of snapshotAgents) {
+      const sprite = this.agentsById.get(data.id);
+      if (!sprite) {
+        continue;
+      }
+
+      const stateWeight =
+        data.state === AgentState.Conversing
+          ? 4
+          : data.state === AgentState.Activity
+            ? 3
+            : data.state === AgentState.Walking
+              ? 2
+              : 1;
+
+      const distance = Math.hypot(sprite.x - cameraCenter.x, sprite.y - cameraCenter.y);
+      const proximityWeight = Math.max(0, 2.5 - distance / 160);
+      const score = stateWeight + proximityWeight;
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestSprite = sprite;
+      }
+    }
+
+    return bestSprite ?? this.agents[0] ?? null;
   }
 
   private createAgentData(

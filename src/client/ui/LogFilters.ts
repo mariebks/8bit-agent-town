@@ -29,6 +29,22 @@ export function parseLogEvent(event: unknown): ParsedLogEvent {
     };
   }
 
+  if (type === 'relationshipShift') {
+    return {
+      type,
+      agentId: typeof typed.sourceId === 'string' ? typed.sourceId : agentId,
+      text: `relationship: ${String(typed.sourceId ?? 'agent')} -> ${String(typed.targetId ?? 'agent')} (${String(typed.stance ?? 'changed')})`,
+    };
+  }
+
+  if (type === 'locationArrival') {
+    return {
+      type,
+      agentId: typeof typed.agentId === 'string' ? typed.agentId : agentId,
+      text: `arrival: ${String(typed.agentId ?? 'agent')} -> ${String(typed.locationId ?? 'unknown')}`,
+    };
+  }
+
   if (type === 'log') {
     return {
       type,

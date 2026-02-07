@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { resolveOverlayShortcut, resolvePanelShortcut } from './KeyboardShortcuts';
+import { resolveModeShortcut, resolveOverlayShortcut, resolvePanelShortcut } from './KeyboardShortcuts';
 
 describe('KeyboardShortcuts', () => {
   test('maps supported keys to panel toggles', () => {
@@ -7,6 +7,8 @@ describe('KeyboardShortcuts', () => {
     expect(resolvePanelShortcut({ key: 'I' })).toBe('inspector-panel');
     expect(resolvePanelShortcut({ key: 'p' })).toBe('prompt-viewer');
     expect(resolvePanelShortcut({ key: 'l' })).toBe('log-panel');
+    expect(resolvePanelShortcut({ key: 't' })).toBe('timeline-panel');
+    expect(resolvePanelShortcut({ key: 'c' })).toBe('time-controls');
   });
 
   test('ignores shortcuts with modifier keys', () => {
@@ -25,5 +27,10 @@ describe('KeyboardShortcuts', () => {
   test('maps overlay toggle keys', () => {
     expect(resolveOverlayShortcut({ key: 'v' })).toBe('path-overlay');
     expect(resolveOverlayShortcut({ key: 'R' })).toBe('perception-overlay');
+  });
+
+  test('maps ui mode cycle shortcut', () => {
+    expect(resolveModeShortcut({ key: 'm' })).toBe('cycle-ui-mode');
+    expect(resolveModeShortcut({ key: 'm', ctrlKey: true })).toBeNull();
   });
 });

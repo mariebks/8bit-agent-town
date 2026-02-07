@@ -4,6 +4,23 @@
 
 This phase upgrades the app from "technically complete MVP" to "pleasant and legible to play for long sessions."
 
+## Status Snapshot (2026-02-07)
+
+- Completed:
+  - A1 UI mode system (`Cinematic` / `Story` / `Debug`) with localStorage persistence.
+  - A2 Timeline panel for high-signal events (plan, reflection, conversation, relationship shift, arrivals).
+  - A3 Selection/focus upgrades: follow-selected toggle + jump-to-interesting-agent flow.
+  - D1 First-run guided onboarding overlay (dismiss + remember).
+  - D2 Smart defaults: mode defaults to `Cinematic`, startup selection uses activity/proximity heuristic in server mode.
+  - E2 Coverage added for mode persistence and timeline rendering in fullstack E2E.
+  - Server event surface expanded with `relationshipShift` and `locationArrival`.
+  - Conversation depth pass started: topic/intent/tone/arc state, memory hints, topic propagation, repetition guard, natural end reasons.
+- In progress:
+  - B3 topic/gossip behavior tuning and observability.
+  - B4 safeguard tuning under long-run stress.
+  - C1/C2/C3 visual art-direction pass beyond panel UX (scene/sprite/lighting polish).
+  - E1 quality harness + baseline/after scoring script and CI thresholds.
+
 Focus areas:
 - Make the game easier to use without reading docs.
 - Make agent dialogue more coherent, varied, and narratively meaningful.

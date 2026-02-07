@@ -3,6 +3,8 @@ import {
   ClientEventSchema,
   ControlAckEventSchema,
   JoinAckEventSchema,
+  LocationArrivalEventSchema,
+  RelationshipShiftEventSchema,
   SnapshotEventSchema,
   ServerEventSchema,
 } from './Events';
@@ -42,6 +44,29 @@ describe('Events schemas', () => {
     });
     expect(controlAck.success).toBe(true);
     expect(ServerEventSchema.safeParse(controlAck.success ? controlAck.data : null).success).toBe(true);
+  });
+
+  test('parses relationship and arrival server events', () => {
+    const relationshipShift = RelationshipShiftEventSchema.safeParse({
+      type: 'relationshipShift',
+      sourceId: 'agent-1',
+      targetId: 'agent-2',
+      fromWeight: 59,
+      toWeight: 61,
+      stance: 'friend',
+      gameTime: { day: 0, hour: 9, minute: 0, totalMinutes: 540 },
+    });
+    expect(relationshipShift.success).toBe(true);
+    expect(ServerEventSchema.safeParse(relationshipShift.success ? relationshipShift.data : null).success).toBe(true);
+
+    const arrival = LocationArrivalEventSchema.safeParse({
+      type: 'locationArrival',
+      agentId: 'agent-1',
+      locationId: 'market',
+      gameTime: { day: 0, hour: 9, minute: 4, totalMinutes: 544 },
+    });
+    expect(arrival.success).toBe(true);
+    expect(ServerEventSchema.safeParse(arrival.success ? arrival.data : null).success).toBe(true);
   });
 
   test('parses snapshot with cognition and relationship fields', () => {
