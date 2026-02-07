@@ -58,3 +58,18 @@ export function shouldRenderBubble(
   const distance = Math.hypot(agentX - cameraCenterX, agentY - cameraCenterY);
   return distance <= config.bubbleCullDistancePx;
 }
+
+export function shouldShowSpeechBubble(
+  selected: boolean,
+  selectedOnly: boolean,
+  spriteVisible: boolean,
+  withinBubbleRange: boolean,
+): boolean {
+  if (selected) {
+    return true;
+  }
+  if (selectedOnly) {
+    return false;
+  }
+  return spriteVisible && withinBubbleRange;
+}

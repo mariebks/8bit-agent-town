@@ -173,6 +173,7 @@ const timeControls = new TimeControls({
   onToggleAudio: () => audioController.toggleEnabled(),
   onToggleHeatmap: () => uiManager.togglePanel('relationship-heatmap-panel'),
   onToggleFocusUi: () => toggleFocusUi(),
+  onToggleSelectedOnlySpeech: () => getTownScene()?.toggleSelectedOnlySpeech() ?? false,
   onAddBookmark: () => {
     const bookmarked = getTownScene()?.addBookmarkForSelectedAgent() ?? null;
     if (bookmarked) {
@@ -200,6 +201,7 @@ const timeControls = new TimeControls({
   getAudioEnabled: () => audioController.isEnabled(),
   getHeatmapVisible: () => uiManager.isPanelVisible('relationship-heatmap-panel'),
   getFocusUiEnabled: () => focusUiEnabled,
+  getSelectedOnlySpeechEnabled: () => getTownScene()?.isSelectedOnlySpeech() ?? false,
   onJumpToInteresting: () => {
     const nextAgentId = timelinePanel.nextInterestingAgentId();
     if (!nextAgentId) {

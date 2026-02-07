@@ -12,7 +12,7 @@ import { enqueueSpeech } from './SpeechQueue';
 import { layoutSpeechBubbleOffsets } from './SpeechBubbleLayout';
 import { formatSpeechBubbleText } from './SpeechBubbleText';
 import { resolveWeatherProfile, WeatherProfile } from './WeatherProfile';
-import { classifyAgentLod, movementUpdateInterval, shouldRenderBubble } from './CullingMath';
+import { classifyAgentLod, movementUpdateInterval, shouldRenderBubble, shouldShowSpeechBubble } from './CullingMath';
 import { overlayQualityProfileForFps } from './OverlayQuality';
 
 type SceneUiMode = 'spectator' | 'story' | 'debug';
@@ -79,6 +79,7 @@ export class TownScene extends Phaser.Scene {
   private overlayPathSampleStep = 1;
   private overlayPerceptionSuppressed = false;
   private followSelectedAgent = false;
+  private selectedOnlySpeech = false;
   private uiMode: SceneUiMode = 'spectator';
   private autoDirectorEnabled = true;
   private directorBookmarkAgentIds: string[] = [];
@@ -261,12 +262,22 @@ export class TownScene extends Phaser.Scene {
     return this.autoDirectorEnabled;
   }
 
+  toggleSelectedOnlySpeech(): boolean {
+    this.selectedOnlySpeech = !this.selectedOnlySpeech;
+    this.updateInfoText();
+    return this.selectedOnlySpeech;
+  }
+
   isFollowingSelectedAgent(): boolean {
     return this.followSelectedAgent;
   }
 
   isAutoDirectorEnabled(): boolean {
     return this.autoDirectorEnabled;
+  }
+
+  isSelectedOnlySpeech(): boolean {
+    return this.selectedOnlySpeech;
   }
 
   addBookmarkForSelectedAgent(): string | null {
@@ -850,7 +861,12 @@ export class TownScene extends Phaser.Scene {
         bubble = refreshed;
       }
 
-      const bubbleVisible = selected || (sprite.visible && shouldRenderBubble(sprite.x, sprite.y, cameraCenter.x, cameraCenter.y));
+      const bubbleVisible = shouldShowSpeechBubble(
+        selected,
+        this.selectedOnlySpeech,
+        sprite.visible,
+        shouldRenderBubble(sprite.x, sprite.y, cameraCenter.x, cameraCenter.y),
+      );
       bubble.container.setVisible(bubbleVisible);
       if (bubbleVisible) {
         layoutEntries.push({

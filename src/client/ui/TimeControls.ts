@@ -9,6 +9,7 @@ interface TimeControlsOptions {
   onToggleAudio?: () => boolean | Promise<boolean>;
   onToggleHeatmap?: () => boolean;
   onToggleFocusUi?: () => boolean;
+  onToggleSelectedOnlySpeech?: () => boolean;
   onAddBookmark?: () => string | null;
   onJumpToBookmark?: () => string | null;
   getFollowSelectedEnabled?: () => boolean;
@@ -16,6 +17,7 @@ interface TimeControlsOptions {
   getAudioEnabled?: () => boolean;
   getHeatmapVisible?: () => boolean;
   getFocusUiEnabled?: () => boolean;
+  getSelectedOnlySpeechEnabled?: () => boolean;
 }
 
 export class TimeControls implements UIPanel {
@@ -29,6 +31,7 @@ export class TimeControls implements UIPanel {
   private readonly audioButton: HTMLButtonElement | null;
   private readonly heatmapButton: HTMLButtonElement | null;
   private readonly focusUiButton: HTMLButtonElement | null;
+  private readonly selectedOnlySpeechButton: HTMLButtonElement | null;
   private readonly options: TimeControlsOptions;
 
   constructor(options: TimeControlsOptions) {
@@ -127,6 +130,16 @@ export class TimeControls implements UIPanel {
       this.focusUiButton = null;
     }
 
+    if (options.onToggleSelectedOnlySpeech) {
+      this.selectedOnlySpeechButton = this.createButton('Selected Speech: Off', () => {
+        const enabled = options.onToggleSelectedOnlySpeech?.() ?? false;
+        this.updateSelectedOnlySpeechLabel(enabled);
+      });
+      focusRow.append(this.selectedOnlySpeechButton);
+    } else {
+      this.selectedOnlySpeechButton = null;
+    }
+
     if (options.onAddBookmark) {
       const bookmarkButton = this.createButton('Bookmark Agent', () => {
         const bookmarked = options.onAddBookmark?.();
@@ -152,6 +165,7 @@ export class TimeControls implements UIPanel {
     this.updateAudioLabel(options.getAudioEnabled?.() ?? false);
     this.updateHeatmapLabel(options.getHeatmapVisible?.() ?? false);
     this.updateFocusUiLabel(options.getFocusUiEnabled?.() ?? false);
+    this.updateSelectedOnlySpeechLabel(options.getSelectedOnlySpeechEnabled?.() ?? false);
   }
 
   show(): void {
@@ -168,6 +182,7 @@ export class TimeControls implements UIPanel {
     this.updateAudioLabel(this.options.getAudioEnabled?.() ?? false);
     this.updateHeatmapLabel(this.options.getHeatmapVisible?.() ?? false);
     this.updateFocusUiLabel(this.options.getFocusUiEnabled?.() ?? false);
+    this.updateSelectedOnlySpeechLabel(this.options.getSelectedOnlySpeechEnabled?.() ?? false);
     const time = state.gameTime
       ? `Day ${state.gameTime.day} ${String(state.gameTime.hour).padStart(2, '0')}:${String(state.gameTime.minute).padStart(2, '0')}`
       : 'No server time';
@@ -221,5 +236,12 @@ export class TimeControls implements UIPanel {
       return;
     }
     this.focusUiButton.textContent = `Focus UI: ${enabled ? 'On' : 'Off'}`;
+  }
+
+  private updateSelectedOnlySpeechLabel(enabled: boolean): void {
+    if (!this.selectedOnlySpeechButton) {
+      return;
+    }
+    this.selectedOnlySpeechButton.textContent = `Selected Speech: ${enabled ? 'On' : 'Off'}`;
   }
 }

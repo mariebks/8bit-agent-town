@@ -3,6 +3,7 @@ import {
   classifyAgentLod,
   DEFAULT_CULLING_CONFIG,
   movementUpdateInterval,
+  shouldShowSpeechBubble,
   shouldRenderBubble,
 } from './CullingMath';
 
@@ -27,5 +28,12 @@ describe('CullingMath', () => {
     const centerY = 150;
     expect(shouldRenderBubble(centerX, centerY, centerX, centerY)).toBe(true);
     expect(shouldRenderBubble(centerX + DEFAULT_CULLING_CONFIG.bubbleCullDistancePx + 1, centerY, centerX, centerY)).toBe(false);
+  });
+
+  test('hides non-selected bubbles when selected-only mode is enabled', () => {
+    expect(shouldShowSpeechBubble(true, true, false, false)).toBe(true);
+    expect(shouldShowSpeechBubble(false, true, true, true)).toBe(false);
+    expect(shouldShowSpeechBubble(false, false, true, true)).toBe(true);
+    expect(shouldShowSpeechBubble(false, false, false, true)).toBe(false);
   });
 });

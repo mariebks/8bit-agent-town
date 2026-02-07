@@ -103,3 +103,4 @@ Ship eight UX upgrades that make the town readable, cinematic, and fun to observ
 - [x] 16. Focus UI mode: one-click declutter toggle that hides secondary spectator panels for cleaner viewing.
 - [x] 17. Agent Finder panel: quick search by name/occupation with one-click camera jump.
 - [x] 18. Power-user shortcuts: `/` focuses Agent Finder input, `Shift+F` toggles Focus UI declutter mode.
+- [x] 19. Conversation declutter control: optional selected-agent-only speech bubbles in crowded scenes.
