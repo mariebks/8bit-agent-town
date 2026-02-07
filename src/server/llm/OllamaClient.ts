@@ -55,7 +55,7 @@ export class OllamaClient {
           success: true,
           content,
           latencyMs: Date.now() - startedAt,
-          retries,
+          retries: attempt,
         };
         this.lastResponse = response;
         return response;

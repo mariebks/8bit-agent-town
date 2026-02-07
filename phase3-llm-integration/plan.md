@@ -33,6 +33,13 @@
 - LLM request rate stays below 1 concurrent call and does not stall the simulation loop
 - "Last LLM response" debug entry available in server log for inspection
 
+## Implementation Status (2026-02-07)
+
+- [x] Ollama request queue, TTL/backpressure handling, and fallback wiring are implemented.
+- [x] Retry policy is selective (transport-level retryable failures only).
+- [x] Added direct `OllamaClient` tests for success, retry, non-retryable error, and invalid payload paths.
+- [x] Fixed successful retry accounting in `OllamaClient.generate` (`retries` now reflects actual retry count).
+
 ---
 
 ## Approach
