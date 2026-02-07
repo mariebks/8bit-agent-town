@@ -6,7 +6,8 @@ import { CameraController } from '../camera/CameraController';
 import { AStar } from '../pathfinding/AStar';
 import { AgentSprite } from '../sprites/AgentSprite';
 import { inferConversationTags } from './ConversationTags';
-import { addDirectorBookmark, nextDirectorBookmark } from './DirectorBookmarks';
+import { addDirectorBookmark, nextDirectorBookmark, pruneDirectorBookmarks } from './DirectorBookmarks';
+import { loadDirectorBookmarkIds, storeDirectorBookmarkIds } from './DirectorBookmarkPersistence';
 import { nextDirectorZoom } from './DirectorZoom';
 import { dequeueDirectorCue, DirectorCue, enqueueDirectorCue as pushDirectorCue } from './DirectorQueue';
 import { enqueueSpeech } from './SpeechQueue';
@@ -125,6 +126,8 @@ export class TownScene extends Phaser.Scene {
     this.createOverlays();
     this.createAmbientParticles();
     this.createLandmarkGuides();
+    this.directorBookmarkAgentIds = loadDirectorBookmarkIds(typeof window !== 'undefined' ? window.localStorage : null);
+    this.directorBookmarkIndex = 0;
     this.preferredSelectedAgentId = loadPreferredSelectedAgentId(
       typeof window !== 'undefined' ? window.localStorage : null,
     );
@@ -306,6 +309,7 @@ export class TownScene extends Phaser.Scene {
     );
     this.directorBookmarkAgentIds = next.bookmarkAgentIds;
     this.directorBookmarkIndex = next.nextIndex;
+    this.persistDirectorBookmarks();
     return selectedAgentId;
   }
 
@@ -322,6 +326,7 @@ export class TownScene extends Phaser.Scene {
     if (!this.focusAgentById(next.agentId)) {
       this.directorBookmarkAgentIds = this.directorBookmarkAgentIds.filter((id) => id !== next.agentId);
       this.directorBookmarkIndex = 0;
+      this.persistDirectorBookmarks();
       return null;
     }
     return next.agentId;
@@ -1168,6 +1173,22 @@ export class TownScene extends Phaser.Scene {
       }
     }
 
+    const bookmarkState = pruneDirectorBookmarks(
+      {
+        bookmarkAgentIds: this.directorBookmarkAgentIds,
+        nextIndex: this.directorBookmarkIndex,
+      },
+      activeIds,
+    );
+    if (
+      bookmarkState.nextIndex !== this.directorBookmarkIndex ||
+      bookmarkState.bookmarkAgentIds.length !== this.directorBookmarkAgentIds.length
+    ) {
+      this.directorBookmarkAgentIds = bookmarkState.bookmarkAgentIds;
+      this.directorBookmarkIndex = bookmarkState.nextIndex;
+      this.persistDirectorBookmarks();
+    }
+
     const selectedAgentId = this.selectedAgent?.agentId ?? null;
     const mostActiveAgentId = this.pickMostActiveServerAgent(agents)?.agentId ?? null;
     const firstAgentId = this.agents[0]?.agentId ?? null;
@@ -1265,6 +1286,10 @@ export class TownScene extends Phaser.Scene {
       tilePosition: { tileX, tileY },
       position: { x, y },
     };
+  }
+
+  private persistDirectorBookmarks(): void {
+    storeDirectorBookmarkIds(this.directorBookmarkAgentIds, typeof window !== 'undefined' ? window.localStorage : null);
   }
 }
 

@@ -35,3 +35,15 @@ export function nextDirectorBookmark(state: DirectorBookmarkState): { agentId: s
     },
   };
 }
+
+export function pruneDirectorBookmarks(state: DirectorBookmarkState, activeAgentIds: ReadonlySet<string>): DirectorBookmarkState {
+  const nextBookmarks = state.bookmarkAgentIds.filter((agentId) => activeAgentIds.has(agentId));
+  if (nextBookmarks.length === state.bookmarkAgentIds.length) {
+    return state;
+  }
+
+  return {
+    bookmarkAgentIds: nextBookmarks,
+    nextIndex: nextBookmarks.length === 0 ? 0 : state.nextIndex % nextBookmarks.length,
+  };
+}

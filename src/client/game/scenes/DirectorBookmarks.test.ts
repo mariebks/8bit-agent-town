@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { addDirectorBookmark, nextDirectorBookmark } from './DirectorBookmarks';
+import { addDirectorBookmark, nextDirectorBookmark, pruneDirectorBookmarks } from './DirectorBookmarks';
 
 describe('DirectorBookmarks', () => {
   test('adds bookmarks with dedupe and max cap', () => {
@@ -21,5 +21,11 @@ describe('DirectorBookmarks', () => {
     expect(third.agentId).toBe('a3');
     const fourth = nextDirectorBookmark(third.state);
     expect(fourth.agentId).toBe('a1');
+  });
+
+  test('prunes bookmarks that no longer have active agents', () => {
+    const state = pruneDirectorBookmarks({ bookmarkAgentIds: ['a1', 'a2', 'a3'], nextIndex: 2 }, new Set(['a1', 'a3']));
+    expect(state.bookmarkAgentIds).toEqual(['a1', 'a3']);
+    expect(state.nextIndex).toBe(0);
   });
 });
