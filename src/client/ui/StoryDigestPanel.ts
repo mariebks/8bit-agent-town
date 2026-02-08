@@ -2,10 +2,15 @@ import { UIPanel, UISimulationState } from './types';
 import { buildAgentIdentityToken } from './AgentIdentity';
 import { DigestItem, extractDigestItems, selectDigestHighlights } from './StoryDigest';
 import { areDigestItemsEqual } from './StoryDigestViewModel';
+import { TimeControlsStatus } from './TimeControlsStatus';
 
 const MAX_DIGEST_ITEMS = 3;
 const MAX_CACHE_ITEMS = 36;
 const DIGEST_STALE_TICKS = 90;
+
+interface StoryDigestPanelOptions {
+  onFocusAgent?: (agentId: string) => boolean;
+}
 
 export class StoryDigestPanel implements UIPanel {
   readonly id = 'story-digest-bar';
@@ -13,10 +18,13 @@ export class StoryDigestPanel implements UIPanel {
 
   private readonly listElement: HTMLElement;
   private readonly statusElement: HTMLElement;
+  private readonly options: StoryDigestPanelOptions;
+  private readonly status = new TimeControlsStatus();
   private readonly cached = new Map<string, DigestItem>();
   private renderedTopItems: DigestItem[] = [];
 
-  constructor() {
+  constructor(options: StoryDigestPanelOptions = {}) {
+    this.options = options;
     this.element = document.createElement('section');
     this.element.className = 'ui-panel story-digest-bar';
 
@@ -72,7 +80,8 @@ export class StoryDigestPanel implements UIPanel {
       this.render(top, state);
       this.renderedTopItems = top.map((item) => ({ ...item }));
     }
-    this.statusElement.textContent = top.length > 0 ? `top ${top.length} live moments` : 'watching for moments...';
+    const baseStatus = top.length > 0 ? `top ${top.length} live moments` : 'watching for moments...';
+    this.statusElement.textContent = this.status.resolve(baseStatus);
   }
 
   destroy(): void {
@@ -109,6 +118,25 @@ export class StoryDigestPanel implements UIPanel {
 
       copy.append(headline, meta);
       row.append(portrait, copy);
+      if (item.agentId && this.options.onFocusAgent) {
+        row.classList.add('digest-focusable');
+        row.dataset.agentId = item.agentId;
+        row.tabIndex = 0;
+        row.setAttribute('role', 'button');
+        const focusLabel = agent?.name?.trim() || item.agentId;
+        const focusAgent = () => {
+          const focused = this.options.onFocusAgent?.(item.agentId ?? '');
+          this.status.setTransient(focused ? `focused ${focusLabel}` : 'agent unavailable');
+        };
+        row.addEventListener('click', focusAgent);
+        row.addEventListener('keydown', (event) => {
+          if (event.key !== 'Enter' && event.key !== ' ') {
+            return;
+          }
+          event.preventDefault();
+          focusAgent();
+        });
+      }
       this.listElement.append(row);
     }
   }

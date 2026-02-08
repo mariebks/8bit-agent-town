@@ -426,6 +426,16 @@ body::before {
   background: var(--ui-bg-soft);
 }
 
+.digest-focusable {
+  cursor: pointer;
+}
+
+.digest-focusable:hover,
+.digest-focusable:focus-visible {
+  border-color: #8fd3c2;
+  box-shadow: 0 0 0 1px rgba(143, 211, 194, 0.5);
+}
+
 .digest-portrait {
   width: 20px;
   height: 20px;

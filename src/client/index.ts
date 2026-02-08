@@ -144,7 +144,16 @@ const timelinePanel = new TimelinePanel({
     return focused;
   },
 });
-const storyDigestPanel = new StoryDigestPanel();
+const storyDigestPanel = new StoryDigestPanel({
+  onFocusAgent: (agentId) => {
+    const focused = getTownScene()?.focusAgentById(agentId) ?? false;
+    if (focused) {
+      uiState.lastJumpedAgentId = agentId;
+      void audioController.playCue('jump');
+    }
+    return focused;
+  },
+});
 const highlightsReelPanel = new HighlightsReelPanel();
 const weatherStatusPanel = new WeatherStatusPanel();
 const agentFinderPanel = new AgentFinderPanel({
