@@ -392,6 +392,18 @@ body::before {
   gap: 6px;
 }
 
+.timeline-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0 0 6px 0;
+}
+
+.timeline-filter-btn {
+  padding: 3px 6px;
+  font-size: 9px;
+}
+
 .timeline-card {
   border: 1px solid var(--ui-border);
   border-radius: 6px;

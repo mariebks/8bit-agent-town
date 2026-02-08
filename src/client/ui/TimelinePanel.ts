@@ -5,9 +5,34 @@ import { TimelineEntry, extractTimelineEntries } from './TimelineEvents';
 
 const MAX_TIMELINE_ENTRIES = 120;
 const TIMELINE_DUPLICATE_WINDOW_TICKS = 6;
+type TimelineFilter = 'all' | 'social' | 'conflict' | 'planning' | 'system';
 
 interface TimelinePanelOptions {
   onFocusAgent?: (agentId: string) => boolean;
+}
+
+export function matchesTimelineFilter(entry: TimelineEntry, filter: TimelineFilter): boolean {
+  if (filter === 'all') {
+    return true;
+  }
+  if (filter === 'social') {
+    return entry.kind === 'conversation' || entry.kind === 'relationship' || entry.kind === 'topic';
+  }
+  if (filter === 'planning') {
+    return entry.kind === 'plan' || entry.kind === 'reflection' || entry.kind === 'arrival';
+  }
+  if (filter === 'system') {
+    return entry.kind === 'system';
+  }
+  const normalizedHeadline = entry.headline.toLowerCase();
+  const normalizedDetail = (entry.detail ?? '').toLowerCase();
+  return (
+    (entry.kind === 'relationship' && normalizedHeadline.includes('rival')) ||
+    normalizedHeadline.includes('conflict') ||
+    normalizedHeadline.includes('argu') ||
+    normalizedDetail.includes('social discomfort') ||
+    normalizedDetail.includes('interrupted')
+  );
 }
 
 export function shouldAppendTimelineEntry(previous: TimelineEntry | null, next: TimelineEntry): boolean {
@@ -47,6 +72,7 @@ export class TimelinePanel implements UIPanel {
   readonly element: HTMLElement;
 
   private readonly headerElement: HTMLElement;
+  private readonly filterRowElement: HTMLElement;
   private readonly listElement: HTMLElement;
   private readonly footerElement: HTMLElement;
   private readonly options: TimelinePanelOptions;
@@ -56,6 +82,8 @@ export class TimelinePanel implements UIPanel {
   private readonly interestingAgentQueue: string[] = [];
   private nextInterestingIndex = 0;
   private lastRenderedMode: UISimulationState['uiMode'] | null = null;
+  private lastState: UISimulationState | null = null;
+  private activeFilter: TimelineFilter = 'all';
 
   constructor(options: TimelinePanelOptions = {}) {
     this.options = options;
@@ -66,13 +94,17 @@ export class TimelinePanel implements UIPanel {
     this.headerElement.className = 'panel-header';
     this.headerElement.textContent = 'Timeline';
 
+    this.filterRowElement = document.createElement('div');
+    this.filterRowElement.className = 'timeline-filter-row';
+    this.renderFilterButtons();
+
     this.listElement = document.createElement('div');
     this.listElement.className = 'timeline-list';
 
     this.footerElement = document.createElement('div');
     this.footerElement.className = 'panel-footer';
 
-    this.element.append(this.headerElement, this.listElement, this.footerElement);
+    this.element.append(this.headerElement, this.filterRowElement, this.listElement, this.footerElement);
   }
 
   show(): void {
@@ -84,6 +116,7 @@ export class TimelinePanel implements UIPanel {
   }
 
   update(state: UISimulationState): void {
+    this.lastState = state;
     let entriesChanged = false;
     if (state.events.length > 0) {
       const timelineEntries = extractTimelineEntries(state.events, {
@@ -119,7 +152,7 @@ export class TimelinePanel implements UIPanel {
       this.render(state.uiMode, state);
       this.lastRenderedMode = state.uiMode;
     }
-    const baseFooter = `events: ${this.entries.length} | tick: ${state.tickId} | mode: ${state.uiMode}`;
+    const baseFooter = `events: ${this.entries.length} | filter: ${this.activeFilter} | tick: ${state.tickId} | mode: ${state.uiMode}`;
     this.footerElement.textContent = this.status.resolve(baseFooter);
   }
 
@@ -143,7 +176,8 @@ export class TimelinePanel implements UIPanel {
 
   private render(mode: UISimulationState['uiMode'], state: UISimulationState): void {
     this.listElement.innerHTML = '';
-    const sourceEntries = mode === 'spectator' ? this.entries.filter((entry) => entry.kind !== 'system') : this.entries;
+    const modeEntries = mode === 'spectator' ? this.entries.filter((entry) => entry.kind !== 'system') : this.entries;
+    const sourceEntries = modeEntries.filter((entry) => matchesTimelineFilter(entry, this.activeFilter));
     const limit = mode === 'spectator' ? 10 : mode === 'story' ? 14 : 18;
     const recent = sourceEntries.slice(Math.max(0, sourceEntries.length - limit));
 
@@ -208,6 +242,35 @@ export class TimelinePanel implements UIPanel {
     }
 
     this.listElement.scrollTop = this.listElement.scrollHeight;
+  }
+
+  private renderFilterButtons(): void {
+    this.filterRowElement.innerHTML = '';
+    const filters: Array<{ id: TimelineFilter; label: string }> = [
+      { id: 'all', label: 'All' },
+      { id: 'social', label: 'Social' },
+      { id: 'conflict', label: 'Conflict' },
+      { id: 'planning', label: 'Planning' },
+      { id: 'system', label: 'System' },
+    ];
+
+    for (const filter of filters) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'ui-btn ui-btn-ghost timeline-filter-btn';
+      button.dataset.filter = filter.id;
+      button.textContent = filter.label;
+      button.classList.toggle('active', this.activeFilter === filter.id);
+      button.addEventListener('click', () => {
+        this.activeFilter = filter.id;
+        this.status.setTransient(`timeline filter: ${filter.label.toLowerCase()}`);
+        this.renderFilterButtons();
+        if (this.lastState) {
+          this.render(this.lastState.uiMode, this.lastState);
+        }
+      });
+      this.filterRowElement.append(button);
+    }
   }
 
   private enqueueInterestingAgent(agentId: string | undefined): void {

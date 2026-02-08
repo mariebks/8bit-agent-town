@@ -504,6 +504,16 @@ test.describe('8-bit Agent Town fullstack', () => {
         intervals: [200, 400, 800],
       })
       .toBeGreaterThan(0);
+    const timelineFilterButtons = page.locator('.timeline-panel .timeline-filter-btn');
+    await expect(timelineFilterButtons).toHaveCount(5);
+    const allFilter = page.locator('.timeline-panel .timeline-filter-btn[data-filter=\"all\"]');
+    const socialFilter = page.locator('.timeline-panel .timeline-filter-btn[data-filter=\"social\"]');
+    await expect(allFilter).toHaveClass(/active/);
+    await socialFilter.click();
+    await expect(socialFilter).toHaveClass(/active/);
+    await expect(allFilter).not.toHaveClass(/active/);
+    await allFilter.click();
+    await expect(allFilter).toHaveClass(/active/);
 
     await expect
       .poll(async () => await page.locator('.story-digest-bar .digest-row[data-agent-id]').count(), {
