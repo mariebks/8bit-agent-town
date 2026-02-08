@@ -2,6 +2,7 @@ import { UIPanel, UISimulationState } from './types';
 import { searchAgents } from './AgentFinder';
 import { nextHighlightedIndex, normalizeHighlightedIndex } from './AgentFinderNavigation';
 import { resolveAgentFinderStatus } from './AgentFinderStatus';
+import { areAgentFinderHitsEqual } from './AgentFinderViewModel';
 
 interface AgentFinderPanelOptions {
   onFocusAgent: (agentId: string) => boolean;
@@ -16,7 +17,9 @@ export class AgentFinderPanel implements UIPanel {
   private readonly status: HTMLElement;
   private readonly options: AgentFinderPanelOptions;
   private lastHits: Array<{ id: string; name: string; occupation: string | null }> = [];
+  private renderedHits: Array<{ id: string; name: string; occupation: string | null }> = [];
   private highlightedIndex = -1;
+  private renderedHighlightIndex = -1;
   private statusOverride: { message: string; expiresAtMs: number } | null = null;
   private query = '';
 
@@ -81,7 +84,13 @@ export class AgentFinderPanel implements UIPanel {
     const hits = searchAgents(this.query, state.agents, 6);
     this.lastHits = hits;
     this.highlightedIndex = normalizeHighlightedIndex(this.highlightedIndex, hits.length);
-    this.renderHits(hits);
+    const hitsChanged = !areAgentFinderHitsEqual(this.renderedHits, hits);
+    const highlightChanged = this.renderedHighlightIndex !== this.highlightedIndex;
+    if (hitsChanged || highlightChanged) {
+      this.renderedHits = hits.map((hit) => ({ ...hit }));
+      this.renderedHighlightIndex = this.highlightedIndex;
+      this.renderHits(hits);
+    }
     const nowMs = typeof performance !== 'undefined' ? performance.now() : Date.now();
     const status = resolveAgentFinderStatus(hits.length, this.statusOverride, nowMs);
     this.status.textContent = status.message;

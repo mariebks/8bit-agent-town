@@ -113,3 +113,4 @@ Ship eight UX upgrades that make the town readable, cinematic, and fun to observ
 - [x] 26. Persist selected-only speech toggle across sessions so clutter preferences stick after reload.
 - [x] 27. Agent Finder keyboard flow: Arrow navigation + Enter focus with active-row highlighting.
 - [x] 28. Agent Finder feedback polish: preserve focus result status briefly before reverting to match-count text.
+- [x] 29. Agent Finder perf: skip list DOM rerenders when hits/highlight are unchanged between UI ticks.
