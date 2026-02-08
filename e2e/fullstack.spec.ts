@@ -338,6 +338,7 @@ test.describe('8-bit Agent Town fullstack', () => {
     const promptPanel = page.locator('.prompt-viewer');
     const logPanel = page.locator('.log-panel');
     const shortcutPanel = page.locator('.shortcut-cheatsheet-panel');
+    const shortcutButton = page.locator('.mode-switcher-panel .ui-btn', { hasText: 'Shortcuts (?)' });
     await expect(debugPanel).toBeVisible();
     await expect(inspectorPanel).toBeVisible();
     await expect(promptPanel).toBeVisible();
@@ -350,12 +351,13 @@ test.describe('8-bit Agent Town fullstack', () => {
       window.dispatchEvent(new KeyboardEvent('keydown', { key: '?', bubbles: true }));
     });
     await expect(shortcutPanel).toBeVisible();
+    await expect(shortcutButton).toHaveClass(/active/);
     await page.evaluate(() => {
       window.dispatchEvent(new KeyboardEvent('keydown', { key: '?', bubbles: true }));
     });
     await expect(shortcutPanel).toBeHidden();
+    await expect(shortcutButton).not.toHaveClass(/active/);
 
-    const shortcutButton = page.locator('.mode-switcher-panel .ui-btn', { hasText: 'Shortcuts (?)' });
     await shortcutButton.click();
     await expect(shortcutPanel).toBeVisible();
     await page.keyboard.press('Escape');

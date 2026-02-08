@@ -138,3 +138,4 @@ Ship eight UX upgrades that make the town readable, cinematic, and fun to observ
 - [x] 51. Escape semantics polish: close the shortcut cheatsheet with `Esc` before continuing with standard scene declutter behavior.
 - [x] 52. Panel hotkey badges: surface panel toggle keys (`D/I/P/L/T/C/H`) inside panel headers for immediate discoverability.
 - [x] 53. Bookmark workflow shortcuts: add `K` (bookmark selected) and `G` (jump next bookmark) with control labels and shortcut parser coverage.
+- [x] 54. Shortcut button state sync: keep `Shortcuts (?)` button active state aligned when panel visibility changes via keyboard, not just clicks.

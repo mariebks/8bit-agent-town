@@ -275,6 +275,7 @@ const modeSwitcherPanel = new ModeSwitcherPanel({
     uiManager.setDensity(density);
   },
   onToggleShortcutHelp: () => uiManager.togglePanel('shortcut-cheatsheet-panel'),
+  getShortcutHelpVisible: () => uiManager.isPanelVisible('shortcut-cheatsheet-panel'),
 });
 
 uiManager.registerPanel(modeSwitcherPanel, {

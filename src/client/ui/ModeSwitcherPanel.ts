@@ -8,6 +8,7 @@ interface ModeSwitcherPanelOptions {
   onModeChange: (mode: UiMode) => void;
   onDensityChange: (density: UiDensity) => void;
   onToggleShortcutHelp?: () => boolean;
+  getShortcutHelpVisible?: () => boolean;
 }
 
 const MODE_LABELS: Record<UiMode, string> = {
@@ -23,12 +24,16 @@ export class ModeSwitcherPanel implements UIPanel {
   private readonly modeButtons = new Map<UiMode, HTMLButtonElement>();
   private readonly densityButtons = new Map<UiDensity, HTMLButtonElement>();
   private readonly statusElement: HTMLElement;
+  private readonly shortcutHelpButton: HTMLButtonElement | null;
   private readonly getMode: () => UiMode;
   private readonly getDensity: () => UiDensity;
+  private readonly getShortcutHelpVisible?: () => boolean;
 
   constructor(options: ModeSwitcherPanelOptions) {
     this.getMode = options.getMode;
     this.getDensity = options.getDensity;
+    this.getShortcutHelpVisible = options.getShortcutHelpVisible;
+    this.shortcutHelpButton = null;
 
     this.element = document.createElement('section');
     this.element.className = 'ui-panel mode-switcher-panel';
@@ -84,6 +89,7 @@ export class ModeSwitcherPanel implements UIPanel {
         const visible = options.onToggleShortcutHelp?.() ?? false;
         shortcutButton.classList.toggle('active', visible);
       });
+      this.shortcutHelpButton = shortcutButton;
       utilityRow.append(shortcutButton);
     }
 
@@ -93,6 +99,7 @@ export class ModeSwitcherPanel implements UIPanel {
     this.element.append(header, row, densityRow, utilityRow, this.statusElement);
     this.renderActiveMode();
     this.renderActiveDensity();
+    this.renderShortcutHelpState();
   }
 
   show(): void {
@@ -106,6 +113,7 @@ export class ModeSwitcherPanel implements UIPanel {
   update(state: UISimulationState): void {
     this.renderActiveMode();
     this.renderActiveDensity();
+    this.renderShortcutHelpState();
     const time = state.gameTime
       ? `Day ${state.gameTime.day} ${String(state.gameTime.hour).padStart(2, '0')}:${String(state.gameTime.minute).padStart(2, '0')}`
       : 'No server time';
@@ -130,5 +138,12 @@ export class ModeSwitcherPanel implements UIPanel {
     for (const [density, button] of this.densityButtons.entries()) {
       button.classList.toggle('active', density === activeDensity);
     }
+  }
+
+  private renderShortcutHelpState(): void {
+    if (!this.shortcutHelpButton || !this.getShortcutHelpVisible) {
+      return;
+    }
+    this.shortcutHelpButton.classList.toggle('active', this.getShortcutHelpVisible());
   }
 }
