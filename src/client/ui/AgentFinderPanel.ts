@@ -35,7 +35,7 @@ export class AgentFinderPanel implements UIPanel {
     this.input = document.createElement('input');
     this.input.className = 'ui-input';
     this.input.type = 'text';
-    this.input.placeholder = 'Find agent or role...';
+    this.input.placeholder = 'Find agent or role... (/)';
     this.input.addEventListener('input', () => {
       this.query = this.input.value;
       this.highlightedIndex = -1;

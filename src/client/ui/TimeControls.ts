@@ -238,7 +238,7 @@ export class TimeControls implements UIPanel {
     if (!this.focusUiButton) {
       return;
     }
-    this.focusUiButton.textContent = `Focus UI: ${enabled ? 'On' : 'Off'}`;
+    this.focusUiButton.textContent = `Focus UI (Shift+F): ${enabled ? 'On' : 'Off'}`;
   }
 
   private updateSelectedOnlySpeechLabel(enabled: boolean): void {
