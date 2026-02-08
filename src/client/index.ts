@@ -438,6 +438,9 @@ window.addEventListener('keydown', (event: KeyboardEvent) => {
     return;
   }
   if (utilityShortcut === 'clear-selected-agent') {
+    if (uiManager.isPanelVisible('shortcut-cheatsheet-panel')) {
+      uiManager.setPanelVisible('shortcut-cheatsheet-panel', false);
+    }
     const cleared = getTownScene()?.clearSelectedAgent() ?? false;
     if (cleared) {
       uiState.events = [

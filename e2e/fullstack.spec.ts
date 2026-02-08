@@ -356,6 +356,10 @@ test.describe('8-bit Agent Town fullstack', () => {
     const shortcutButton = page.locator('.mode-switcher-panel .ui-btn', { hasText: 'Shortcuts (?)' });
     await shortcutButton.click();
     await expect(shortcutPanel).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(shortcutPanel).toBeHidden();
+    await shortcutButton.click();
+    await expect(shortcutPanel).toBeVisible();
     await shortcutButton.click();
     await expect(shortcutPanel).toBeHidden();
 
