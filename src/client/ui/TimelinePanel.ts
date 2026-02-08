@@ -181,6 +181,7 @@ export class TimelinePanel implements UIPanel {
     const sourceEntries = modeEntries.filter((entry) => matchesTimelineFilter(entry, this.activeFilter));
     const limit = mode === 'spectator' ? 10 : mode === 'story' ? 14 : 18;
     const recent = sourceEntries.slice(Math.max(0, sourceEntries.length - limit));
+    const agentsById = new Map(state.agents.map((agent) => [agent.id, agent] as const));
 
     for (const entry of recent) {
       const item = document.createElement('article');
@@ -195,7 +196,7 @@ export class TimelinePanel implements UIPanel {
 
       const portrait = document.createElement('div');
       portrait.className = 'timeline-portrait';
-      const agent = entry.agentId ? state.agents.find((candidate) => candidate.id === entry.agentId) : null;
+      const agent = entry.agentId ? (agentsById.get(entry.agentId) ?? null) : null;
       if (agent) {
         const identity = buildAgentIdentityToken(agent);
         portrait.textContent = identity.initials;
