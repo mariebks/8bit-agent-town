@@ -125,3 +125,4 @@ Ship eight UX upgrades that make the town readable, cinematic, and fun to observ
 - [x] 38. Story Digest interaction upgrade: click/keyboard focus digest moments to jump camera/selection to the related agent.
 - [x] 39. Highlights Reel interaction upgrade: focus the current spotlight agent directly from the reel panel.
 - [x] 40. Relationship Heatmap interaction upgrade: click/keyboard focus a tie row to jump directly to that connected agent.
+- [x] 41. Power-user jump shortcut: add `J` to trigger the same Next Event Agent navigation path as the controls button.

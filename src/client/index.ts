@@ -202,6 +202,25 @@ const onboardingPanel = new OnboardingPanel({
     uiState.lastJumpedAgentId = null;
   },
 });
+
+function jumpToInterestingAgent(): string | null {
+  const scene = getTownScene();
+  if (!scene) {
+    return null;
+  }
+
+  const focused = pickFocusableInterestingAgent(
+    () => timelinePanel.nextInterestingAgentId(),
+    timelinePanel.interestingAgentCount(),
+    (agentId) => scene.focusAgentById(agentId),
+  );
+  uiState.lastJumpedAgentId = focused;
+  if (focused) {
+    void audioController.playCue('jump');
+  }
+  return focused;
+}
+
 const timeControls = new TimeControls({
   onControl: (action, value) => simulationSocket.sendControl(action, value),
   onToggleFollowSelected: () => getTownScene()?.toggleFollowSelectedAgent() ?? false,
@@ -238,23 +257,7 @@ const timeControls = new TimeControls({
   getHeatmapVisible: () => uiManager.isPanelVisible('relationship-heatmap-panel'),
   getFocusUiEnabled: () => focusUiEnabled,
   getSelectedOnlySpeechEnabled: () => getTownScene()?.isSelectedOnlySpeech() ?? false,
-  onJumpToInteresting: () => {
-    const scene = getTownScene();
-    if (!scene) {
-      return null;
-    }
-
-    const focused = pickFocusableInterestingAgent(
-      () => timelinePanel.nextInterestingAgentId(),
-      timelinePanel.interestingAgentCount(),
-      (agentId) => scene.focusAgentById(agentId),
-    );
-    uiState.lastJumpedAgentId = focused;
-    if (focused) {
-      void audioController.playCue('jump');
-    }
-    return focused;
-  },
+  onJumpToInteresting: () => jumpToInterestingAgent(),
 });
 const modeSwitcherPanel = new ModeSwitcherPanel({
   getMode: () => uiManager.getMode(),
@@ -421,6 +424,10 @@ window.addEventListener('keydown', (event: KeyboardEvent) => {
 
   if (utilityShortcut === 'toggle-focus-ui') {
     toggleFocusUi();
+    return;
+  }
+  if (utilityShortcut === 'jump-interesting-agent') {
+    jumpToInterestingAgent();
     return;
   }
 

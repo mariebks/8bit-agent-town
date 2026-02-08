@@ -8,7 +8,7 @@ export type PanelShortcutTarget =
   | 'relationship-heatmap-panel';
 export type OverlayShortcutTarget = 'path-overlay' | 'perception-overlay';
 export type ModeShortcutTarget = 'cycle-ui-mode' | 'cycle-ui-density';
-export type UtilityShortcutTarget = 'toggle-focus-ui' | 'focus-agent-finder';
+export type UtilityShortcutTarget = 'toggle-focus-ui' | 'focus-agent-finder' | 'jump-interesting-agent';
 
 export interface ShortcutInput {
   key: string;
@@ -102,6 +102,9 @@ export function resolveUtilityShortcut(input: ShortcutInput): UtilityShortcutTar
   }
   if (key === 'f' && input.shiftKey && !isEditableTarget(input.targetTagName, input.targetIsContentEditable)) {
     return 'toggle-focus-ui';
+  }
+  if (key === 'j' && !isEditableTarget(input.targetTagName, input.targetIsContentEditable)) {
+    return 'jump-interesting-agent';
   }
   return null;
 }
