@@ -823,6 +823,87 @@ body[data-focus-ui='on'] .agent-finder-panel {
   }
 }
 
+@media (max-width: 700px) {
+  .mode-switcher-panel {
+    left: 8px;
+    top: 8px;
+    width: calc(100vw - 16px);
+  }
+
+  .story-digest-bar {
+    left: 8px;
+    top: 112px;
+    width: calc(100vw - 16px);
+    transform: none;
+    max-height: 20vh;
+    overflow: auto;
+  }
+
+  .time-controls {
+    left: 8px;
+    top: auto;
+    bottom: 8px;
+    width: calc(100vw - 16px);
+    transform: none;
+    max-height: 28vh;
+    overflow: auto;
+  }
+
+  .timeline-panel {
+    left: 8px;
+    bottom: calc(28vh + 18px);
+    width: calc(100vw - 16px);
+    max-height: 24vh;
+  }
+
+  .timeline-list {
+    max-height: 15vh;
+  }
+
+  .agent-finder-panel {
+    right: 8px;
+    top: auto;
+    bottom: calc(52vh + 22px);
+    width: min(62vw, 300px);
+    max-height: 26vh;
+    overflow: auto;
+  }
+
+  .weather-status-panel,
+  .highlights-reel-panel,
+  .relationship-heatmap-panel {
+    display: none;
+  }
+
+  body[data-ui-mode='debug'] .debug-panel,
+  body[data-ui-mode='debug'] .prompt-viewer,
+  body[data-ui-mode='debug'] .inspector-panel,
+  body[data-ui-mode='debug'] .log-panel {
+    width: calc(100vw - 16px);
+    left: 8px;
+    right: auto;
+    max-height: 22vh;
+  }
+
+  body[data-ui-mode='debug'] .inspector-panel {
+    bottom: calc(28vh + 18px);
+  }
+
+  body[data-ui-mode='debug'] .debug-panel {
+    bottom: calc(50vh + 26px);
+  }
+
+  body[data-ui-mode='debug'] .prompt-viewer {
+    bottom: calc(72vh + 34px);
+  }
+
+  body[data-ui-mode='debug'] .log-panel {
+    top: 8px;
+    bottom: auto;
+    max-height: 16vh;
+  }
+}
+
 @media (max-height: 860px) {
   .story-digest-bar {
     max-height: 18vh;
