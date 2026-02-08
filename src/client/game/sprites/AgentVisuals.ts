@@ -126,6 +126,26 @@ export function resolveOccupationSpriteTraits(occupation?: string, agentId = '')
       badge: false,
     };
   }
+  if (matchesAny(normalized, ['barista', 'baker', 'cook', 'chef'])) {
+    return {
+      headwear: 'cap',
+      accessory: 'apron',
+      hairStyle: 'short',
+      bodyType: 'balanced',
+      outfitPattern: 'stripe',
+      badge: false,
+    };
+  }
+  if (matchesAny(normalized, ['clerk', 'administrator', 'civil servant', 'town hall'])) {
+    return {
+      headwear: 'none',
+      accessory: 'robe',
+      hairStyle: 'short',
+      bodyType: 'balanced',
+      outfitPattern: 'trim',
+      badge: true,
+    };
+  }
   if (matchesAny(normalized, ['merchant', 'shopkeeper', 'vendor', 'trader'])) {
     return {
       headwear: 'cap',
@@ -193,6 +213,36 @@ export function resolveOccupationSpriteTraits(occupation?: string, agentId = '')
       hairStyle: 'bun',
       bodyType: 'slim',
       outfitPattern: 'stripe',
+      badge: false,
+    };
+  }
+  if (matchesAny(normalized, ['student', 'apprentice', 'intern'])) {
+    return {
+      headwear: 'cap',
+      accessory: 'satchel',
+      hairStyle: 'tuft',
+      bodyType: 'slim',
+      outfitPattern: 'stripe',
+      badge: false,
+    };
+  }
+  if (matchesAny(normalized, ['retired', 'elder', 'pensioner'])) {
+    return {
+      headwear: 'wideHat',
+      accessory: 'robe',
+      hairStyle: 'bun',
+      bodyType: 'balanced',
+      outfitPattern: 'plain',
+      badge: false,
+    };
+  }
+  if (matchesAny(normalized, ['trainer', 'coach', 'instructor'])) {
+    return {
+      headwear: 'bandana',
+      accessory: 'satchel',
+      hairStyle: 'short',
+      bodyType: 'balanced',
+      outfitPattern: 'trim',
       badge: false,
     };
   }

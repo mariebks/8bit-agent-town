@@ -128,3 +128,4 @@ Ship eight UX upgrades that make the town readable, cinematic, and fun to observ
 - [x] 41. Power-user jump shortcut: add `J` to trigger the same Next Event Agent navigation path as the controls button.
 - [x] 42. Shortcut discoverability polish: label Next Event Agent control with `(J)` so keyboard navigation is self-discoverable.
 - [x] 43. Shortcut hint polish: surface `(/)` in Agent Finder placeholder and `(Shift+F)` in Focus UI control label.
+- [x] 44. Occupation sprite fidelity pass: map generated occupations (`barista`, `baker`, `clerk`, `student`, `retired`, `trainer`) to distinct trait silhouettes and role-aware idle motion profiles.

@@ -13,8 +13,13 @@ export interface SelectionRingStyle {
 const OCCUPATION_MICRO_MOTION: Array<{ tokens: string[]; config: IdleMotionConfig }> = [
   { tokens: ['guard', 'watch'], config: { amplitudePx: 0.14, frequencyHz: 0.9 } },
   { tokens: ['farmer', 'gardener', 'worker'], config: { amplitudePx: 0.22, frequencyHz: 1.2 } },
+  { tokens: ['barista', 'baker', 'cook', 'chef'], config: { amplitudePx: 0.2, frequencyHz: 1.15 } },
   { tokens: ['merchant', 'shop', 'vendor', 'cook'], config: { amplitudePx: 0.18, frequencyHz: 1.05 } },
+  { tokens: ['clerk', 'administrator', 'town hall'], config: { amplitudePx: 0.11, frequencyHz: 0.84 } },
   { tokens: ['librarian', 'teacher', 'scholar'], config: { amplitudePx: 0.1, frequencyHz: 0.82 } },
+  { tokens: ['student', 'apprentice'], config: { amplitudePx: 0.24, frequencyHz: 1.3 } },
+  { tokens: ['retired', 'elder'], config: { amplitudePx: 0.08, frequencyHz: 0.72 } },
+  { tokens: ['trainer', 'coach', 'instructor'], config: { amplitudePx: 0.24, frequencyHz: 1.25 } },
   { tokens: ['artist', 'bard', 'musician'], config: { amplitudePx: 0.26, frequencyHz: 1.4 } },
 ];
 

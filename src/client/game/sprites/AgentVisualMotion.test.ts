@@ -5,7 +5,12 @@ describe('AgentVisualMotion', () => {
   test('returns role-aware idle motion profiles', () => {
     expect(idleMotionConfigForOccupation('Town Guard')).toEqual({ amplitudePx: 0.14, frequencyHz: 0.9 });
     expect(idleMotionConfigForOccupation('Farmer')).toEqual({ amplitudePx: 0.22, frequencyHz: 1.2 });
+    expect(idleMotionConfigForOccupation('Barista')).toEqual({ amplitudePx: 0.2, frequencyHz: 1.15 });
+    expect(idleMotionConfigForOccupation('Town Hall Clerk')).toEqual({ amplitudePx: 0.11, frequencyHz: 0.84 });
     expect(idleMotionConfigForOccupation('Librarian')).toEqual({ amplitudePx: 0.1, frequencyHz: 0.82 });
+    expect(idleMotionConfigForOccupation('Student')).toEqual({ amplitudePx: 0.24, frequencyHz: 1.3 });
+    expect(idleMotionConfigForOccupation('Retired')).toEqual({ amplitudePx: 0.08, frequencyHz: 0.72 });
+    expect(idleMotionConfigForOccupation('Trainer')).toEqual({ amplitudePx: 0.24, frequencyHz: 1.25 });
     expect(idleMotionConfigForOccupation('Unknown')).toEqual({ amplitudePx: 0.16, frequencyHz: 1 });
   });
 

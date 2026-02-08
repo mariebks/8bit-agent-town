@@ -58,6 +58,12 @@ describe('AgentVisuals', () => {
     const smith = resolveOccupationSpriteTraits('Blacksmith', 'a5');
     const courier = resolveOccupationSpriteTraits('Courier', 'a6');
     const artist = resolveOccupationSpriteTraits('Musician', 'a7');
+    const barista = resolveOccupationSpriteTraits('Barista', 'a8');
+    const baker = resolveOccupationSpriteTraits('Baker', 'a9');
+    const clerk = resolveOccupationSpriteTraits('Town Hall Clerk', 'a10');
+    const student = resolveOccupationSpriteTraits('Student', 'a11');
+    const retired = resolveOccupationSpriteTraits('Retired', 'a12');
+    const trainer = resolveOccupationSpriteTraits('Trainer', 'a13');
     const unknownA = resolveOccupationSpriteTraits('Inventor', 'seed-a');
     const unknownARepeat = resolveOccupationSpriteTraits('Inventor', 'seed-a');
     const unknownB = resolveOccupationSpriteTraits('Inventor', 'seed-b');
@@ -76,6 +82,17 @@ describe('AgentVisuals', () => {
     expect(courier.outfitPattern).toBe('trim');
     expect(artist.accessory).toBe('satchel');
     expect(artist.outfitPattern).toBe('stripe');
+    expect(barista.accessory).toBe('apron');
+    expect(barista.headwear).toBe('cap');
+    expect(baker.outfitPattern).toBe('stripe');
+    expect(clerk.accessory).toBe('robe');
+    expect(clerk.badge).toBe(true);
+    expect(student.accessory).toBe('satchel');
+    expect(student.bodyType).toBe('slim');
+    expect(retired.headwear).toBe('wideHat');
+    expect(retired.outfitPattern).toBe('plain');
+    expect(trainer.headwear).toBe('bandana');
+    expect(trainer.outfitPattern).toBe('trim');
     expect(['plain', 'stripe', 'trim']).toContain(unknownA.outfitPattern);
     expect(['slim', 'balanced', 'broad']).toContain(unknownA.bodyType);
 
