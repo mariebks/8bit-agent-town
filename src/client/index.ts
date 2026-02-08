@@ -444,6 +444,18 @@ window.addEventListener('keydown', (event: KeyboardEvent) => {
     }
     return;
   }
+  if (utilityShortcut === 'toggle-selected-only-speech') {
+    const enabled = getTownScene()?.toggleSelectedOnlySpeech() ?? false;
+    uiState.events = [
+      ...uiState.events,
+      {
+        type: 'log',
+        level: 'info',
+        message: `selected speech ${enabled ? 'enabled' : 'disabled'}`,
+      },
+    ];
+    return;
+  }
 
   if (modeShortcut === 'cycle-ui-mode') {
     uiManager.setMode(nextUiMode(uiManager.getMode()));

@@ -245,6 +245,6 @@ export class TimeControls implements UIPanel {
     if (!this.selectedOnlySpeechButton) {
       return;
     }
-    this.selectedOnlySpeechButton.textContent = `Selected Speech: ${enabled ? 'On' : 'Off'}`;
+    this.selectedOnlySpeechButton.textContent = `Selected Speech (B): ${enabled ? 'On' : 'Off'}`;
   }
 }

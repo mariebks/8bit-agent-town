@@ -380,6 +380,16 @@ test.describe('8-bit Agent Town fullstack', () => {
       })
       .not.toBe(initialPerceptionLabel);
 
+    const selectedSpeechButton = page.locator('.time-controls .ui-btn', { hasText: 'Selected Speech' });
+    const initialSelectedSpeechLabel = (await selectedSpeechButton.textContent()) ?? '';
+    await page.keyboard.press('b');
+    await expect
+      .poll(async () => (await selectedSpeechButton.textContent()) ?? '', {
+        timeout: 3_000,
+        intervals: [100, 200, 400],
+      })
+      .not.toBe(initialSelectedSpeechLabel);
+
     await page.keyboard.press('d');
     await page.keyboard.press('d');
 

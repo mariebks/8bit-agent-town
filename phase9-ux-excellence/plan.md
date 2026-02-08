@@ -131,3 +131,4 @@ Ship eight UX upgrades that make the town readable, cinematic, and fun to observ
 - [x] 44. Occupation sprite fidelity pass: map generated occupations (`barista`, `baker`, `clerk`, `student`, `retired`, `trainer`) to distinct trait silhouettes and role-aware idle motion profiles.
 - [x] 45. Declutter escape hatch: map `Escape` to clear selected agent + follow mode and verify behavior through fullstack keyboard flow.
 - [x] 46. Speech clutter cap: in spectator/story modes cap simultaneous non-selected speech bubbles by nearest-distance priority while always preserving selected-agent bubbles.
+- [x] 47. Speech declutter hotkey: map `B` to toggle Selected Speech mode and surface shortcut discoverability directly in controls label text.
