@@ -293,6 +293,11 @@ body::before {
   color: var(--ui-text);
 }
 
+.highlights-focus-btn {
+  width: 100%;
+  margin: 0 0 6px 0;
+}
+
 .highlights-list {
   margin: 0;
   padding-left: 16px;

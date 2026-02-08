@@ -6,6 +6,7 @@ export function areHighlightsSnapshotsEqual(left: HighlightsReelSnapshot | null,
   }
   if (
     left.summary !== right.summary ||
+    left.topAgentId !== right.topAgentId ||
     left.topAgentName !== right.topAgentName ||
     left.eventCount !== right.eventCount ||
     left.bullets.length !== right.bullets.length

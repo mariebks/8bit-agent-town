@@ -1,24 +1,33 @@
 import { UIPanel, UISimulationState } from './types';
 import { buildHighlightsReel, HighlightsEntry } from './HighlightsReel';
 import { areHighlightsSnapshotsEqual } from './HighlightsReelViewModel';
+import { TimeControlsStatus } from './TimeControlsStatus';
 import { extractTimelineEntries } from './TimelineEvents';
 
 const HIGHLIGHT_WINDOW_TICKS = 60;
 const HIGHLIGHT_WINDOW_MINUTES = 60;
 const MAX_ENTRIES = 180;
 
+interface HighlightsReelPanelOptions {
+  onFocusAgent?: (agentId: string) => boolean;
+}
+
 export class HighlightsReelPanel implements UIPanel {
   readonly id = 'highlights-reel-panel';
   readonly element: HTMLElement;
 
   private readonly summaryElement: HTMLElement;
+  private readonly spotlightButton: HTMLButtonElement;
   private readonly bulletList: HTMLElement;
   private readonly footerElement: HTMLElement;
+  private readonly options: HighlightsReelPanelOptions;
+  private readonly status = new TimeControlsStatus();
   private readonly entries: HighlightsEntry[] = [];
   private readonly seenIds = new Set<string>();
   private renderedSnapshot: ReturnType<typeof buildHighlightsReel> | null = null;
 
-  constructor() {
+  constructor(options: HighlightsReelPanelOptions = {}) {
+    this.options = options;
     this.element = document.createElement('section');
     this.element.className = 'ui-panel highlights-reel-panel';
 
@@ -29,13 +38,30 @@ export class HighlightsReelPanel implements UIPanel {
     this.summaryElement = document.createElement('p');
     this.summaryElement.className = 'highlights-summary';
 
+    this.spotlightButton = document.createElement('button');
+    this.spotlightButton.type = 'button';
+    this.spotlightButton.className = 'ui-btn highlights-focus-btn';
+    this.spotlightButton.textContent = 'Focus Spotlight';
+    this.spotlightButton.disabled = true;
+    this.spotlightButton.addEventListener('click', () => {
+      const spotlightAgentId = this.renderedSnapshot?.topAgentId ?? null;
+      if (!spotlightAgentId || !this.options.onFocusAgent) {
+        this.status.setTransient('no spotlight agent');
+        return;
+      }
+      const focused = this.options.onFocusAgent(spotlightAgentId);
+      this.status.setTransient(
+        focused ? `focused ${this.renderedSnapshot?.topAgentName ?? spotlightAgentId}` : 'spotlight unavailable',
+      );
+    });
+
     this.bulletList = document.createElement('ul');
     this.bulletList.className = 'highlights-list';
 
     this.footerElement = document.createElement('div');
     this.footerElement.className = 'panel-footer';
 
-    this.element.append(header, this.summaryElement, this.bulletList, this.footerElement);
+    this.element.append(header, this.summaryElement, this.spotlightButton, this.bulletList, this.footerElement);
   }
 
   show(): void {
@@ -109,8 +135,16 @@ export class HighlightsReelPanel implements UIPanel {
         bullets: [...reel.bullets],
       };
     }
+    this.spotlightButton.disabled = !Boolean(reel.topAgentId && this.options.onFocusAgent);
+    this.spotlightButton.textContent = reel.topAgentName ? `Focus ${reel.topAgentName}` : 'Focus Spotlight';
+    if (reel.topAgentId) {
+      this.spotlightButton.dataset.agentId = reel.topAgentId;
+    } else {
+      delete this.spotlightButton.dataset.agentId;
+    }
 
-    this.footerElement.textContent = `window: 1h | events: ${reel.eventCount} | tick ${state.tickId}`;
+    const baseStatus = `window: 1h | events: ${reel.eventCount} | tick ${state.tickId}`;
+    this.footerElement.textContent = this.status.resolve(baseStatus);
   }
 
   destroy(): void {

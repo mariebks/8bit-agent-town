@@ -425,6 +425,38 @@ test.describe('8-bit Agent Town fullstack', () => {
       .toBe(digestAgentId);
 
     await expect
+      .poll(
+        async () =>
+          await page.evaluate(() => {
+            const button = document.querySelector('.highlights-reel-panel .highlights-focus-btn') as HTMLButtonElement | null;
+            return button?.disabled === false;
+          }),
+        { timeout: 10_000, intervals: [200, 400, 800] },
+      )
+      .toBe(true);
+
+    const spotlightAgentId = await page.evaluate(() => {
+      const button = document.querySelector('.highlights-reel-panel .highlights-focus-btn') as HTMLButtonElement | null;
+      if (!button || button.disabled) {
+        return '';
+      }
+      const targetId = button.dataset.agentId ?? '';
+      button.click();
+      return targetId;
+    });
+    expect(spotlightAgentId.length).toBeGreaterThan(0);
+    await expect
+      .poll(
+        async () =>
+          await page.evaluate(() => {
+            const scene = window.__agentTownGame?.scene.getScene('TownScene') as { getSelectedAgentId: () => string | null };
+            return scene.getSelectedAgentId();
+          }),
+        { timeout: 5_000, intervals: [100, 200, 400] },
+      )
+      .toBe(spotlightAgentId);
+
+    await expect
       .poll(async () => await page.locator('.timeline-panel .timeline-card[data-agent-id]').count(), {
         timeout: 10_000,
         intervals: [200, 400, 800],

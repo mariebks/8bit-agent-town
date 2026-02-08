@@ -7,6 +7,7 @@ describe('HighlightsReelViewModel', () => {
       areHighlightsSnapshotsEqual(null, {
         summary: 'hello',
         bullets: ['a'],
+        topAgentId: 'a1',
         topAgentName: 'Ada',
         eventCount: 1,
       }),
@@ -17,6 +18,7 @@ describe('HighlightsReelViewModel', () => {
     const snapshot = {
       summary: 'Last hour: 2 conversations.',
       bullets: ['A met B', 'C shared plan'],
+      topAgentId: 'a1',
       topAgentName: 'Ada',
       eventCount: 2,
     };
@@ -27,6 +29,7 @@ describe('HighlightsReelViewModel', () => {
     const left = {
       summary: 'Last hour: 2 conversations.',
       bullets: ['A met B', 'C shared plan'],
+      topAgentId: 'a1',
       topAgentName: 'Ada',
       eventCount: 2,
     };

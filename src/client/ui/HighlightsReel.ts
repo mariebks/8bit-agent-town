@@ -8,6 +8,7 @@ export interface HighlightsEntry extends TimelineEntry {
 export interface HighlightsReelSnapshot {
   summary: string;
   bullets: string[];
+  topAgentId: string | null;
   topAgentName: string | null;
   eventCount: number;
 }
@@ -34,6 +35,7 @@ export function buildHighlightsReel(
     return {
       summary: 'No major moments in the last hour yet.',
       bullets: [],
+      topAgentId: null,
       topAgentName: null,
       eventCount: 0,
     };
@@ -66,6 +68,7 @@ export function buildHighlightsReel(
       ? `Last hour: ${topKinds.join(', ')}. Spotlight: ${topAgentName}.`
       : `Last hour: ${topKinds.join(', ')}.`,
     bullets,
+    topAgentId,
     topAgentName,
     eventCount: recent.length,
   };

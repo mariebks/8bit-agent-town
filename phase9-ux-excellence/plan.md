@@ -123,3 +123,4 @@ Ship eight UX upgrades that make the town readable, cinematic, and fun to observ
 - [x] 36. Timeline perf polish: skip timeline rerenders when incoming events are fully deduped and visible entries are unchanged.
 - [x] 37. Next Event Agent reliability: skip stale queue entries and continue cycling until a focusable live agent is found.
 - [x] 38. Story Digest interaction upgrade: click/keyboard focus digest moments to jump camera/selection to the related agent.
+- [x] 39. Highlights Reel interaction upgrade: focus the current spotlight agent directly from the reel panel.

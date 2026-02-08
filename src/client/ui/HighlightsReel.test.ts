@@ -31,6 +31,7 @@ describe('HighlightsReel', () => {
     const reel = buildHighlightsReel([], [], 100);
     expect(reel.eventCount).toBe(0);
     expect(reel.bullets).toEqual([]);
+    expect(reel.topAgentId).toBeNull();
     expect(reel.summary).toContain('No major moments');
   });
 
@@ -49,6 +50,7 @@ describe('HighlightsReel', () => {
     expect(reel.eventCount).toBe(3);
     expect(reel.summary).toContain('Last hour:');
     expect(reel.summary).toContain('Spotlight: Ada');
+    expect(reel.topAgentId).toBe('a1');
     expect(reel.bullets.length).toBe(3);
   });
 
