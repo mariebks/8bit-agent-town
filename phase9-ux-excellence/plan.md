@@ -116,3 +116,4 @@ Ship eight UX upgrades that make the town readable, cinematic, and fun to observ
 - [x] 29. Agent Finder perf: skip list DOM rerenders when hits/highlight are unchanged between UI ticks.
 - [x] 30. Story Digest perf: avoid digest row rerenders when selected top moments are unchanged.
 - [x] 31. Highlights Reel perf: skip summary/list rerenders when snapshot content is unchanged.
+- [x] 32. Time Controls feedback polish: keep transient action confirmations visible briefly before status footer reverts to live tick/online text.

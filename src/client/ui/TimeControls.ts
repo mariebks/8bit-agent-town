@@ -1,4 +1,5 @@
 import { ControlEvent } from '@shared/Events';
+import { TimeControlsStatus } from './TimeControlsStatus';
 import { UIPanel, UISimulationState } from './types';
 
 interface TimeControlsOptions {
@@ -33,6 +34,7 @@ export class TimeControls implements UIPanel {
   private readonly focusUiButton: HTMLButtonElement | null;
   private readonly selectedOnlySpeechButton: HTMLButtonElement | null;
   private readonly options: TimeControlsOptions;
+  private readonly status = new TimeControlsStatus();
 
   constructor(options: TimeControlsOptions) {
     this.options = options;
@@ -74,10 +76,10 @@ export class TimeControls implements UIPanel {
       this.jumpButton = this.createButton('Next Event Agent', () => {
         const jumped = options.onJumpToInteresting?.();
         if (jumped) {
-          this.statusElement.textContent = `focused ${jumped}`;
+          this.status.setTransient(`focused ${jumped}`);
           return;
         }
-        this.statusElement.textContent = 'no interesting agents yet';
+        this.status.setTransient('no interesting agents yet');
       });
       focusRow.append(this.jumpButton);
     } else {
@@ -143,7 +145,7 @@ export class TimeControls implements UIPanel {
     if (options.onAddBookmark) {
       const bookmarkButton = this.createButton('Bookmark Agent', () => {
         const bookmarked = options.onAddBookmark?.();
-        this.statusElement.textContent = bookmarked ? `bookmarked ${bookmarked}` : 'select an agent to bookmark';
+        this.status.setTransient(bookmarked ? `bookmarked ${bookmarked}` : 'select an agent to bookmark');
       });
       focusRow.append(bookmarkButton);
     }
@@ -151,7 +153,7 @@ export class TimeControls implements UIPanel {
     if (options.onJumpToBookmark) {
       const jumpBookmarkButton = this.createButton('Next Bookmark', () => {
         const focused = options.onJumpToBookmark?.();
-        this.statusElement.textContent = focused ? `focused bookmark ${focused}` : 'no bookmarks available';
+        this.status.setTransient(focused ? `focused bookmark ${focused}` : 'no bookmarks available');
       });
       focusRow.append(jumpBookmarkButton);
     }
@@ -187,7 +189,8 @@ export class TimeControls implements UIPanel {
       ? `Day ${state.gameTime.day} ${String(state.gameTime.hour).padStart(2, '0')}:${String(state.gameTime.minute).padStart(2, '0')}`
       : 'No server time';
 
-    this.statusElement.textContent = `${time} | tick ${state.tickId} | ${state.connected ? 'online' : 'offline'}`;
+    const baseStatus = `${time} | tick ${state.tickId} | ${state.connected ? 'online' : 'offline'}`;
+    this.statusElement.textContent = this.status.resolve(baseStatus);
   }
 
   destroy(): void {
