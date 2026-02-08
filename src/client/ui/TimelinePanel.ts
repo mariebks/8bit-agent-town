@@ -84,6 +84,7 @@ export class TimelinePanel implements UIPanel {
   }
 
   update(state: UISimulationState): void {
+    let entriesChanged = false;
     if (state.events.length > 0) {
       const timelineEntries = extractTimelineEntries(state.events, {
         tickId: state.tickId,
@@ -101,6 +102,7 @@ export class TimelinePanel implements UIPanel {
         this.entries.push(entry);
         this.seenIds.add(entry.id);
         this.enqueueInterestingAgent(entry.agentId);
+        entriesChanged = true;
       }
 
       if (this.entries.length > MAX_TIMELINE_ENTRIES) {
@@ -108,11 +110,12 @@ export class TimelinePanel implements UIPanel {
         for (const entry of removed) {
           this.seenIds.delete(entry.id);
         }
+        entriesChanged = entriesChanged || removed.length > 0;
       }
     }
 
     this.headerElement.textContent = state.uiMode === 'spectator' ? 'Story Stream' : 'Timeline';
-    if (state.events.length > 0 || this.lastRenderedMode !== state.uiMode) {
+    if (entriesChanged || this.lastRenderedMode !== state.uiMode) {
       this.render(state.uiMode, state);
       this.lastRenderedMode = state.uiMode;
     }
