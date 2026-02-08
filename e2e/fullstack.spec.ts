@@ -337,10 +337,21 @@ test.describe('8-bit Agent Town fullstack', () => {
     const inspectorPanel = page.locator('.inspector-panel');
     const promptPanel = page.locator('.prompt-viewer');
     const logPanel = page.locator('.log-panel');
+    const shortcutPanel = page.locator('.shortcut-cheatsheet-panel');
     await expect(debugPanel).toBeVisible();
     await expect(inspectorPanel).toBeVisible();
     await expect(promptPanel).toBeVisible();
     await expect(logPanel).toBeVisible();
+    await expect(shortcutPanel).toBeHidden();
+
+    await page.evaluate(() => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: '?', bubbles: true }));
+    });
+    await expect(shortcutPanel).toBeVisible();
+    await page.evaluate(() => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: '?', bubbles: true }));
+    });
+    await expect(shortcutPanel).toBeHidden();
 
     await page.keyboard.press('d');
     await page.keyboard.press('i');

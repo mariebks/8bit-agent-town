@@ -13,7 +13,8 @@ export type UtilityShortcutTarget =
   | 'focus-agent-finder'
   | 'jump-interesting-agent'
   | 'clear-selected-agent'
-  | 'toggle-selected-only-speech';
+  | 'toggle-selected-only-speech'
+  | 'toggle-shortcuts-panel';
 
 export interface ShortcutInput {
   key: string;
@@ -104,6 +105,9 @@ export function resolveUtilityShortcut(input: ShortcutInput): UtilityShortcutTar
   const key = input.key.toLowerCase();
   if (key === '/' && !isEditableTarget(input.targetTagName, input.targetIsContentEditable)) {
     return 'focus-agent-finder';
+  }
+  if (key === '?' && !isEditableTarget(input.targetTagName, input.targetIsContentEditable)) {
+    return 'toggle-shortcuts-panel';
   }
   if (key === 'f' && input.shiftKey && !isEditableTarget(input.targetTagName, input.targetIsContentEditable)) {
     return 'toggle-focus-ui';

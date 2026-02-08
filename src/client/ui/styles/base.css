@@ -265,6 +265,43 @@ body::before {
   width: min(24vw, 300px);
 }
 
+.shortcut-cheatsheet-panel {
+  right: 10px;
+  top: 104px;
+  width: min(30vw, 380px);
+  max-height: 42vh;
+  overflow: auto;
+  z-index: 1450;
+}
+
+.shortcut-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.shortcut-row {
+  display: grid;
+  grid-template-columns: minmax(88px, 112px) 1fr;
+  gap: 8px;
+  align-items: baseline;
+  font-size: 9px;
+}
+
+.shortcut-key {
+  color: var(--ui-accent);
+  border: 1px solid #57735f;
+  border-radius: 4px;
+  padding: 2px 4px;
+  background: rgba(23, 51, 38, 0.58);
+  text-align: center;
+}
+
+.shortcut-action {
+  color: var(--ui-text);
+  line-height: 1.35;
+}
+
 .agent-finder-list {
   margin-top: 6px;
   max-height: 20vh;
@@ -699,6 +736,10 @@ body[data-ui-density='compact'] .highlights-list {
 
 body[data-ui-density='compact'] .agent-finder-panel {
   width: min(20vw, 240px);
+}
+
+body[data-ui-density='compact'] .shortcut-cheatsheet-panel {
+  width: min(24vw, 300px);
 }
 
 body[data-focus-ui='on'] .onboarding-panel,

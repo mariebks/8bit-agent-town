@@ -14,6 +14,7 @@ import { ModeSwitcherPanel } from './ui/ModeSwitcherPanel';
 import { OnboardingPanel } from './ui/OnboardingPanel';
 import { PromptViewer } from './ui/PromptViewer';
 import { RelationshipHeatmapPanel } from './ui/RelationshipHeatmapPanel';
+import { ShortcutCheatsheetPanel } from './ui/ShortcutCheatsheetPanel';
 import { StoryDigestPanel } from './ui/StoryDigestPanel';
 import { TimelinePanel } from './ui/TimelinePanel';
 import { pickFocusableInterestingAgent } from './ui/InterestingAgentJump';
@@ -186,6 +187,7 @@ const relationshipHeatmapPanel = new RelationshipHeatmapPanel({
     return focused;
   },
 });
+const shortcutCheatsheetPanel = new ShortcutCheatsheetPanel();
 const onboardingPanel = new OnboardingPanel({
   getProgress: () => ({
     selectedAgent: Boolean(uiState.manualSelectionMade),
@@ -319,6 +321,10 @@ uiManager.registerPanel(promptViewer, {
 uiManager.registerPanel(logPanel, {
   visibleIn: ['debug'],
 });
+uiManager.registerPanel(shortcutCheatsheetPanel, {
+  visibleIn: ['spectator', 'story', 'debug'],
+});
+uiManager.setPanelVisible('shortcut-cheatsheet-panel', false);
 
 simulationSocket.onConnection((connected) => {
   uiState.connected = connected;
@@ -452,6 +458,18 @@ window.addEventListener('keydown', (event: KeyboardEvent) => {
         type: 'log',
         level: 'info',
         message: `selected speech ${enabled ? 'enabled' : 'disabled'}`,
+      },
+    ];
+    return;
+  }
+  if (utilityShortcut === 'toggle-shortcuts-panel') {
+    const visible = uiManager.togglePanel('shortcut-cheatsheet-panel');
+    uiState.events = [
+      ...uiState.events,
+      {
+        type: 'log',
+        level: 'info',
+        message: `shortcut help ${visible ? 'shown' : 'hidden'}`,
       },
     ];
     return;

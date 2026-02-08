@@ -38,11 +38,13 @@ describe('KeyboardShortcuts', () => {
 
   test('maps utility shortcuts for focus ui and finder input', () => {
     expect(resolveUtilityShortcut({ key: '/', targetTagName: 'div' })).toBe('focus-agent-finder');
+    expect(resolveUtilityShortcut({ key: '?', targetTagName: 'div' })).toBe('toggle-shortcuts-panel');
     expect(resolveUtilityShortcut({ key: 'F', shiftKey: true, targetTagName: 'div' })).toBe('toggle-focus-ui');
     expect(resolveUtilityShortcut({ key: 'j', targetTagName: 'div' })).toBe('jump-interesting-agent');
     expect(resolveUtilityShortcut({ key: 'b', targetTagName: 'div' })).toBe('toggle-selected-only-speech');
     expect(resolveUtilityShortcut({ key: 'Escape', targetTagName: 'div' })).toBe('clear-selected-agent');
     expect(resolveUtilityShortcut({ key: '/', targetTagName: 'input' })).toBeNull();
+    expect(resolveUtilityShortcut({ key: '?', targetTagName: 'input' })).toBeNull();
     expect(resolveUtilityShortcut({ key: 'b', targetTagName: 'input' })).toBeNull();
     expect(resolveUtilityShortcut({ key: 'Escape', targetTagName: 'textarea' })).toBeNull();
   });
