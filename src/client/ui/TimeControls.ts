@@ -25,6 +25,19 @@ interface TimeControlsOptions {
   getBookmarks?: () => Array<{ id: string; name: string }>;
 }
 
+export function buildTimeControlsBaseStatus(state: UISimulationState): string {
+  const time = state.gameTime
+    ? `Day ${state.gameTime.day} ${String(state.gameTime.hour).padStart(2, '0')}:${String(state.gameTime.minute).padStart(2, '0')}`
+    : 'No server time';
+  const selectedAgent = state.selectedAgentId
+    ? state.agents.find((agent) => agent.id === state.selectedAgentId) ?? null
+    : null;
+  const selectedSummary = selectedAgent
+    ? `${selectedAgent.name}${selectedAgent.occupation ? ` (${selectedAgent.occupation})` : ''}`
+    : 'none';
+  return `${time} | tick ${state.tickId} | ${state.connected ? 'online' : 'offline'} | selected ${selectedSummary}`;
+}
+
 export class TimeControls implements UIPanel {
   readonly id = 'time-controls';
   readonly element: HTMLElement;
@@ -208,12 +221,7 @@ export class TimeControls implements UIPanel {
     this.updateSelectedOnlySpeechLabel(this.options.getSelectedOnlySpeechEnabled?.() ?? false);
     this.updateCameraPaceLabel(this.options.getCameraPace?.() ?? 'smooth');
     this.renderBookmarks(this.options.getBookmarks?.() ?? []);
-    const time = state.gameTime
-      ? `Day ${state.gameTime.day} ${String(state.gameTime.hour).padStart(2, '0')}:${String(state.gameTime.minute).padStart(2, '0')}`
-      : 'No server time';
-
-    const baseStatus = `${time} | tick ${state.tickId} | ${state.connected ? 'online' : 'offline'}`;
-    this.statusElement.textContent = this.status.resolve(baseStatus);
+    this.statusElement.textContent = this.status.resolve(buildTimeControlsBaseStatus(state));
   }
 
   destroy(): void {
