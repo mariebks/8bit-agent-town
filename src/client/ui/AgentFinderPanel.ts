@@ -1,8 +1,9 @@
 import { UIPanel, UISimulationState } from './types';
 import { searchAgents } from './AgentFinder';
 import { nextHighlightedIndex, normalizeHighlightedIndex } from './AgentFinderNavigation';
+import { loadRecentAgentIds, pushRecentAgentId, storeRecentAgentIds } from './AgentFinderRecents';
 import { resolveAgentFinderStatus } from './AgentFinderStatus';
-import { areAgentFinderHitsEqual } from './AgentFinderViewModel';
+import { areAgentFinderHitsEqual, prioritizeRecentAgentFinderHits } from './AgentFinderViewModel';
 
 interface AgentFinderPanelOptions {
   onFocusAgent: (agentId: string) => boolean;
@@ -21,10 +22,12 @@ export class AgentFinderPanel implements UIPanel {
   private highlightedIndex = -1;
   private renderedHighlightIndex = -1;
   private statusOverride: { message: string; expiresAtMs: number } | null = null;
+  private recentAgentIds: string[];
   private query = '';
 
   constructor(options: AgentFinderPanelOptions) {
     this.options = options;
+    this.recentAgentIds = loadRecentAgentIds(typeof window !== 'undefined' ? window.localStorage : null, 5);
     this.element = document.createElement('section');
     this.element.className = 'ui-panel agent-finder-panel';
 
@@ -81,7 +84,7 @@ export class AgentFinderPanel implements UIPanel {
   }
 
   update(state: UISimulationState): void {
-    const hits = searchAgents(this.query, state.agents, 6);
+    const hits = prioritizeRecentAgentFinderHits(searchAgents(this.query, state.agents, 6), this.recentAgentIds, 6);
     this.lastHits = hits;
     this.highlightedIndex = normalizeHighlightedIndex(this.highlightedIndex, hits.length);
     const hitsChanged = !areAgentFinderHitsEqual(this.renderedHits, hits);
@@ -114,6 +117,7 @@ export class AgentFinderPanel implements UIPanel {
       row.type = 'button';
       row.className = 'ui-btn agent-finder-row';
       row.classList.toggle('active', index === this.highlightedIndex);
+      row.classList.toggle('recent', this.recentAgentIds.includes(hit.id));
       row.textContent = hit.occupation ? `${hit.name} · ${hit.occupation}` : hit.name;
       row.title = `Jump to ${hit.name}`;
       row.addEventListener('click', () => {
@@ -139,6 +143,8 @@ export class AgentFinderPanel implements UIPanel {
       message: `focused ${agentName}`,
       expiresAtMs: nowMs + 1800,
     };
+    this.recentAgentIds = pushRecentAgentId(this.recentAgentIds, agentId, 5);
+    storeRecentAgentIds(this.recentAgentIds, typeof window !== 'undefined' ? window.localStorage : null, 5);
     this.status.textContent = this.statusOverride.message;
   }
 }

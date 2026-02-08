@@ -133,3 +133,4 @@ Ship eight UX upgrades that make the town readable, cinematic, and fun to observ
 - [x] 46. Speech clutter cap: in spectator/story modes cap simultaneous non-selected speech bubbles by nearest-distance priority while always preserving selected-agent bubbles.
 - [x] 47. Speech declutter hotkey: map `B` to toggle Selected Speech mode and surface shortcut discoverability directly in controls label text.
 - [x] 48. Shortcut coach panel: add `?` keyboard toggle for an in-app cheat sheet so controls remain discoverable without leaving simulation view.
+- [x] 49. Agent Finder recents: persist recently focused agents and prioritize them in subsequent searches to speed repeated camera jumps.
