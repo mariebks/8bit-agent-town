@@ -219,6 +219,12 @@ test.describe('8-bit Agent Town fullstack', () => {
         intervals: [100, 200, 400],
       })
       .not.toBeNull();
+    const inspectorFollowButton = page.locator('.inspector-panel .inspector-follow-btn');
+    await expect(inspectorFollowButton).toBeEnabled();
+    await expect(inspectorFollowButton).toContainText('Follow: Off');
+    await inspectorFollowButton.click();
+    await expect(inspectorFollowButton).toContainText('Follow: On');
+
     await page.keyboard.press('Escape');
     await expect
       .poll(async () => getSelectedAgentId(page), {
@@ -226,6 +232,7 @@ test.describe('8-bit Agent Town fullstack', () => {
         intervals: [100, 200, 400],
       })
       .toBeNull();
+    await expect(page.locator('.inspector-panel .inspector-follow-btn')).toBeDisabled();
 
     await page.evaluate((point) => {
       const game = window.__agentTownGame;

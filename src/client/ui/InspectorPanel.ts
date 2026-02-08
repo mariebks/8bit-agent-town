@@ -5,6 +5,8 @@ import { UIPanel, UISimulationState } from './types';
 
 interface InspectorOptions {
   getSelectedAgentId: () => string | null;
+  onToggleFollowSelected?: () => boolean;
+  getFollowSelectedEnabled?: () => boolean;
 }
 
 function formatAgent(agent: AgentData, relationshipTrend: string): string {
@@ -55,11 +57,16 @@ export class InspectorPanel implements UIPanel {
   private readonly identityElement: HTMLElement;
   private readonly trendElement: HTMLElement;
   private readonly getSelectedAgentId: () => string | null;
+  private readonly onToggleFollowSelected?: () => boolean;
+  private readonly getFollowSelectedEnabled?: () => boolean;
+  private readonly followButton: HTMLButtonElement | null;
   private readonly relationshipHistoryByAgent = new Map<string, number[]>();
   private readonly sampledRelationshipTickByAgent = new Map<string, number>();
 
   constructor(options: InspectorOptions) {
     this.getSelectedAgentId = options.getSelectedAgentId;
+    this.onToggleFollowSelected = options.onToggleFollowSelected;
+    this.getFollowSelectedEnabled = options.getFollowSelectedEnabled;
 
     this.element = document.createElement('section');
     this.element.className = 'ui-panel inspector-panel';
@@ -67,6 +74,19 @@ export class InspectorPanel implements UIPanel {
     const header = document.createElement('header');
     header.className = 'panel-header';
     header.textContent = 'Inspector';
+
+    if (options.onToggleFollowSelected) {
+      this.followButton = document.createElement('button');
+      this.followButton.type = 'button';
+      this.followButton.className = 'ui-btn ui-btn-ghost inspector-follow-btn';
+      this.followButton.textContent = 'Follow: Off';
+      this.followButton.addEventListener('click', () => {
+        const enabled = this.onToggleFollowSelected?.() ?? false;
+        this.updateFollowButton(enabled, Boolean(this.getSelectedAgentId()));
+      });
+    } else {
+      this.followButton = null;
+    }
 
     this.identityElement = document.createElement('div');
     this.identityElement.className = 'inspector-identity';
@@ -77,7 +97,7 @@ export class InspectorPanel implements UIPanel {
     this.contentElement = document.createElement('pre');
     this.contentElement.className = 'inspector-content';
 
-    this.element.append(header, this.identityElement, this.trendElement, this.contentElement);
+    this.element.append(header, ...(this.followButton ? [this.followButton] : []), this.identityElement, this.trendElement, this.contentElement);
   }
 
   show(): void {
@@ -98,6 +118,7 @@ export class InspectorPanel implements UIPanel {
     this.captureRelationshipSamples(state.events);
 
     const selectedAgentId = this.getSelectedAgentId();
+    this.updateFollowButton(this.getFollowSelectedEnabled?.() ?? false, Boolean(selectedAgentId));
     if (!selectedAgentId) {
       this.contentElement.textContent = 'No agent selected';
       this.trendElement.textContent = '';
@@ -152,5 +173,13 @@ export class InspectorPanel implements UIPanel {
       const current = this.relationshipHistoryByAgent.get(typed.sourceId) ?? [];
       this.relationshipHistoryByAgent.set(typed.sourceId, appendRelationshipSample(current, typed.toWeight, 24));
     }
+  }
+
+  private updateFollowButton(enabled: boolean, hasSelectedAgent: boolean): void {
+    if (!this.followButton) {
+      return;
+    }
+    this.followButton.textContent = `Follow: ${enabled ? 'On' : 'Off'}`;
+    this.followButton.disabled = !hasSelectedAgent;
   }
 }

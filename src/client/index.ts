@@ -92,6 +92,8 @@ if (typeof window !== 'undefined') {
 const logPanel = new LogPanel();
 const inspectorPanel = new InspectorPanel({
   getSelectedAgentId: () => getTownScene()?.getSelectedAgentId() ?? null,
+  onToggleFollowSelected: () => getTownScene()?.toggleFollowSelectedAgent() ?? false,
+  getFollowSelectedEnabled: () => getTownScene()?.isFollowingSelectedAgent() ?? false,
 });
 const debugPanel = new DebugPanel({
   getSelectedAgentId: () => getTownScene()?.getSelectedAgentId() ?? null,
