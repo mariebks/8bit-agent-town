@@ -1,5 +1,6 @@
 import { UIPanel, UISimulationState } from './types';
 import { buildHighlightsReel, HighlightsEntry } from './HighlightsReel';
+import { areHighlightsSnapshotsEqual } from './HighlightsReelViewModel';
 import { extractTimelineEntries } from './TimelineEvents';
 
 const HIGHLIGHT_WINDOW_TICKS = 60;
@@ -15,6 +16,7 @@ export class HighlightsReelPanel implements UIPanel {
   private readonly footerElement: HTMLElement;
   private readonly entries: HighlightsEntry[] = [];
   private readonly seenIds = new Set<string>();
+  private renderedSnapshot: ReturnType<typeof buildHighlightsReel> | null = null;
 
   constructor() {
     this.element = document.createElement('section');
@@ -93,13 +95,19 @@ export class HighlightsReelPanel implements UIPanel {
       state.gameTime?.totalMinutes ?? null,
       HIGHLIGHT_WINDOW_MINUTES,
     );
-    this.summaryElement.textContent = reel.summary;
+    if (!areHighlightsSnapshotsEqual(this.renderedSnapshot, reel)) {
+      this.summaryElement.textContent = reel.summary;
 
-    this.bulletList.innerHTML = '';
-    for (const bullet of reel.bullets) {
-      const item = document.createElement('li');
-      item.textContent = bullet;
-      this.bulletList.append(item);
+      this.bulletList.innerHTML = '';
+      for (const bullet of reel.bullets) {
+        const item = document.createElement('li');
+        item.textContent = bullet;
+        this.bulletList.append(item);
+      }
+      this.renderedSnapshot = {
+        ...reel,
+        bullets: [...reel.bullets],
+      };
     }
 
     this.footerElement.textContent = `window: 1h | events: ${reel.eventCount} | tick ${state.tickId}`;

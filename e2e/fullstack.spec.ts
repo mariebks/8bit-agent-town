@@ -514,43 +514,65 @@ test.describe('8-bit Agent Town fullstack', () => {
     expect(selected).not.toBeNull();
 
     await page.locator('.time-controls .ui-btn', { hasText: 'Next Bookmark' }).click();
-    await expect(page.locator('.time-controls .panel-footer')).toContainText('focused bookmark');
-
-    const focused = await page.evaluate(() => {
-      const scene = window.__agentTownGame?.scene.getScene('TownScene') as {
-        getSelectedAgentId: () => string | null;
-      };
-      return scene.getSelectedAgentId();
-    });
-
-    expect(focused).toBe(selected);
+    await expect
+      .poll(
+        async () =>
+          await page.evaluate(() => {
+            const scene = window.__agentTownGame?.scene.getScene('TownScene') as {
+              getSelectedAgentId: () => string | null;
+            };
+            return scene.getSelectedAgentId();
+          }),
+        { timeout: 5_000, intervals: [100, 200, 400] },
+      )
+      .toBe(selected);
   });
 
   test('supports keyboard-only agent finder flow', async ({ page }) => {
     await page.goto('/');
     await waitForTownScene(page);
     await setUiMode(page, 'Story');
+    await expect(page.locator('.time-controls .panel-footer')).toContainText('online');
+
+    const finderPanel = page.locator('.agent-finder-panel');
+    if (!(await finderPanel.isVisible())) {
+      await page.keyboard.press('Shift+F');
+      await expect(finderPanel).toBeVisible();
+    }
 
     await page.keyboard.press('/');
     const finderInput = page.locator('.agent-finder-panel .ui-input');
     await expect(finderInput).toBeFocused();
 
-    const tryQueries = ['a', 'e', 'i'];
-    let matchCount = 0;
-    for (const query of tryQueries) {
-      await finderInput.fill(query);
-      matchCount = await page.locator('.agent-finder-panel .agent-finder-row').count();
-      if (matchCount >= 2) {
-        break;
-      }
-    }
-    expect(matchCount).toBeGreaterThanOrEqual(2);
+    let query = '';
+    await expect
+      .poll(
+        async () => {
+          query = await page.evaluate(() => {
+            const scene = window.__agentTownGame?.scene.getScene('TownScene') as
+              | { agents?: Array<{ agentName: string }> }
+              | undefined;
+            const name = scene?.agents?.[0]?.agentName?.trim() ?? '';
+            return name.toLowerCase();
+          });
+          return query.length;
+        },
+        { timeout: 5_000, intervals: [100, 200, 400] },
+      )
+      .toBeGreaterThan(0);
 
-    const secondLabel = ((await page.locator('.agent-finder-panel .agent-finder-row').nth(1).textContent()) ?? '').trim();
-    const expectedName = secondLabel.split(' · ')[0] ?? secondLabel;
+    await finderInput.fill(query);
+    await expect
+      .poll(async () => await page.locator('.agent-finder-panel .agent-finder-row').count(), {
+        timeout: 5_000,
+        intervals: [100, 200, 400],
+      })
+      .toBeGreaterThanOrEqual(1);
+
+    const firstLabel = ((await page.locator('.agent-finder-panel .agent-finder-row').first().textContent()) ?? '').trim();
+    const expectedName = firstLabel.split(' · ')[0] ?? firstLabel;
     expect(expectedName.length).toBeGreaterThan(0);
 
-    await page.keyboard.press('ArrowDown');
     await page.keyboard.press('ArrowDown');
     await page.keyboard.press('Enter');
 

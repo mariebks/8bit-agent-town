@@ -115,3 +115,4 @@ Ship eight UX upgrades that make the town readable, cinematic, and fun to observ
 - [x] 28. Agent Finder feedback polish: preserve focus result status briefly before reverting to match-count text.
 - [x] 29. Agent Finder perf: skip list DOM rerenders when hits/highlight are unchanged between UI ticks.
 - [x] 30. Story Digest perf: avoid digest row rerenders when selected top moments are unchanged.
+- [x] 31. Highlights Reel perf: skip summary/list rerenders when snapshot content is unchanged.
