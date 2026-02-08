@@ -119,3 +119,4 @@ Ship eight UX upgrades that make the town readable, cinematic, and fun to observ
 - [x] 32. Time Controls feedback polish: keep transient action confirmations visible briefly before status footer reverts to live tick/online text.
 - [x] 33. Sprite identity polish: add explicit trait mappings for healer/smith/courier/artist roles so more occupations render with distinct silhouettes and accessories.
 - [x] 34. Timeline interaction upgrade: make timeline cards with agents clickable/focusable for instant camera jump and selection.
+- [x] 35. Timeline clutter reduction: dedupe near-identical consecutive cards within a short tick window.

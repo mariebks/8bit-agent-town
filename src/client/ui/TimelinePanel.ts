@@ -4,9 +4,42 @@ import { TimeControlsStatus } from './TimeControlsStatus';
 import { TimelineEntry, extractTimelineEntries } from './TimelineEvents';
 
 const MAX_TIMELINE_ENTRIES = 120;
+const TIMELINE_DUPLICATE_WINDOW_TICKS = 6;
 
 interface TimelinePanelOptions {
   onFocusAgent?: (agentId: string) => boolean;
+}
+
+export function shouldAppendTimelineEntry(previous: TimelineEntry | null, next: TimelineEntry): boolean {
+  if (!previous) {
+    return true;
+  }
+
+  if (
+    previous.kind !== next.kind ||
+    previous.agentId !== next.agentId ||
+    previous.headline !== next.headline ||
+    !haveSameActors(previous.actorIds, next.actorIds)
+  ) {
+    return true;
+  }
+
+  return next.tickId - previous.tickId > TIMELINE_DUPLICATE_WINDOW_TICKS;
+}
+
+function haveSameActors(left: string[], right: string[]): boolean {
+  if (left.length !== right.length) {
+    return false;
+  }
+
+  const normalizedLeft = [...left].sort();
+  const normalizedRight = [...right].sort();
+  for (let index = 0; index < normalizedLeft.length; index += 1) {
+    if (normalizedLeft[index] !== normalizedRight[index]) {
+      return false;
+    }
+  }
+  return true;
 }
 
 export class TimelinePanel implements UIPanel {
@@ -59,6 +92,10 @@ export class TimelinePanel implements UIPanel {
 
       for (const entry of timelineEntries) {
         if (this.seenIds.has(entry.id)) {
+          continue;
+        }
+        const previous = this.entries.length > 0 ? this.entries[this.entries.length - 1] : null;
+        if (!shouldAppendTimelineEntry(previous, entry)) {
           continue;
         }
         this.entries.push(entry);
