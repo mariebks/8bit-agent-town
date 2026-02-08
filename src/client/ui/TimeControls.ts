@@ -73,7 +73,7 @@ export class TimeControls implements UIPanel {
     }
 
     if (options.onJumpToInteresting) {
-      this.jumpButton = this.createButton('Next Event Agent', () => {
+      this.jumpButton = this.createButton('Next Event Agent (J)', () => {
         const jumped = options.onJumpToInteresting?.();
         if (jumped) {
           this.status.setTransient(`focused ${jumped}`);
