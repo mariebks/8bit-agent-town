@@ -157,3 +157,4 @@ Ship eight UX upgrades that make the town readable, cinematic, and fun to observ
 - [x] 70. Inspector correctness polish: clear stale identity portrait immediately when selection is removed.
 - [x] 71. Keyboard follow polish: add `F` shortcut for follow-selected toggle and surface hinting in controls/shortcuts help.
 - [x] 72. Mode discoverability polish: include `M/N` shortcut cues directly in View Mode labels.
+- [x] 73. Inspector shortcut polish: label Inspector follow action as `Follow (F)` for consistent hotkey discoverability.

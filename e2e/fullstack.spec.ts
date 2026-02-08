@@ -226,9 +226,9 @@ test.describe('8-bit Agent Town fullstack', () => {
 
     const inspectorFollowButton = page.locator('.inspector-panel .inspector-follow-btn');
     await expect(inspectorFollowButton).toBeEnabled();
-    await expect(inspectorFollowButton).toContainText('Follow: On');
+    await expect(inspectorFollowButton).toContainText('Follow (F): On');
     await inspectorFollowButton.click();
-    await expect(inspectorFollowButton).toContainText('Follow: Off');
+    await expect(inspectorFollowButton).toContainText('Follow (F): Off');
 
     await page.keyboard.press('Escape');
     await expect

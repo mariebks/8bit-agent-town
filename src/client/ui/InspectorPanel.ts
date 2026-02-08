@@ -180,7 +180,7 @@ export class InspectorPanel implements UIPanel {
     if (!this.followButton) {
       return;
     }
-    this.followButton.textContent = `Follow: ${enabled ? 'On' : 'Off'}`;
+    this.followButton.textContent = `Follow (F): ${enabled ? 'On' : 'Off'}`;
     this.followButton.disabled = !hasSelectedAgent;
   }
 }
