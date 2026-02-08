@@ -134,3 +134,4 @@ Ship eight UX upgrades that make the town readable, cinematic, and fun to observ
 - [x] 47. Speech declutter hotkey: map `B` to toggle Selected Speech mode and surface shortcut discoverability directly in controls label text.
 - [x] 48. Shortcut coach panel: add `?` keyboard toggle for an in-app cheat sheet so controls remain discoverable without leaving simulation view.
 - [x] 49. Agent Finder recents: persist recently focused agents and prioritize them in subsequent searches to speed repeated camera jumps.
+- [x] 50. Shortcut discoverability controls: add a visible `Shortcuts (?)` button in View Mode so mouse-first users can open/close shortcut help without memorizing keys.

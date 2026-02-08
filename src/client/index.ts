@@ -270,6 +270,7 @@ const modeSwitcherPanel = new ModeSwitcherPanel({
   onDensityChange: (density) => {
     uiManager.setDensity(density);
   },
+  onToggleShortcutHelp: () => uiManager.togglePanel('shortcut-cheatsheet-panel'),
 });
 
 uiManager.registerPanel(modeSwitcherPanel, {

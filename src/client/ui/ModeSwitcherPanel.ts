@@ -7,6 +7,7 @@ interface ModeSwitcherPanelOptions {
   getDensity: () => UiDensity;
   onModeChange: (mode: UiMode) => void;
   onDensityChange: (density: UiDensity) => void;
+  onToggleShortcutHelp?: () => boolean;
 }
 
 const MODE_LABELS: Record<UiMode, string> = {
@@ -72,10 +73,24 @@ export class ModeSwitcherPanel implements UIPanel {
       densityRow.append(button);
     }
 
+    const utilityRow = document.createElement('div');
+    utilityRow.className = 'time-controls-row';
+    if (options.onToggleShortcutHelp) {
+      const shortcutButton = document.createElement('button');
+      shortcutButton.type = 'button';
+      shortcutButton.className = 'ui-btn ui-btn-ghost';
+      shortcutButton.textContent = 'Shortcuts (?)';
+      shortcutButton.addEventListener('click', () => {
+        const visible = options.onToggleShortcutHelp?.() ?? false;
+        shortcutButton.classList.toggle('active', visible);
+      });
+      utilityRow.append(shortcutButton);
+    }
+
     this.statusElement = document.createElement('div');
     this.statusElement.className = 'panel-footer';
 
-    this.element.append(header, row, densityRow, this.statusElement);
+    this.element.append(header, row, densityRow, utilityRow, this.statusElement);
     this.renderActiveMode();
     this.renderActiveDensity();
   }
