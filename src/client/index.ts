@@ -254,6 +254,14 @@ function jumpToBookmarkAgent(): string | null {
   return focused;
 }
 
+function getBookmarkAgents(): Array<{ id: string; name: string }> {
+  const ids = getTownScene()?.getDirectorBookmarkAgentIds() ?? [];
+  return ids.map((id) => ({
+    id,
+    name: uiState.agents.find((agent) => agent.id === id)?.name ?? id,
+  }));
+}
+
 const timeControls = new TimeControls({
   onControl: (action, value) => simulationSocket.sendControl(action, value),
   onToggleFollowSelected: () => getTownScene()?.toggleFollowSelectedAgent() ?? false,
@@ -265,6 +273,7 @@ const timeControls = new TimeControls({
   onToggleCameraPace: () => getTownScene()?.toggleCameraPace() ?? 'smooth',
   onAddBookmark: () => addBookmarkForSelectedAgent(),
   onJumpToBookmark: () => jumpToBookmarkAgent(),
+  onRemoveBookmark: (agentId) => getTownScene()?.removeDirectorBookmark(agentId) ?? false,
   getFollowSelectedEnabled: () => getTownScene()?.isFollowingSelectedAgent() ?? false,
   getAutoDirectorEnabled: () => getTownScene()?.isAutoDirectorEnabled() ?? false,
   getAudioEnabled: () => audioController.isEnabled(),
@@ -272,6 +281,7 @@ const timeControls = new TimeControls({
   getFocusUiEnabled: () => focusUiEnabled,
   getSelectedOnlySpeechEnabled: () => getTownScene()?.isSelectedOnlySpeech() ?? false,
   getCameraPace: () => getTownScene()?.getCameraPace() ?? 'smooth',
+  getBookmarks: () => getBookmarkAgents(),
   onJumpToInteresting: () => jumpToInterestingAgent(),
 });
 const modeSwitcherPanel = new ModeSwitcherPanel({

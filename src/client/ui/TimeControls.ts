@@ -14,6 +14,7 @@ interface TimeControlsOptions {
   onToggleCameraPace?: () => 'smooth' | 'snappy';
   onAddBookmark?: () => string | null;
   onJumpToBookmark?: () => string | null;
+  onRemoveBookmark?: (agentId: string) => boolean;
   getFollowSelectedEnabled?: () => boolean;
   getAutoDirectorEnabled?: () => boolean;
   getAudioEnabled?: () => boolean;
@@ -21,6 +22,7 @@ interface TimeControlsOptions {
   getFocusUiEnabled?: () => boolean;
   getSelectedOnlySpeechEnabled?: () => boolean;
   getCameraPace?: () => 'smooth' | 'snappy';
+  getBookmarks?: () => Array<{ id: string; name: string }>;
 }
 
 export class TimeControls implements UIPanel {
@@ -38,6 +40,7 @@ export class TimeControls implements UIPanel {
   private readonly cameraPaceButton: HTMLButtonElement | null;
   private readonly options: TimeControlsOptions;
   private readonly status = new TimeControlsStatus();
+  private readonly bookmarksElement: HTMLElement;
 
   constructor(options: TimeControlsOptions) {
     this.options = options;
@@ -171,10 +174,13 @@ export class TimeControls implements UIPanel {
       focusRow.append(jumpBookmarkButton);
     }
 
+    this.bookmarksElement = document.createElement('div');
+    this.bookmarksElement.className = 'time-controls-bookmarks';
+
     this.statusElement = document.createElement('div');
     this.statusElement.className = 'panel-footer';
 
-    this.element.append(header, buttonRow, speedRow, focusRow, this.statusElement);
+    this.element.append(header, buttonRow, speedRow, focusRow, this.bookmarksElement, this.statusElement);
     this.updateFollowLabel(options.getFollowSelectedEnabled?.() ?? false);
     this.updateDirectorLabel(options.getAutoDirectorEnabled?.() ?? true);
     this.updateAudioLabel(options.getAudioEnabled?.() ?? false);
@@ -182,6 +188,7 @@ export class TimeControls implements UIPanel {
     this.updateFocusUiLabel(options.getFocusUiEnabled?.() ?? false);
     this.updateSelectedOnlySpeechLabel(options.getSelectedOnlySpeechEnabled?.() ?? false);
     this.updateCameraPaceLabel(options.getCameraPace?.() ?? 'smooth');
+    this.renderBookmarks(options.getBookmarks?.() ?? []);
   }
 
   show(): void {
@@ -200,6 +207,7 @@ export class TimeControls implements UIPanel {
     this.updateFocusUiLabel(this.options.getFocusUiEnabled?.() ?? false);
     this.updateSelectedOnlySpeechLabel(this.options.getSelectedOnlySpeechEnabled?.() ?? false);
     this.updateCameraPaceLabel(this.options.getCameraPace?.() ?? 'smooth');
+    this.renderBookmarks(this.options.getBookmarks?.() ?? []);
     const time = state.gameTime
       ? `Day ${state.gameTime.day} ${String(state.gameTime.hour).padStart(2, '0')}:${String(state.gameTime.minute).padStart(2, '0')}`
       : 'No server time';
@@ -268,5 +276,40 @@ export class TimeControls implements UIPanel {
       return;
     }
     this.cameraPaceButton.textContent = `Camera Pace (Z): ${pace === 'snappy' ? 'Snappy' : 'Smooth'}`;
+  }
+
+  private renderBookmarks(bookmarks: Array<{ id: string; name: string }>): void {
+    this.bookmarksElement.innerHTML = '';
+    if (bookmarks.length === 0) {
+      this.bookmarksElement.style.display = 'none';
+      return;
+    }
+
+    this.bookmarksElement.style.display = '';
+    for (const bookmark of bookmarks) {
+      const chip = document.createElement('div');
+      chip.className = 'bookmark-chip';
+
+      const label = document.createElement('span');
+      label.className = 'bookmark-chip-label';
+      label.textContent = bookmark.name;
+      chip.append(label);
+
+      if (this.options.onRemoveBookmark) {
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'ui-btn ui-btn-ghost bookmark-remove-btn';
+        remove.textContent = 'x';
+        remove.title = `Remove bookmark ${bookmark.name}`;
+        remove.addEventListener('click', () => {
+          const removed = this.options.onRemoveBookmark?.(bookmark.id) ?? false;
+          this.status.setTransient(removed ? `removed bookmark ${bookmark.name}` : 'bookmark unavailable');
+          this.renderBookmarks(this.options.getBookmarks?.() ?? []);
+        });
+        chip.append(remove);
+      }
+
+      this.bookmarksElement.append(chip);
+    }
   }
 }

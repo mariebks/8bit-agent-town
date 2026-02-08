@@ -725,6 +725,12 @@ test.describe('8-bit Agent Town fullstack', () => {
       return selectedId;
     });
     expect(selected).not.toBeNull();
+    await expect
+      .poll(async () => await page.locator('.time-controls .bookmark-chip').count(), {
+        timeout: 3_000,
+        intervals: [100, 200, 400],
+      })
+      .toBeGreaterThan(0);
 
     await page.locator('.time-controls .ui-btn', { hasText: 'Next Bookmark' }).click();
     await expect
@@ -739,6 +745,13 @@ test.describe('8-bit Agent Town fullstack', () => {
         { timeout: 5_000, intervals: [100, 200, 400] },
       )
       .toBe(selected);
+    await page.locator('.time-controls .bookmark-remove-btn').first().click();
+    await expect
+      .poll(async () => await page.locator('.time-controls .bookmark-chip').count(), {
+        timeout: 3_000,
+        intervals: [100, 200, 400],
+      })
+      .toBe(0);
   });
 
   test('supports keyboard-only agent finder flow', async ({ page }) => {

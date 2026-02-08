@@ -354,6 +354,21 @@ export class TownScene extends Phaser.Scene {
     return selectedAgentId;
   }
 
+  getDirectorBookmarkAgentIds(): string[] {
+    return [...this.directorBookmarkAgentIds];
+  }
+
+  removeDirectorBookmark(agentId: string): boolean {
+    const before = this.directorBookmarkAgentIds.length;
+    this.directorBookmarkAgentIds = this.directorBookmarkAgentIds.filter((id) => id !== agentId);
+    if (this.directorBookmarkAgentIds.length === before) {
+      return false;
+    }
+    this.directorBookmarkIndex = 0;
+    this.persistDirectorBookmarks();
+    return true;
+  }
+
   focusNextDirectorBookmark(): string | null {
     const next = nextDirectorBookmark({
       bookmarkAgentIds: this.directorBookmarkAgentIds,
