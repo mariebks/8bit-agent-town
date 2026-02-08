@@ -156,6 +156,46 @@ export function resolveOccupationSpriteTraits(occupation?: string, agentId = '')
       badge: true,
     };
   }
+  if (matchesAny(normalized, ['healer', 'medic', 'doctor', 'nurse'])) {
+    return {
+      headwear: 'none',
+      accessory: 'apron',
+      hairStyle: 'bun',
+      bodyType: 'slim',
+      outfitPattern: 'trim',
+      badge: true,
+    };
+  }
+  if (matchesAny(normalized, ['blacksmith', 'miner', 'mason', 'forge'])) {
+    return {
+      headwear: 'bandana',
+      accessory: 'apron',
+      hairStyle: 'short',
+      bodyType: 'broad',
+      outfitPattern: 'plain',
+      badge: false,
+    };
+  }
+  if (matchesAny(normalized, ['courier', 'messenger', 'post', 'runner'])) {
+    return {
+      headwear: 'cap',
+      accessory: 'satchel',
+      hairStyle: 'tuft',
+      bodyType: 'balanced',
+      outfitPattern: 'trim',
+      badge: false,
+    };
+  }
+  if (matchesAny(normalized, ['artist', 'painter', 'musician', 'bard'])) {
+    return {
+      headwear: 'bandana',
+      accessory: 'satchel',
+      hairStyle: 'bun',
+      bodyType: 'slim',
+      outfitPattern: 'stripe',
+      badge: false,
+    };
+  }
 
   return fallback[seed % fallback.length];
 }

@@ -54,6 +54,10 @@ describe('AgentVisuals', () => {
     const farmer = resolveOccupationSpriteTraits('Farmer', 'a1');
     const librarian = resolveOccupationSpriteTraits('Librarian', 'a2');
     const guard = resolveOccupationSpriteTraits('Town Guard', 'a3');
+    const healer = resolveOccupationSpriteTraits('Medic', 'a4');
+    const smith = resolveOccupationSpriteTraits('Blacksmith', 'a5');
+    const courier = resolveOccupationSpriteTraits('Courier', 'a6');
+    const artist = resolveOccupationSpriteTraits('Musician', 'a7');
     const unknownA = resolveOccupationSpriteTraits('Inventor', 'seed-a');
     const unknownARepeat = resolveOccupationSpriteTraits('Inventor', 'seed-a');
     const unknownB = resolveOccupationSpriteTraits('Inventor', 'seed-b');
@@ -64,6 +68,14 @@ describe('AgentVisuals', () => {
     expect(librarian.accessory).toBe('robe');
     expect(librarian.bodyType).toBe('slim');
     expect(guard.badge).toBe(true);
+    expect(healer.accessory).toBe('apron');
+    expect(healer.badge).toBe(true);
+    expect(smith.bodyType).toBe('broad');
+    expect(smith.headwear).toBe('bandana');
+    expect(courier.accessory).toBe('satchel');
+    expect(courier.outfitPattern).toBe('trim');
+    expect(artist.accessory).toBe('satchel');
+    expect(artist.outfitPattern).toBe('stripe');
     expect(['plain', 'stripe', 'trim']).toContain(unknownA.outfitPattern);
     expect(['slim', 'balanced', 'broad']).toContain(unknownA.bodyType);
 
