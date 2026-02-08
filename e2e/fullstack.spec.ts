@@ -525,4 +525,41 @@ test.describe('8-bit Agent Town fullstack', () => {
 
     expect(focused).toBe(selected);
   });
+
+  test('supports keyboard-only agent finder flow', async ({ page }) => {
+    await page.goto('/');
+    await waitForTownScene(page);
+    await setUiMode(page, 'Story');
+
+    await page.keyboard.press('/');
+    const finderInput = page.locator('.agent-finder-panel .ui-input');
+    await expect(finderInput).toBeFocused();
+
+    const tryQueries = ['a', 'e', 'i'];
+    let matchCount = 0;
+    for (const query of tryQueries) {
+      await finderInput.fill(query);
+      matchCount = await page.locator('.agent-finder-panel .agent-finder-row').count();
+      if (matchCount >= 2) {
+        break;
+      }
+    }
+    expect(matchCount).toBeGreaterThanOrEqual(2);
+
+    const secondLabel = ((await page.locator('.agent-finder-panel .agent-finder-row').nth(1).textContent()) ?? '').trim();
+    const expectedName = secondLabel.split(' · ')[0] ?? secondLabel;
+    expect(expectedName.length).toBeGreaterThan(0);
+
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('Enter');
+
+    await expect(page.locator('.agent-finder-panel .panel-footer')).toContainText(`focused ${expectedName}`);
+
+    const selectedName = await page.evaluate(() => {
+      const scene = window.__agentTownGame?.scene.getScene('TownScene') as { selectedAgent?: { agentName: string } } | undefined;
+      return scene?.selectedAgent?.agentName ?? null;
+    });
+    expect(selectedName).toBe(expectedName);
+  });
 });
