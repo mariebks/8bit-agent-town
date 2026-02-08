@@ -395,6 +395,30 @@ test.describe('8-bit Agent Town fullstack', () => {
         intervals: [200, 400, 800],
       })
       .toBeGreaterThan(0);
+
+    await expect
+      .poll(async () => await page.locator('.timeline-panel .timeline-card[data-agent-id]').count(), {
+        timeout: 10_000,
+        intervals: [200, 400, 800],
+      })
+      .toBeGreaterThan(0);
+
+    const focusableCard = page.locator('.timeline-panel .timeline-card[data-agent-id]').first();
+    const targetAgentId = (await focusableCard.getAttribute('data-agent-id')) ?? '';
+    expect(targetAgentId.length).toBeGreaterThan(0);
+
+    await focusableCard.click();
+    await expect(page.locator('.timeline-panel .panel-footer')).toContainText('focused');
+    await expect
+      .poll(
+        async () =>
+          await page.evaluate(() => {
+            const scene = window.__agentTownGame?.scene.getScene('TownScene') as { getSelectedAgentId: () => string | null };
+            return scene.getSelectedAgentId();
+          }),
+        { timeout: 5_000, intervals: [100, 200, 400] },
+      )
+      .toBe(targetAgentId);
   });
 
   test('preserves manual zoom when toggling director and follow states', async ({ page }) => {

@@ -133,7 +133,16 @@ const debugPanel = new DebugPanel({
 const promptViewer = new PromptViewer({
   getSelectedAgentId: () => getTownScene()?.getSelectedAgentId() ?? null,
 });
-const timelinePanel = new TimelinePanel();
+const timelinePanel = new TimelinePanel({
+  onFocusAgent: (agentId) => {
+    const focused = getTownScene()?.focusAgentById(agentId) ?? false;
+    if (focused) {
+      uiState.lastJumpedAgentId = agentId;
+      void audioController.playCue('jump');
+    }
+    return focused;
+  },
+});
 const storyDigestPanel = new StoryDigestPanel();
 const highlightsReelPanel = new HighlightsReelPanel();
 const weatherStatusPanel = new WeatherStatusPanel();

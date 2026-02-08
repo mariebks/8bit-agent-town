@@ -1,8 +1,13 @@
 import { UIPanel, UISimulationState } from './types';
 import { buildAgentIdentityToken } from './AgentIdentity';
+import { TimeControlsStatus } from './TimeControlsStatus';
 import { TimelineEntry, extractTimelineEntries } from './TimelineEvents';
 
 const MAX_TIMELINE_ENTRIES = 120;
+
+interface TimelinePanelOptions {
+  onFocusAgent?: (agentId: string) => boolean;
+}
 
 export class TimelinePanel implements UIPanel {
   readonly id = 'timeline-panel';
@@ -11,13 +16,16 @@ export class TimelinePanel implements UIPanel {
   private readonly headerElement: HTMLElement;
   private readonly listElement: HTMLElement;
   private readonly footerElement: HTMLElement;
+  private readonly options: TimelinePanelOptions;
+  private readonly status = new TimeControlsStatus();
   private readonly entries: TimelineEntry[] = [];
   private readonly seenIds = new Set<string>();
   private readonly interestingAgentQueue: string[] = [];
   private nextInterestingIndex = 0;
   private lastRenderedMode: UISimulationState['uiMode'] | null = null;
 
-  constructor() {
+  constructor(options: TimelinePanelOptions = {}) {
+    this.options = options;
     this.element = document.createElement('section');
     this.element.className = 'ui-panel timeline-panel';
 
@@ -71,7 +79,8 @@ export class TimelinePanel implements UIPanel {
       this.render(state.uiMode, state);
       this.lastRenderedMode = state.uiMode;
     }
-    this.footerElement.textContent = `events: ${this.entries.length} | tick: ${state.tickId} | mode: ${state.uiMode}`;
+    const baseFooter = `events: ${this.entries.length} | tick: ${state.tickId} | mode: ${state.uiMode}`;
+    this.footerElement.textContent = this.status.resolve(baseFooter);
   }
 
   destroy(): void {
@@ -98,6 +107,9 @@ export class TimelinePanel implements UIPanel {
       const item = document.createElement('article');
       item.className = `timeline-card timeline-${entry.kind}`;
       item.dataset.kind = entry.kind;
+      if (entry.agentId) {
+        item.dataset.agentId = entry.agentId;
+      }
 
       const frame = document.createElement('div');
       frame.className = 'timeline-frame';
@@ -130,6 +142,24 @@ export class TimelinePanel implements UIPanel {
       copy.append(title, detail);
       frame.append(portrait, copy);
       item.append(frame);
+      if (entry.agentId && this.options.onFocusAgent) {
+        item.classList.add('timeline-focusable');
+        item.tabIndex = 0;
+        item.setAttribute('role', 'button');
+        const focusLabel = agent?.name?.trim() || entry.agentId;
+        const focusAgent = () => {
+          const focused = this.options.onFocusAgent?.(entry.agentId ?? '');
+          this.status.setTransient(focused ? `focused ${focusLabel}` : 'agent unavailable');
+        };
+        item.addEventListener('click', focusAgent);
+        item.addEventListener('keydown', (event) => {
+          if (event.key !== 'Enter' && event.key !== ' ') {
+            return;
+          }
+          event.preventDefault();
+          focusAgent();
+        });
+      }
       this.listElement.append(item);
     }
 
