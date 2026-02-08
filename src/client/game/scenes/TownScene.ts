@@ -233,6 +233,19 @@ export class TownScene extends Phaser.Scene {
     return this.selectedAgent?.agentId ?? null;
   }
 
+  clearSelectedAgent(): boolean {
+    const hadSelection = this.selectedAgent !== null;
+    const hadFollowEnabled = this.followSelectedAgent;
+    if (!hadSelection && !hadFollowEnabled) {
+      return false;
+    }
+
+    this.manualSelectionMade = true;
+    this.followSelectedAgent = false;
+    this.selectAgent(null);
+    return true;
+  }
+
   setUiMode(mode: SceneUiMode): void {
     if (this.uiMode === mode) {
       return;

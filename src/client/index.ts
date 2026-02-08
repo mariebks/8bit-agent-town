@@ -430,6 +430,20 @@ window.addEventListener('keydown', (event: KeyboardEvent) => {
     jumpToInterestingAgent();
     return;
   }
+  if (utilityShortcut === 'clear-selected-agent') {
+    const cleared = getTownScene()?.clearSelectedAgent() ?? false;
+    if (cleared) {
+      uiState.events = [
+        ...uiState.events,
+        {
+          type: 'log',
+          level: 'info',
+          message: 'cleared selected agent',
+        },
+      ];
+    }
+    return;
+  }
 
   if (modeShortcut === 'cycle-ui-mode') {
     uiManager.setMode(nextUiMode(uiManager.getMode()));

@@ -219,6 +219,54 @@ test.describe('8-bit Agent Town fullstack', () => {
         intervals: [100, 200, 400],
       })
       .not.toBeNull();
+    await page.keyboard.press('Escape');
+    await expect
+      .poll(async () => getSelectedAgentId(page), {
+        timeout: 3_000,
+        intervals: [100, 200, 400],
+      })
+      .toBeNull();
+
+    await page.evaluate((point) => {
+      const game = window.__agentTownGame;
+      if (!game || !point) {
+        return;
+      }
+
+      const scene = game.scene.getScene('TownScene') as Record<string, unknown>;
+      const input = scene.input as {
+        emit: (
+          eventName: string,
+          payload: {
+            button: number;
+            worldX: number;
+            worldY: number;
+            x: number;
+            y: number;
+            middleButtonDown: () => boolean;
+            rightButtonDown: () => boolean;
+            leftButtonDown: () => boolean;
+          },
+        ) => void;
+      };
+      input.emit('pointerdown', {
+        button: 0,
+        worldX: point.x,
+        worldY: point.y,
+        x: point.x,
+        y: point.y,
+        middleButtonDown: () => false,
+        rightButtonDown: () => false,
+        leftButtonDown: () => true,
+      });
+    }, clickTargets?.selectWorld ?? null);
+
+    await expect
+      .poll(async () => getSelectedAgentId(page), {
+        timeout: 3_000,
+        intervals: [100, 200, 400],
+      })
+      .not.toBeNull();
 
     await expect
       .poll(async () => await page.locator('.relationship-heatmap-panel .heatmap-row[data-target-id]').count(), {
