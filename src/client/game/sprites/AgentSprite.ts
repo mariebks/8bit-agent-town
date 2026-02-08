@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { DEFAULT_AGENT_SPEED, TILE_SIZE } from '@shared/Constants';
 import { AgentData, AgentState, TilePosition } from '@shared/Types';
-import { idleMotionConfigForOccupation, selectionRingStyleForZoom } from './AgentVisualMotion';
+import { idleMotionConfigForOccupation, selectionRingStyleForZoom, shadowStyleForZoom } from './AgentVisualMotion';
 import { stepDistance, stepToward, tileToWorld } from './MovementMath';
 import {
   deriveAgentPalette,
@@ -26,6 +26,7 @@ export class AgentSprite extends Phaser.GameObjects.Container {
   private readonly shadow: Phaser.GameObjects.Ellipse;
   private readonly selectionRing: Phaser.GameObjects.Ellipse;
   private readonly selectionHalo: Phaser.GameObjects.Ellipse;
+  private shadowBaseAlpha = 0.28;
   private idleMotion = idleMotionConfigForOccupation();
   private readonly idlePhaseSeed: number;
   private idlePhaseMs = 0;
@@ -58,7 +59,8 @@ export class AgentSprite extends Phaser.GameObjects.Container {
       resolveOccupationSpriteTraits(data.occupation, data.id),
     );
 
-    this.shadow = scene.add.ellipse(0, 5, 10, 4, 0x09111a, 0.28);
+    const shadowStyle = shadowStyleForZoom(scene.cameras.main.zoom, false);
+    this.shadow = scene.add.ellipse(0, 5, shadowStyle.width, shadowStyle.height, 0x09111a, shadowStyle.alpha);
     this.selectionHalo = scene.add.ellipse(0, 5, 22, 12, 0xcafca9, 0);
     this.selectionHalo.setStrokeStyle(0, 0xffffff, 0);
     this.selectionHalo.setVisible(false);
@@ -147,18 +149,23 @@ export class AgentSprite extends Phaser.GameObjects.Container {
 
   private applySelectionStyle(): void {
     const style = selectionRingStyleForZoom(this.scene.cameras.main.zoom, this.selected);
+    const shadowStyle = shadowStyleForZoom(this.scene.cameras.main.zoom, this.selected);
     this.selectionRing.setVisible(this.selected);
     this.selectionHalo.setVisible(this.selected);
+    this.shadow.setDisplaySize(shadowStyle.width, shadowStyle.height);
+    this.shadowBaseAlpha = shadowStyle.alpha;
     if (this.selected) {
       this.selectionRing.setFillStyle(0xc8f89f, style.fillAlpha);
       this.selectionRing.setStrokeStyle(style.strokeWidth, 0xffffff, style.strokeAlpha);
       this.selectionHalo.setFillStyle(0xd7ffb7, style.haloAlpha);
+      this.shadow.setAlpha(Math.min(0.48, this.shadowBaseAlpha + 0.04));
       return;
     }
 
     this.selectionRing.setFillStyle(0xb8f77b, style.fillAlpha);
     this.selectionRing.setStrokeStyle(style.strokeWidth, 0xeafed2, style.strokeAlpha);
     this.selectionHalo.setFillStyle(0xd7ffb7, 0);
+    this.shadow.setAlpha(this.shadowBaseAlpha);
   }
 
   private updatePose(dx: number, dy: number, moving: boolean): void {
@@ -197,12 +204,12 @@ export class AgentSprite extends Phaser.GameObjects.Container {
       const bob = Math.sin(phase) * this.idleMotion.amplitudePx;
       this.actorSprite.y = this.baseActorY + bob;
       this.shadow.setScale(1 - bob * 0.03, 1);
-      this.shadow.alpha = 0.25 + Math.max(0, -bob * 0.02);
+      this.shadow.alpha = Math.min(0.5, this.shadowBaseAlpha + Math.max(0, -bob * 0.02));
       return;
     }
 
     this.actorSprite.y = this.baseActorY;
-    this.shadow.alpha = 0.28;
+    this.shadow.alpha = this.shadowBaseAlpha;
   }
 
   private refreshAppearanceIfNeeded(data: AgentData): void {

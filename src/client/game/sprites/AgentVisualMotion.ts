@@ -10,6 +10,12 @@ export interface SelectionRingStyle {
   haloAlpha: number;
 }
 
+export interface ShadowStyle {
+  width: number;
+  height: number;
+  alpha: number;
+}
+
 const OCCUPATION_MICRO_MOTION: Array<{ tokens: string[]; config: IdleMotionConfig }> = [
   { tokens: ['guard', 'watch'], config: { amplitudePx: 0.14, frequencyHz: 0.9 } },
   { tokens: ['farmer', 'gardener', 'worker'], config: { amplitudePx: 0.22, frequencyHz: 1.2 } },
@@ -50,5 +56,20 @@ export function selectionRingStyleForZoom(zoom: number, selected: boolean): Sele
     strokeAlpha,
     fillAlpha,
     haloAlpha,
+  };
+}
+
+export function shadowStyleForZoom(zoom: number, selected: boolean): ShadowStyle {
+  const normalizedZoom = Number.isFinite(zoom) ? Math.max(0.7, Math.min(1.8, zoom)) : 1;
+  const zoomBias = normalizedZoom < 1 ? 1 - normalizedZoom : 0;
+  const width = (selected ? 11.2 : 10) + zoomBias * (selected ? 4.4 : 3.6);
+  const height = (selected ? 4.8 : 4) + zoomBias * (selected ? 1.8 : 1.2);
+  const alphaBase = selected ? 0.3 : 0.24;
+  const alpha = Math.min(selected ? 0.44 : 0.34, alphaBase + zoomBias * 0.14);
+
+  return {
+    width,
+    height,
+    alpha,
   };
 }

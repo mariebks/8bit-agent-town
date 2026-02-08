@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { idleMotionConfigForOccupation, selectionRingStyleForZoom } from './AgentVisualMotion';
+import { idleMotionConfigForOccupation, selectionRingStyleForZoom, shadowStyleForZoom } from './AgentVisualMotion';
 
 describe('AgentVisualMotion', () => {
   test('returns role-aware idle motion profiles', () => {
@@ -23,5 +23,22 @@ describe('AgentVisualMotion', () => {
     expect(far.fillAlpha).toBeGreaterThan(close.fillAlpha);
     expect(off.haloAlpha).toBe(0);
     expect(far.haloAlpha).toBeGreaterThan(0);
+  });
+
+  test('boosts shadow presence for selected agents and low zoom', () => {
+    const normal = shadowStyleForZoom(1, false);
+    const selected = shadowStyleForZoom(1, true);
+    const zoomedOut = shadowStyleForZoom(0.78, false);
+
+    expect(normal.width).toBeGreaterThan(0);
+    expect(normal.height).toBeGreaterThan(0);
+    expect(normal.alpha).toBeGreaterThan(0);
+
+    expect(selected.width).toBeGreaterThan(normal.width);
+    expect(selected.height).toBeGreaterThan(normal.height);
+    expect(selected.alpha).toBeGreaterThan(normal.alpha);
+
+    expect(zoomedOut.width).toBeGreaterThan(normal.width);
+    expect(zoomedOut.alpha).toBeGreaterThan(normal.alpha);
   });
 });
