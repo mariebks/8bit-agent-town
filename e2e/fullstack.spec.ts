@@ -220,6 +220,30 @@ test.describe('8-bit Agent Town fullstack', () => {
       })
       .not.toBeNull();
 
+    await expect
+      .poll(async () => await page.locator('.relationship-heatmap-panel .heatmap-row[data-target-id]').count(), {
+        timeout: 5_000,
+        intervals: [100, 200, 400],
+      })
+      .toBeGreaterThan(0);
+
+    const heatmapTargetId = await page.evaluate(() => {
+      const row = document.querySelector('.relationship-heatmap-panel .heatmap-row[data-target-id]') as HTMLElement | null;
+      if (!row) {
+        return '';
+      }
+      const targetId = row.dataset.targetId ?? '';
+      row.click();
+      return targetId;
+    });
+    expect(heatmapTargetId.length).toBeGreaterThan(0);
+    await expect
+      .poll(async () => getSelectedAgentId(page), {
+        timeout: 3_000,
+        intervals: [100, 200, 400],
+      })
+      .toBe(heatmapTargetId);
+
     await page.evaluate((point) => {
       const game = window.__agentTownGame;
       if (!game || !point) {

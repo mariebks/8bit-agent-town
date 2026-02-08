@@ -1,8 +1,10 @@
 import { UIPanel, UISimulationState } from './types';
 import { buildRelationshipHeatRows } from './RelationshipHeatmap';
+import { TimeControlsStatus } from './TimeControlsStatus';
 
 interface RelationshipHeatmapPanelOptions {
   getSelectedAgentId: () => string | null;
+  onFocusAgent?: (agentId: string) => boolean;
 }
 
 export class RelationshipHeatmapPanel implements UIPanel {
@@ -11,10 +13,13 @@ export class RelationshipHeatmapPanel implements UIPanel {
 
   private readonly rowsElement: HTMLElement;
   private readonly statusElement: HTMLElement;
+  private readonly status = new TimeControlsStatus();
   private readonly getSelectedAgentId: () => string | null;
+  private readonly onFocusAgent?: (agentId: string) => boolean;
 
   constructor(options: RelationshipHeatmapPanelOptions) {
     this.getSelectedAgentId = options.getSelectedAgentId;
+    this.onFocusAgent = options.onFocusAgent;
 
     this.element = document.createElement('section');
     this.element.className = 'ui-panel relationship-heatmap-panel';
@@ -79,11 +84,31 @@ export class RelationshipHeatmapPanel implements UIPanel {
       fill.style.width = `${Math.max(8, Math.round(row.intensity * 100))}%`;
       bar.append(fill);
 
+      if (this.onFocusAgent) {
+        item.classList.add('heatmap-focusable');
+        item.dataset.targetId = row.targetId;
+        item.tabIndex = 0;
+        item.setAttribute('role', 'button');
+        const focusAgent = () => {
+          const focused = this.onFocusAgent?.(row.targetId);
+          this.status.setTransient(focused ? `focused ${row.targetName}` : 'agent unavailable');
+        };
+        item.addEventListener('click', focusAgent);
+        item.addEventListener('keydown', (event) => {
+          if (event.key !== 'Enter' && event.key !== ' ') {
+            return;
+          }
+          event.preventDefault();
+          focusAgent();
+        });
+      }
+
       item.append(label, bar);
       this.rowsElement.append(item);
     }
 
-    this.statusElement.textContent = `${selected.name}: ${rows.length} strongest ties`;
+    const baseStatus = `${selected.name}: ${rows.length} strongest ties`;
+    this.statusElement.textContent = this.status.resolve(baseStatus);
   }
 
   destroy(): void {

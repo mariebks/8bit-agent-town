@@ -177,6 +177,14 @@ const agentFinderPanel = new AgentFinderPanel({
 });
 const relationshipHeatmapPanel = new RelationshipHeatmapPanel({
   getSelectedAgentId: () => getTownScene()?.getSelectedAgentId() ?? null,
+  onFocusAgent: (agentId) => {
+    const focused = getTownScene()?.focusAgentById(agentId) ?? false;
+    if (focused) {
+      uiState.lastJumpedAgentId = agentId;
+      void audioController.playCue('jump');
+    }
+    return focused;
+  },
 });
 const onboardingPanel = new OnboardingPanel({
   getProgress: () => ({

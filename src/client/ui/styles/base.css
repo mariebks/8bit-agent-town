@@ -520,6 +520,16 @@ body::before {
   background: rgba(18, 41, 33, 0.7);
 }
 
+.heatmap-focusable {
+  cursor: pointer;
+}
+
+.heatmap-focusable:hover,
+.heatmap-focusable:focus-visible {
+  border-color: #8fd3c2;
+  box-shadow: 0 0 0 1px rgba(143, 211, 194, 0.5);
+}
+
 .heatmap-label {
   font-size: 9px;
   margin-bottom: 4px;
