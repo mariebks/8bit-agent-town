@@ -233,6 +233,7 @@ test.describe('8-bit Agent Town fullstack', () => {
       })
       .toBeNull();
     await expect(page.locator('.inspector-panel .inspector-follow-btn')).toBeDisabled();
+    await expect(page.locator('.inspector-panel .identity-portrait')).toHaveCount(0);
 
     await page.evaluate((point) => {
       const game = window.__agentTownGame;

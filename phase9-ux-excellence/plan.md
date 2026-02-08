@@ -154,3 +154,4 @@ Ship eight UX upgrades that make the town readable, cinematic, and fun to observ
 - [x] 67. Focus workflow polish: auto-open Inspector when jumping to agents from timeline/digest/highlights/finder/heatmap.
 - [x] 68. Inspector action polish: add inline Follow toggle in Inspector with disabled state when no agent is selected.
 - [x] 69. Timeline render micro-perf: build per-render `agentsById` index to avoid repeated `find` scans for each visible timeline card.
+- [x] 70. Inspector correctness polish: clear stale identity portrait immediately when selection is removed.

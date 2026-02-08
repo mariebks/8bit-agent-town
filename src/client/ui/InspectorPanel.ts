@@ -121,6 +121,7 @@ export class InspectorPanel implements UIPanel {
     this.updateFollowButton(this.getFollowSelectedEnabled?.() ?? false, Boolean(selectedAgentId));
     if (!selectedAgentId) {
       this.contentElement.textContent = 'No agent selected';
+      this.identityElement.innerHTML = '';
       this.trendElement.textContent = '';
       return;
     }
