@@ -440,6 +440,18 @@ window.addEventListener('keydown', (event: KeyboardEvent) => {
     toggleFocusUi();
     return;
   }
+  if (utilityShortcut === 'toggle-follow-selected') {
+    const enabled = getTownScene()?.toggleFollowSelectedAgent() ?? false;
+    uiState.events = [
+      ...uiState.events,
+      {
+        type: 'log',
+        level: 'info',
+        message: `follow selected ${enabled ? 'enabled' : 'disabled'}`,
+      },
+    ];
+    return;
+  }
   if (utilityShortcut === 'jump-interesting-agent') {
     jumpToInterestingAgent();
     return;

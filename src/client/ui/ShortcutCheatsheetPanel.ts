@@ -17,6 +17,7 @@ export class ShortcutCheatsheetPanel implements UIPanel {
     const rows: Array<{ key: string; action: string }> = [
       { key: '?', action: 'Toggle this help' },
       { key: '/', action: 'Focus Agent Finder input' },
+      { key: 'F', action: 'Toggle Follow selected agent' },
       { key: 'Shift+F', action: 'Toggle Focus UI declutter' },
       { key: 'J', action: 'Jump to Next Event Agent' },
       { key: 'K / G', action: 'Bookmark selected / jump next bookmark' },

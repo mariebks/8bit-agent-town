@@ -219,11 +219,16 @@ test.describe('8-bit Agent Town fullstack', () => {
         intervals: [100, 200, 400],
       })
       .not.toBeNull();
+    const followButton = page.locator('.time-controls .ui-btn', { hasText: 'Follow (F):' });
+    await expect(followButton).toContainText('Follow (F): Off');
+    await page.keyboard.press('f');
+    await expect(followButton).toContainText('Follow (F): On');
+
     const inspectorFollowButton = page.locator('.inspector-panel .inspector-follow-btn');
     await expect(inspectorFollowButton).toBeEnabled();
-    await expect(inspectorFollowButton).toContainText('Follow: Off');
-    await inspectorFollowButton.click();
     await expect(inspectorFollowButton).toContainText('Follow: On');
+    await inspectorFollowButton.click();
+    await expect(inspectorFollowButton).toContainText('Follow: Off');
 
     await page.keyboard.press('Escape');
     await expect
@@ -670,7 +675,7 @@ test.describe('8-bit Agent Town fullstack', () => {
       )
       .toBeGreaterThan(1.3);
 
-    await page.locator('.time-controls .ui-btn', { hasText: 'Follow:' }).click();
+    await page.locator('.time-controls .ui-btn', { hasText: 'Follow (F):' }).click();
     await expect
       .poll(
         async () =>

@@ -40,6 +40,7 @@ describe('KeyboardShortcuts', () => {
     expect(resolveUtilityShortcut({ key: '/', targetTagName: 'div' })).toBe('focus-agent-finder');
     expect(resolveUtilityShortcut({ key: '?', targetTagName: 'div' })).toBe('toggle-shortcuts-panel');
     expect(resolveUtilityShortcut({ key: 'F', shiftKey: true, targetTagName: 'div' })).toBe('toggle-focus-ui');
+    expect(resolveUtilityShortcut({ key: 'f', targetTagName: 'div' })).toBe('toggle-follow-selected');
     expect(resolveUtilityShortcut({ key: 'j', targetTagName: 'div' })).toBe('jump-interesting-agent');
     expect(resolveUtilityShortcut({ key: 'k', targetTagName: 'div' })).toBe('add-bookmark');
     expect(resolveUtilityShortcut({ key: 'g', targetTagName: 'div' })).toBe('jump-bookmark');
@@ -48,6 +49,7 @@ describe('KeyboardShortcuts', () => {
     expect(resolveUtilityShortcut({ key: 'Escape', targetTagName: 'div' })).toBe('clear-selected-agent');
     expect(resolveUtilityShortcut({ key: '/', targetTagName: 'input' })).toBeNull();
     expect(resolveUtilityShortcut({ key: '?', targetTagName: 'input' })).toBeNull();
+    expect(resolveUtilityShortcut({ key: 'f', targetTagName: 'input' })).toBeNull();
     expect(resolveUtilityShortcut({ key: 'k', targetTagName: 'input' })).toBeNull();
     expect(resolveUtilityShortcut({ key: 'z', targetTagName: 'input' })).toBeNull();
     expect(resolveUtilityShortcut({ key: 'b', targetTagName: 'input' })).toBeNull();

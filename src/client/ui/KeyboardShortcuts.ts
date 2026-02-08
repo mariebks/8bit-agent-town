@@ -9,6 +9,7 @@ export type PanelShortcutTarget =
 export type OverlayShortcutTarget = 'path-overlay' | 'perception-overlay';
 export type ModeShortcutTarget = 'cycle-ui-mode' | 'cycle-ui-density';
 export type UtilityShortcutTarget =
+  | 'toggle-follow-selected'
   | 'toggle-focus-ui'
   | 'focus-agent-finder'
   | 'jump-interesting-agent'
@@ -114,6 +115,9 @@ export function resolveUtilityShortcut(input: ShortcutInput): UtilityShortcutTar
   }
   if (key === 'f' && input.shiftKey && !isEditableTarget(input.targetTagName, input.targetIsContentEditable)) {
     return 'toggle-focus-ui';
+  }
+  if (key === 'f' && !input.shiftKey && !isEditableTarget(input.targetTagName, input.targetIsContentEditable)) {
+    return 'toggle-follow-selected';
   }
   if (key === 'j' && !isEditableTarget(input.targetTagName, input.targetIsContentEditable)) {
     return 'jump-interesting-agent';
