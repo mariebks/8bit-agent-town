@@ -280,6 +280,12 @@ body::before {
   font-size: 9px;
 }
 
+.agent-finder-row.active {
+  border-color: rgba(120, 245, 190, 0.95);
+  box-shadow: 0 0 0 1px rgba(120, 245, 190, 0.45);
+  background: linear-gradient(180deg, rgba(44, 88, 67, 0.82), rgba(36, 74, 58, 0.82));
+}
+
 .highlights-summary {
   margin: 0 0 6px 0;
   font-size: 9px;

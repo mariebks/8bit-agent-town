@@ -1,5 +1,6 @@
 import { UIPanel, UISimulationState } from './types';
 import { searchAgents } from './AgentFinder';
+import { nextHighlightedIndex, normalizeHighlightedIndex } from './AgentFinderNavigation';
 
 interface AgentFinderPanelOptions {
   onFocusAgent: (agentId: string) => boolean;
@@ -13,6 +14,8 @@ export class AgentFinderPanel implements UIPanel {
   private readonly list: HTMLElement;
   private readonly status: HTMLElement;
   private readonly options: AgentFinderPanelOptions;
+  private lastHits: Array<{ id: string; name: string; occupation: string | null }> = [];
+  private highlightedIndex = -1;
   private query = '';
 
   constructor(options: AgentFinderPanelOptions) {
@@ -30,6 +33,29 @@ export class AgentFinderPanel implements UIPanel {
     this.input.placeholder = 'Find agent or role...';
     this.input.addEventListener('input', () => {
       this.query = this.input.value;
+      this.highlightedIndex = -1;
+    });
+    this.input.addEventListener('keydown', (event) => {
+      if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        this.highlightedIndex = nextHighlightedIndex(this.highlightedIndex, this.lastHits.length, 'down');
+        this.renderHits(this.lastHits);
+        return;
+      }
+      if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        this.highlightedIndex = nextHighlightedIndex(this.highlightedIndex, this.lastHits.length, 'up');
+        this.renderHits(this.lastHits);
+        return;
+      }
+      if (event.key === 'Enter') {
+        const index = this.highlightedIndex < 0 ? 0 : normalizeHighlightedIndex(this.highlightedIndex, this.lastHits.length);
+        const hit = this.lastHits[index];
+        if (hit) {
+          event.preventDefault();
+          this.tryFocus(hit.id, hit.name);
+        }
+      }
     });
 
     this.list = document.createElement('div');
@@ -51,6 +77,8 @@ export class AgentFinderPanel implements UIPanel {
 
   update(state: UISimulationState): void {
     const hits = searchAgents(this.query, state.agents, 6);
+    this.lastHits = hits;
+    this.highlightedIndex = normalizeHighlightedIndex(this.highlightedIndex, hits.length);
     this.renderHits(hits);
     this.status.textContent = hits.length > 0 ? `${hits.length} match${hits.length === 1 ? '' : 'es'}` : 'type to search';
   }
@@ -66,21 +94,27 @@ export class AgentFinderPanel implements UIPanel {
 
   private renderHits(hits: Array<{ id: string; name: string; occupation: string | null }>): void {
     this.list.innerHTML = '';
-    for (const hit of hits) {
+    for (let index = 0; index < hits.length; index += 1) {
+      const hit = hits[index];
       const row = document.createElement('button');
       row.type = 'button';
       row.className = 'ui-btn agent-finder-row';
+      row.classList.toggle('active', index === this.highlightedIndex);
       row.textContent = hit.occupation ? `${hit.name} · ${hit.occupation}` : hit.name;
       row.title = `Jump to ${hit.name}`;
       row.addEventListener('click', () => {
-        const focused = this.options.onFocusAgent(hit.id);
-        if (!focused) {
-          this.status.textContent = `could not focus ${hit.name}`;
-          return;
-        }
-        this.status.textContent = `focused ${hit.name}`;
+        this.tryFocus(hit.id, hit.name);
       });
       this.list.append(row);
     }
+  }
+
+  private tryFocus(agentId: string, agentName: string): void {
+    const focused = this.options.onFocusAgent(agentId);
+    if (!focused) {
+      this.status.textContent = `could not focus ${agentName}`;
+      return;
+    }
+    this.status.textContent = `focused ${agentName}`;
   }
 }

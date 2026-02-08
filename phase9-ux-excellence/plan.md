@@ -111,3 +111,4 @@ Ship eight UX upgrades that make the town readable, cinematic, and fun to observ
 - [x] 24. Director bookmark persistence: keep bookmark sets across refresh and prune stale agents after sync.
 - [x] 25. Client startup perf: split Phaser/vendor bundles to improve initial load profile.
 - [x] 26. Persist selected-only speech toggle across sessions so clutter preferences stick after reload.
+- [x] 27. Agent Finder keyboard flow: Arrow navigation + Enter focus with active-row highlighting.
