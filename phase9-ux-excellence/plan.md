@@ -136,3 +136,4 @@ Ship eight UX upgrades that make the town readable, cinematic, and fun to observ
 - [x] 49. Agent Finder recents: persist recently focused agents and prioritize them in subsequent searches to speed repeated camera jumps.
 - [x] 50. Shortcut discoverability controls: add a visible `Shortcuts (?)` button in View Mode so mouse-first users can open/close shortcut help without memorizing keys.
 - [x] 51. Escape semantics polish: close the shortcut cheatsheet with `Esc` before continuing with standard scene declutter behavior.
+- [x] 52. Panel hotkey badges: surface panel toggle keys (`D/I/P/L/T/C/H`) inside panel headers for immediate discoverability.

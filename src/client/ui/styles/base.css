@@ -63,10 +63,24 @@ body::before {
 }
 
 .panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
   font-size: 11px;
   font-weight: 700;
   color: var(--ui-accent);
   margin-bottom: 6px;
+}
+
+.panel-shortcut-hint {
+  border: 1px solid #638273;
+  border-radius: 4px;
+  padding: 1px 4px;
+  font-size: 8px;
+  color: #d9f4bf;
+  background: rgba(31, 63, 48, 0.62);
+  line-height: 1.2;
 }
 
 .panel-header-row {

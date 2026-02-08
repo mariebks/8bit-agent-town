@@ -326,6 +326,7 @@ uiManager.registerPanel(shortcutCheatsheetPanel, {
   visibleIn: ['spectator', 'story', 'debug'],
 });
 uiManager.setPanelVisible('shortcut-cheatsheet-panel', false);
+applyPanelShortcutHints();
 
 simulationSocket.onConnection((connected) => {
   uiState.connected = connected;
@@ -596,4 +597,30 @@ function getTownScene(): TownScene | null {
   }
 
   return null;
+}
+
+function applyPanelShortcutHints(): void {
+  const hints: Array<{ panelId: string; hint: string }> = [
+    { panelId: 'debug-panel', hint: 'D' },
+    { panelId: 'inspector-panel', hint: 'I' },
+    { panelId: 'prompt-viewer', hint: 'P' },
+    { panelId: 'log-panel', hint: 'L' },
+    { panelId: 'timeline-panel', hint: 'T' },
+    { panelId: 'time-controls', hint: 'C' },
+    { panelId: 'relationship-heatmap-panel', hint: 'H' },
+  ];
+
+  for (const { panelId, hint } of hints) {
+    const header = document.querySelector<HTMLElement>(`.${panelId} .panel-header`);
+    if (!header) {
+      continue;
+    }
+    if (header.querySelector('.panel-shortcut-hint')) {
+      continue;
+    }
+    const badge = document.createElement('span');
+    badge.className = 'panel-shortcut-hint';
+    badge.textContent = hint;
+    header.append(badge);
+  }
 }
