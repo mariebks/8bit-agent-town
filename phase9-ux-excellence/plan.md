@@ -121,3 +121,4 @@ Ship eight UX upgrades that make the town readable, cinematic, and fun to observ
 - [x] 34. Timeline interaction upgrade: make timeline cards with agents clickable/focusable for instant camera jump and selection.
 - [x] 35. Timeline clutter reduction: dedupe near-identical consecutive cards within a short tick window.
 - [x] 36. Timeline perf polish: skip timeline rerenders when incoming events are fully deduped and visible entries are unchanged.
+- [x] 37. Next Event Agent reliability: skip stale queue entries and continue cycling until a focusable live agent is found.

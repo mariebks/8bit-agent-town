@@ -16,6 +16,7 @@ import { PromptViewer } from './ui/PromptViewer';
 import { RelationshipHeatmapPanel } from './ui/RelationshipHeatmapPanel';
 import { StoryDigestPanel } from './ui/StoryDigestPanel';
 import { TimelinePanel } from './ui/TimelinePanel';
+import { pickFocusableInterestingAgent } from './ui/InterestingAgentJump';
 import { UIEventBus } from './ui/UIEventBus';
 import { UIManager } from './ui/UIManager';
 import { WeatherStatusPanel } from './ui/WeatherStatusPanel';
@@ -212,11 +213,16 @@ const timeControls = new TimeControls({
   getFocusUiEnabled: () => focusUiEnabled,
   getSelectedOnlySpeechEnabled: () => getTownScene()?.isSelectedOnlySpeech() ?? false,
   onJumpToInteresting: () => {
-    const nextAgentId = timelinePanel.nextInterestingAgentId();
-    if (!nextAgentId) {
+    const scene = getTownScene();
+    if (!scene) {
       return null;
     }
-    const focused = getTownScene()?.focusAgentById(nextAgentId) ? nextAgentId : null;
+
+    const focused = pickFocusableInterestingAgent(
+      () => timelinePanel.nextInterestingAgentId(),
+      timelinePanel.interestingAgentCount(),
+      (agentId) => scene.focusAgentById(agentId),
+    );
     uiState.lastJumpedAgentId = focused;
     if (focused) {
       void audioController.playCue('jump');

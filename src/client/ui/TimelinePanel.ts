@@ -137,6 +137,10 @@ export class TimelinePanel implements UIPanel {
     return resolved;
   }
 
+  interestingAgentCount(): number {
+    return this.interestingAgentQueue.length;
+  }
+
   private render(mode: UISimulationState['uiMode'], state: UISimulationState): void {
     this.listElement.innerHTML = '';
     const sourceEntries = mode === 'spectator' ? this.entries.filter((entry) => entry.kind !== 'system') : this.entries;
