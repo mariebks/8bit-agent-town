@@ -112,3 +112,4 @@ Ship eight UX upgrades that make the town readable, cinematic, and fun to observ
 - [x] 25. Client startup perf: split Phaser/vendor bundles to improve initial load profile.
 - [x] 26. Persist selected-only speech toggle across sessions so clutter preferences stick after reload.
 - [x] 27. Agent Finder keyboard flow: Arrow navigation + Enter focus with active-row highlighting.
+- [x] 28. Agent Finder feedback polish: preserve focus result status briefly before reverting to match-count text.

@@ -1,6 +1,7 @@
 import { UIPanel, UISimulationState } from './types';
 import { searchAgents } from './AgentFinder';
 import { nextHighlightedIndex, normalizeHighlightedIndex } from './AgentFinderNavigation';
+import { resolveAgentFinderStatus } from './AgentFinderStatus';
 
 interface AgentFinderPanelOptions {
   onFocusAgent: (agentId: string) => boolean;
@@ -16,6 +17,7 @@ export class AgentFinderPanel implements UIPanel {
   private readonly options: AgentFinderPanelOptions;
   private lastHits: Array<{ id: string; name: string; occupation: string | null }> = [];
   private highlightedIndex = -1;
+  private statusOverride: { message: string; expiresAtMs: number } | null = null;
   private query = '';
 
   constructor(options: AgentFinderPanelOptions) {
@@ -80,7 +82,10 @@ export class AgentFinderPanel implements UIPanel {
     this.lastHits = hits;
     this.highlightedIndex = normalizeHighlightedIndex(this.highlightedIndex, hits.length);
     this.renderHits(hits);
-    this.status.textContent = hits.length > 0 ? `${hits.length} match${hits.length === 1 ? '' : 'es'}` : 'type to search';
+    const nowMs = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    const status = resolveAgentFinderStatus(hits.length, this.statusOverride, nowMs);
+    this.status.textContent = status.message;
+    this.statusOverride = status.nextOverride;
   }
 
   destroy(): void {
@@ -112,9 +117,19 @@ export class AgentFinderPanel implements UIPanel {
   private tryFocus(agentId: string, agentName: string): void {
     const focused = this.options.onFocusAgent(agentId);
     if (!focused) {
-      this.status.textContent = `could not focus ${agentName}`;
+      const nowMs = typeof performance !== 'undefined' ? performance.now() : Date.now();
+      this.statusOverride = {
+        message: `could not focus ${agentName}`,
+        expiresAtMs: nowMs + 1800,
+      };
+      this.status.textContent = this.statusOverride.message;
       return;
     }
-    this.status.textContent = `focused ${agentName}`;
+    const nowMs = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    this.statusOverride = {
+      message: `focused ${agentName}`,
+      expiresAtMs: nowMs + 1800,
+    };
+    this.status.textContent = this.statusOverride.message;
   }
 }
