@@ -462,6 +462,9 @@ test.describe('8-bit Agent Town fullstack', () => {
   });
 
   test('persists ui mode and surfaces timeline cards', async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.removeItem('agent-town.timeline.filter');
+    });
     await page.goto('/');
     await waitForTownScene(page);
 

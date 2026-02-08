@@ -146,3 +146,4 @@ Ship eight UX upgrades that make the town readable, cinematic, and fun to observ
 - [x] 59. Bookmark management UI: show live bookmark chips in controls and allow one-click bookmark removal without requiring keyboard cycling.
 - [x] 60. Speech readability polish: fade non-selected bubbles by distance and message age so nearby/new conversations stay legible without hard pop-in.
 - [x] 61. Sprite readability polish: adaptive ground shadows for selected/zoomed-out agents so silhouettes remain trackable in busy scenes.
+- [x] 62. Timeline continuity polish: persist timeline filter chips across reloads so observers keep their chosen story lens.

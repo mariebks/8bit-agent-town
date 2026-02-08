@@ -2,10 +2,10 @@ import { UIPanel, UISimulationState } from './types';
 import { buildAgentIdentityToken } from './AgentIdentity';
 import { TimeControlsStatus } from './TimeControlsStatus';
 import { TimelineEntry, extractTimelineEntries } from './TimelineEvents';
+import { loadTimelineFilter, storeTimelineFilter, TimelineFilter } from './TimelineFilterPreference';
 
 const MAX_TIMELINE_ENTRIES = 120;
 const TIMELINE_DUPLICATE_WINDOW_TICKS = 6;
-type TimelineFilter = 'all' | 'social' | 'conflict' | 'planning' | 'system';
 
 interface TimelinePanelOptions {
   onFocusAgent?: (agentId: string) => boolean;
@@ -83,10 +83,11 @@ export class TimelinePanel implements UIPanel {
   private nextInterestingIndex = 0;
   private lastRenderedMode: UISimulationState['uiMode'] | null = null;
   private lastState: UISimulationState | null = null;
-  private activeFilter: TimelineFilter = 'all';
+  private activeFilter: TimelineFilter;
 
   constructor(options: TimelinePanelOptions = {}) {
     this.options = options;
+    this.activeFilter = loadTimelineFilter(typeof window !== 'undefined' ? window.localStorage : null);
     this.element = document.createElement('section');
     this.element.className = 'ui-panel timeline-panel';
 
@@ -263,6 +264,7 @@ export class TimelinePanel implements UIPanel {
       button.classList.toggle('active', this.activeFilter === filter.id);
       button.addEventListener('click', () => {
         this.activeFilter = filter.id;
+        storeTimelineFilter(this.activeFilter, typeof window !== 'undefined' ? window.localStorage : null);
         this.status.setTransient(`timeline filter: ${filter.label.toLowerCase()}`);
         this.renderFilterButtons();
         if (this.lastState) {
