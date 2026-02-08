@@ -1,6 +1,7 @@
 import { UIPanel, UISimulationState } from './types';
 import { buildAgentIdentityToken } from './AgentIdentity';
 import { DigestItem, extractDigestItems, selectDigestHighlights } from './StoryDigest';
+import { areDigestItemsEqual } from './StoryDigestViewModel';
 
 const MAX_DIGEST_ITEMS = 3;
 const MAX_CACHE_ITEMS = 36;
@@ -13,6 +14,7 @@ export class StoryDigestPanel implements UIPanel {
   private readonly listElement: HTMLElement;
   private readonly statusElement: HTMLElement;
   private readonly cached = new Map<string, DigestItem>();
+  private renderedTopItems: DigestItem[] = [];
 
   constructor() {
     this.element = document.createElement('section');
@@ -66,7 +68,10 @@ export class StoryDigestPanel implements UIPanel {
 
     const top = selectDigestHighlights([...this.cached.values()], MAX_DIGEST_ITEMS);
 
-    this.render(top, state);
+    if (!areDigestItemsEqual(this.renderedTopItems, top)) {
+      this.render(top, state);
+      this.renderedTopItems = top.map((item) => ({ ...item }));
+    }
     this.statusElement.textContent = top.length > 0 ? `top ${top.length} live moments` : 'watching for moments...';
   }
 
