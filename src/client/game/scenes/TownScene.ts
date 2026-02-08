@@ -30,6 +30,7 @@ import {
 import { overlayQualityProfileForFps } from './OverlayQuality';
 
 type SceneUiMode = 'spectator' | 'story' | 'debug';
+type CameraPace = 'smooth' | 'snappy';
 
 export interface DebugOverlayState {
   pathEnabled: boolean;
@@ -112,6 +113,7 @@ export class TownScene extends Phaser.Scene {
   private directorFocusQueue: DirectorCue[] = [];
   private modeBaseZoom = 1;
   private modeFocusZoom = 1.06;
+  private cameraPace: CameraPace = 'smooth';
   private readonly ambientParticles: Array<{ dot: Phaser.GameObjects.Arc; vx: number; vy: number }> = [];
   private readonly landmarkGuides: Array<{
     locationId: string;
@@ -320,6 +322,16 @@ export class TownScene extends Phaser.Scene {
 
   isSelectedOnlySpeech(): boolean {
     return this.selectedOnlySpeech;
+  }
+
+  toggleCameraPace(): CameraPace {
+    this.cameraPace = this.cameraPace === 'smooth' ? 'snappy' : 'smooth';
+    this.updateInfoText();
+    return this.cameraPace;
+  }
+
+  getCameraPace(): CameraPace {
+    return this.cameraPace;
   }
 
   addBookmarkForSelectedAgent(): string | null {
@@ -1169,7 +1181,8 @@ export class TownScene extends Phaser.Scene {
 
   private centerCameraOn(agent: AgentSprite, lerpAmount: number): void {
     const camera = this.cameras.main;
-    const clampedLerp = Math.max(0, Math.min(1, lerpAmount));
+    const paceBias = this.cameraPace === 'snappy' ? 0.18 : 0;
+    const clampedLerp = Math.max(0, Math.min(1, lerpAmount + paceBias));
     const targetX = agent.x - camera.width / 2;
     const targetY = agent.y - camera.height / 2;
     const maxScrollX = Math.max(0, this.map.widthInPixels - camera.width);

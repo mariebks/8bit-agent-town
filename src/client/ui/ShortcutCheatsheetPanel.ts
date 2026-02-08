@@ -20,6 +20,7 @@ export class ShortcutCheatsheetPanel implements UIPanel {
       { key: 'Shift+F', action: 'Toggle Focus UI declutter' },
       { key: 'J', action: 'Jump to Next Event Agent' },
       { key: 'K / G', action: 'Bookmark selected / jump next bookmark' },
+      { key: 'Z', action: 'Toggle camera pace (smooth/snappy)' },
       { key: 'B', action: 'Toggle Selected Speech mode' },
       { key: 'Esc', action: 'Clear selected agent and Follow' },
       { key: 'M / N', action: 'Cycle mode / density' },

@@ -43,11 +43,13 @@ describe('KeyboardShortcuts', () => {
     expect(resolveUtilityShortcut({ key: 'j', targetTagName: 'div' })).toBe('jump-interesting-agent');
     expect(resolveUtilityShortcut({ key: 'k', targetTagName: 'div' })).toBe('add-bookmark');
     expect(resolveUtilityShortcut({ key: 'g', targetTagName: 'div' })).toBe('jump-bookmark');
+    expect(resolveUtilityShortcut({ key: 'z', targetTagName: 'div' })).toBe('toggle-camera-pace');
     expect(resolveUtilityShortcut({ key: 'b', targetTagName: 'div' })).toBe('toggle-selected-only-speech');
     expect(resolveUtilityShortcut({ key: 'Escape', targetTagName: 'div' })).toBe('clear-selected-agent');
     expect(resolveUtilityShortcut({ key: '/', targetTagName: 'input' })).toBeNull();
     expect(resolveUtilityShortcut({ key: '?', targetTagName: 'input' })).toBeNull();
     expect(resolveUtilityShortcut({ key: 'k', targetTagName: 'input' })).toBeNull();
+    expect(resolveUtilityShortcut({ key: 'z', targetTagName: 'input' })).toBeNull();
     expect(resolveUtilityShortcut({ key: 'b', targetTagName: 'input' })).toBeNull();
     expect(resolveUtilityShortcut({ key: 'Escape', targetTagName: 'textarea' })).toBeNull();
   });

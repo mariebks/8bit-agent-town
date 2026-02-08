@@ -142,3 +142,4 @@ Ship eight UX upgrades that make the town readable, cinematic, and fun to observ
 - [x] 55. Timeline filter chips: add `All/Social/Conflict/Planning/System` toggles to reduce event noise and keep focus on the currently relevant story signal.
 - [x] 56. Debug perf HUD summary: surface visible agent/speech counts and speech queue depth alongside existing metrics for faster local performance tuning.
 - [x] 57. Small-screen stack layout: add `max-width: 700px` overrides that prioritize core controls and prevent panel collisions on tighter viewports.
+- [x] 58. Camera pacing control: add `Smooth/Snappy` camera pace toggle in controls and `Z` shortcut for faster cinematic retargeting.

@@ -14,6 +14,7 @@ export type UtilityShortcutTarget =
   | 'jump-interesting-agent'
   | 'add-bookmark'
   | 'jump-bookmark'
+  | 'toggle-camera-pace'
   | 'clear-selected-agent'
   | 'toggle-selected-only-speech'
   | 'toggle-shortcuts-panel';
@@ -122,6 +123,9 @@ export function resolveUtilityShortcut(input: ShortcutInput): UtilityShortcutTar
   }
   if (key === 'g' && !isEditableTarget(input.targetTagName, input.targetIsContentEditable)) {
     return 'jump-bookmark';
+  }
+  if (key === 'z' && !isEditableTarget(input.targetTagName, input.targetIsContentEditable)) {
+    return 'toggle-camera-pace';
   }
   if (key === 'b' && !isEditableTarget(input.targetTagName, input.targetIsContentEditable)) {
     return 'toggle-selected-only-speech';

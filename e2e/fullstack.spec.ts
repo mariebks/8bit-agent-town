@@ -417,6 +417,15 @@ test.describe('8-bit Agent Town fullstack', () => {
       .not.toBe(initialSelectedSpeechLabel);
     await expect(page.locator('.time-controls .ui-btn', { hasText: 'Bookmark Agent (K)' })).toBeVisible();
     await expect(page.locator('.time-controls .ui-btn', { hasText: 'Next Bookmark (G)' })).toBeVisible();
+    const cameraPaceButton = page.locator('.time-controls .ui-btn', { hasText: 'Camera Pace (Z)' });
+    const initialCameraPaceLabel = (await cameraPaceButton.textContent()) ?? '';
+    await page.keyboard.press('z');
+    await expect
+      .poll(async () => (await cameraPaceButton.textContent()) ?? '', {
+        timeout: 3_000,
+        intervals: [100, 200, 400],
+      })
+      .not.toBe(initialCameraPaceLabel);
 
     await page.keyboard.press('d');
     await page.keyboard.press('d');

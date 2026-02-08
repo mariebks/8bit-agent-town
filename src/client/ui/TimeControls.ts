@@ -11,6 +11,7 @@ interface TimeControlsOptions {
   onToggleHeatmap?: () => boolean;
   onToggleFocusUi?: () => boolean;
   onToggleSelectedOnlySpeech?: () => boolean;
+  onToggleCameraPace?: () => 'smooth' | 'snappy';
   onAddBookmark?: () => string | null;
   onJumpToBookmark?: () => string | null;
   getFollowSelectedEnabled?: () => boolean;
@@ -19,6 +20,7 @@ interface TimeControlsOptions {
   getHeatmapVisible?: () => boolean;
   getFocusUiEnabled?: () => boolean;
   getSelectedOnlySpeechEnabled?: () => boolean;
+  getCameraPace?: () => 'smooth' | 'snappy';
 }
 
 export class TimeControls implements UIPanel {
@@ -33,6 +35,7 @@ export class TimeControls implements UIPanel {
   private readonly heatmapButton: HTMLButtonElement | null;
   private readonly focusUiButton: HTMLButtonElement | null;
   private readonly selectedOnlySpeechButton: HTMLButtonElement | null;
+  private readonly cameraPaceButton: HTMLButtonElement | null;
   private readonly options: TimeControlsOptions;
   private readonly status = new TimeControlsStatus();
 
@@ -142,6 +145,16 @@ export class TimeControls implements UIPanel {
       this.selectedOnlySpeechButton = null;
     }
 
+    if (options.onToggleCameraPace) {
+      this.cameraPaceButton = this.createButton('Camera Pace: Smooth', () => {
+        const pace = options.onToggleCameraPace?.() ?? 'smooth';
+        this.updateCameraPaceLabel(pace);
+      });
+      focusRow.append(this.cameraPaceButton);
+    } else {
+      this.cameraPaceButton = null;
+    }
+
     if (options.onAddBookmark) {
       const bookmarkButton = this.createButton('Bookmark Agent (K)', () => {
         const bookmarked = options.onAddBookmark?.();
@@ -168,6 +181,7 @@ export class TimeControls implements UIPanel {
     this.updateHeatmapLabel(options.getHeatmapVisible?.() ?? false);
     this.updateFocusUiLabel(options.getFocusUiEnabled?.() ?? false);
     this.updateSelectedOnlySpeechLabel(options.getSelectedOnlySpeechEnabled?.() ?? false);
+    this.updateCameraPaceLabel(options.getCameraPace?.() ?? 'smooth');
   }
 
   show(): void {
@@ -185,6 +199,7 @@ export class TimeControls implements UIPanel {
     this.updateHeatmapLabel(this.options.getHeatmapVisible?.() ?? false);
     this.updateFocusUiLabel(this.options.getFocusUiEnabled?.() ?? false);
     this.updateSelectedOnlySpeechLabel(this.options.getSelectedOnlySpeechEnabled?.() ?? false);
+    this.updateCameraPaceLabel(this.options.getCameraPace?.() ?? 'smooth');
     const time = state.gameTime
       ? `Day ${state.gameTime.day} ${String(state.gameTime.hour).padStart(2, '0')}:${String(state.gameTime.minute).padStart(2, '0')}`
       : 'No server time';
@@ -246,5 +261,12 @@ export class TimeControls implements UIPanel {
       return;
     }
     this.selectedOnlySpeechButton.textContent = `Selected Speech (B): ${enabled ? 'On' : 'Off'}`;
+  }
+
+  private updateCameraPaceLabel(pace: 'smooth' | 'snappy'): void {
+    if (!this.cameraPaceButton) {
+      return;
+    }
+    this.cameraPaceButton.textContent = `Camera Pace (Z): ${pace === 'snappy' ? 'Snappy' : 'Smooth'}`;
   }
 }

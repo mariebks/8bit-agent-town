@@ -262,6 +262,7 @@ const timeControls = new TimeControls({
   onToggleHeatmap: () => uiManager.togglePanel('relationship-heatmap-panel'),
   onToggleFocusUi: () => toggleFocusUi(),
   onToggleSelectedOnlySpeech: () => getTownScene()?.toggleSelectedOnlySpeech() ?? false,
+  onToggleCameraPace: () => getTownScene()?.toggleCameraPace() ?? 'smooth',
   onAddBookmark: () => addBookmarkForSelectedAgent(),
   onJumpToBookmark: () => jumpToBookmarkAgent(),
   getFollowSelectedEnabled: () => getTownScene()?.isFollowingSelectedAgent() ?? false,
@@ -270,6 +271,7 @@ const timeControls = new TimeControls({
   getHeatmapVisible: () => uiManager.isPanelVisible('relationship-heatmap-panel'),
   getFocusUiEnabled: () => focusUiEnabled,
   getSelectedOnlySpeechEnabled: () => getTownScene()?.isSelectedOnlySpeech() ?? false,
+  getCameraPace: () => getTownScene()?.getCameraPace() ?? 'smooth',
   onJumpToInteresting: () => jumpToInterestingAgent(),
 });
 const modeSwitcherPanel = new ModeSwitcherPanel({
@@ -456,6 +458,18 @@ window.addEventListener('keydown', (event: KeyboardEvent) => {
   }
   if (utilityShortcut === 'jump-bookmark') {
     jumpToBookmarkAgent();
+    return;
+  }
+  if (utilityShortcut === 'toggle-camera-pace') {
+    const pace = getTownScene()?.toggleCameraPace() ?? 'smooth';
+    uiState.events = [
+      ...uiState.events,
+      {
+        type: 'log',
+        level: 'info',
+        message: `camera pace ${pace}`,
+      },
+    ];
     return;
   }
   if (utilityShortcut === 'clear-selected-agent') {
