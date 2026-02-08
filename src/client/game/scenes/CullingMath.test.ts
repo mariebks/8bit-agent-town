@@ -3,6 +3,7 @@ import {
   classifyAgentLod,
   DEFAULT_CULLING_CONFIG,
   movementUpdateInterval,
+  selectVisibleSpeechBubbleAgentIds,
   shouldShowSpeechBubble,
   shouldRenderBubble,
 } from './CullingMath';
@@ -35,5 +36,24 @@ describe('CullingMath', () => {
     expect(shouldShowSpeechBubble(false, true, true, true)).toBe(false);
     expect(shouldShowSpeechBubble(false, false, true, true)).toBe(true);
     expect(shouldShowSpeechBubble(false, false, false, true)).toBe(false);
+  });
+
+  test('prioritizes selected and nearest background bubbles within cap', () => {
+    const visible = selectVisibleSpeechBubbleAgentIds(
+      [
+        { agentId: 'a', selected: false, baseVisible: true, distanceToCamera: 240 },
+        { agentId: 'b', selected: true, baseVisible: true, distanceToCamera: 260 },
+        { agentId: 'c', selected: false, baseVisible: true, distanceToCamera: 90 },
+        { agentId: 'd', selected: false, baseVisible: true, distanceToCamera: 180 },
+        { agentId: 'e', selected: false, baseVisible: false, distanceToCamera: 10 },
+      ],
+      2,
+    );
+
+    expect(visible.has('b')).toBe(true);
+    expect(visible.has('c')).toBe(true);
+    expect(visible.has('d')).toBe(true);
+    expect(visible.has('a')).toBe(false);
+    expect(visible.has('e')).toBe(false);
   });
 });

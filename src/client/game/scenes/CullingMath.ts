@@ -9,6 +9,13 @@ export interface CullingConfig {
   culledUpdateInterval: number;
 }
 
+export interface SpeechBubbleVisibilityCandidate {
+  agentId: string;
+  selected: boolean;
+  baseVisible: boolean;
+  distanceToCamera: number;
+}
+
 export const DEFAULT_CULLING_CONFIG: CullingConfig = {
   nearDistancePx: 280,
   farDistancePx: 420,
@@ -72,4 +79,41 @@ export function shouldShowSpeechBubble(
     return false;
   }
   return spriteVisible && withinBubbleRange;
+}
+
+export function selectVisibleSpeechBubbleAgentIds(
+  candidates: readonly SpeechBubbleVisibilityCandidate[],
+  maxBackgroundVisible: number,
+): Set<string> {
+  const visible = new Set<string>();
+  const background: SpeechBubbleVisibilityCandidate[] = [];
+
+  for (const candidate of candidates) {
+    if (!candidate.baseVisible) {
+      continue;
+    }
+    if (candidate.selected) {
+      visible.add(candidate.agentId);
+      continue;
+    }
+    background.push(candidate);
+  }
+
+  if (maxBackgroundVisible <= 0) {
+    return visible;
+  }
+
+  background.sort((left, right) => {
+    if (left.distanceToCamera !== right.distanceToCamera) {
+      return left.distanceToCamera - right.distanceToCamera;
+    }
+    return left.agentId.localeCompare(right.agentId);
+  });
+
+  const limit = Math.min(maxBackgroundVisible, background.length);
+  for (let index = 0; index < limit; index += 1) {
+    visible.add(background[index].agentId);
+  }
+
+  return visible;
 }

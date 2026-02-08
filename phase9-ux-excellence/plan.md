@@ -130,3 +130,4 @@ Ship eight UX upgrades that make the town readable, cinematic, and fun to observ
 - [x] 43. Shortcut hint polish: surface `(/)` in Agent Finder placeholder and `(Shift+F)` in Focus UI control label.
 - [x] 44. Occupation sprite fidelity pass: map generated occupations (`barista`, `baker`, `clerk`, `student`, `retired`, `trainer`) to distinct trait silhouettes and role-aware idle motion profiles.
 - [x] 45. Declutter escape hatch: map `Escape` to clear selected agent + follow mode and verify behavior through fullstack keyboard flow.
+- [x] 46. Speech clutter cap: in spectator/story modes cap simultaneous non-selected speech bubbles by nearest-distance priority while always preserving selected-agent bubbles.

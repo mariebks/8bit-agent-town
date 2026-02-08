@@ -20,7 +20,13 @@ import {
 } from './SelectionPersistence';
 import { loadSelectedOnlySpeechEnabled, storeSelectedOnlySpeechEnabled } from './SpeechPreferences';
 import { resolveWeatherProfile, WeatherProfile } from './WeatherProfile';
-import { classifyAgentLod, movementUpdateInterval, shouldRenderBubble, shouldShowSpeechBubble } from './CullingMath';
+import {
+  classifyAgentLod,
+  movementUpdateInterval,
+  selectVisibleSpeechBubbleAgentIds,
+  shouldRenderBubble,
+  shouldShowSpeechBubble,
+} from './CullingMath';
 import { overlayQualityProfileForFps } from './OverlayQuality';
 
 type SceneUiMode = 'spectator' | 'story' | 'debug';
@@ -866,6 +872,12 @@ export class TownScene extends Phaser.Scene {
 
   private updateSpeechBubbles(deltaMs: number): void {
     const cameraCenter = this.getCameraCenter();
+    const visibilityCandidates: Array<{
+      agentId: string;
+      selected: boolean;
+      baseVisible: boolean;
+      distanceToCamera: number;
+    }> = [];
     const layoutEntries: Array<{
       agentId: string;
       x: number;
@@ -902,7 +914,12 @@ export class TownScene extends Phaser.Scene {
         sprite.visible,
         shouldRenderBubble(sprite.x, sprite.y, cameraCenter.x, cameraCenter.y),
       );
-      bubble.container.setVisible(bubbleVisible);
+      visibilityCandidates.push({
+        agentId,
+        selected,
+        baseVisible: bubbleVisible,
+        distanceToCamera: Math.hypot(sprite.x - cameraCenter.x, sprite.y - cameraCenter.y),
+      });
       if (bubbleVisible) {
         layoutEntries.push({
           agentId,
@@ -923,6 +940,20 @@ export class TownScene extends Phaser.Scene {
       }
     }
 
+    const maxBackgroundVisible =
+      this.uiMode === 'spectator' ? 4 : this.uiMode === 'story' ? 7 : Number.POSITIVE_INFINITY;
+    const visibleAgentIds = selectVisibleSpeechBubbleAgentIds(visibilityCandidates, maxBackgroundVisible);
+    for (const candidate of visibilityCandidates) {
+      const bubble = this.speechBubbles.get(candidate.agentId);
+      bubble?.container.setVisible(visibleAgentIds.has(candidate.agentId));
+    }
+    for (const entry of layoutEntries) {
+      if (!visibleAgentIds.has(entry.agentId)) {
+        entry.container.setVisible(false);
+      }
+    }
+    const visibleLayoutEntries = layoutEntries.filter((entry) => visibleAgentIds.has(entry.agentId));
+
     for (const [agentId, queue] of this.pendingSpeechByAgent.entries()) {
       if (queue.length === 0 || this.speechBubbles.has(agentId)) {
         continue;
@@ -939,8 +970,8 @@ export class TownScene extends Phaser.Scene {
       }
     }
 
-    const offsets = layoutSpeechBubbleOffsets(layoutEntries, { minGapPx: 6, maxLiftPx: 52 });
-    for (const entry of layoutEntries) {
+    const offsets = layoutSpeechBubbleOffsets(visibleLayoutEntries, { minGapPx: 6, maxLiftPx: 52 });
+    for (const entry of visibleLayoutEntries) {
       entry.container.setPosition(entry.x, entry.y + (offsets.get(entry.agentId) ?? entry.preferredOffsetY));
     }
   }
