@@ -39,6 +39,13 @@ export interface DebugOverlayState {
   perceptionSuppressed: boolean;
 }
 
+export interface ScenePerfSummary {
+  totalAgents: number;
+  visibleAgents: number;
+  visibleSpeechBubbles: number;
+  queuedSpeechMessages: number;
+}
+
 interface SpeechBubbleState {
   container: Phaser.GameObjects.Container;
   remainingMs: number;
@@ -377,6 +384,27 @@ export class TownScene extends Phaser.Scene {
       updateStride: this.overlayUpdateStride,
       pathSampleStep: this.overlayPathSampleStep,
       perceptionSuppressed: this.overlayPerceptionSuppressed,
+    };
+  }
+
+  getPerfSummary(): ScenePerfSummary {
+    let visibleSpeechBubbles = 0;
+    for (const bubble of this.speechBubbles.values()) {
+      if (bubble.container.visible) {
+        visibleSpeechBubbles += 1;
+      }
+    }
+
+    let queuedSpeechMessages = 0;
+    for (const queue of this.pendingSpeechByAgent.values()) {
+      queuedSpeechMessages += queue.length;
+    }
+
+    return {
+      totalAgents: this.agents.length,
+      visibleAgents: this.agents.filter((agent) => agent.visible).length,
+      visibleSpeechBubbles,
+      queuedSpeechMessages,
     };
   }
 

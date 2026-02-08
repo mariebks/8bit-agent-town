@@ -345,6 +345,7 @@ test.describe('8-bit Agent Town fullstack', () => {
     await expect(logPanel).toBeVisible();
     await expect(debugPanel.locator('.panel-shortcut-hint')).toHaveText('D');
     await expect(inspectorPanel.locator('.panel-shortcut-hint')).toHaveText('I');
+    await expect(debugPanel.locator('.inspector-content')).toContainText('agents visible/total');
     await expect(shortcutPanel).toBeHidden();
 
     await page.evaluate(() => {

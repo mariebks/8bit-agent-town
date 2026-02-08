@@ -103,6 +103,13 @@ const debugPanel = new DebugPanel({
       pathSampleStep: 1,
       perceptionSuppressed: false,
     },
+  getPerfSummary: () =>
+    getTownScene()?.getPerfSummary() ?? {
+      totalAgents: uiState.agents.length,
+      visibleAgents: uiState.agents.length,
+      visibleSpeechBubbles: 0,
+      queuedSpeechMessages: 0,
+    },
   onTogglePathOverlay: () => {
     const enabled = getTownScene()?.togglePathOverlay();
     if (enabled === undefined) {
