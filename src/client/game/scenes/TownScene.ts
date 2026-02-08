@@ -18,6 +18,7 @@ import {
   resolveSelectedAgentId,
   storePreferredSelectedAgentId,
 } from './SelectionPersistence';
+import { loadSelectedOnlySpeechEnabled, storeSelectedOnlySpeechEnabled } from './SpeechPreferences';
 import { resolveWeatherProfile, WeatherProfile } from './WeatherProfile';
 import { classifyAgentLod, movementUpdateInterval, shouldRenderBubble, shouldShowSpeechBubble } from './CullingMath';
 import { overlayQualityProfileForFps } from './OverlayQuality';
@@ -128,6 +129,7 @@ export class TownScene extends Phaser.Scene {
     this.createLandmarkGuides();
     this.directorBookmarkAgentIds = loadDirectorBookmarkIds(typeof window !== 'undefined' ? window.localStorage : null);
     this.directorBookmarkIndex = 0;
+    this.selectedOnlySpeech = loadSelectedOnlySpeechEnabled(typeof window !== 'undefined' ? window.localStorage : null);
     this.preferredSelectedAgentId = loadPreferredSelectedAgentId(
       typeof window !== 'undefined' ? window.localStorage : null,
     );
@@ -277,6 +279,7 @@ export class TownScene extends Phaser.Scene {
 
   toggleSelectedOnlySpeech(): boolean {
     this.selectedOnlySpeech = !this.selectedOnlySpeech;
+    storeSelectedOnlySpeechEnabled(this.selectedOnlySpeech, typeof window !== 'undefined' ? window.localStorage : null);
     this.updateInfoText();
     return this.selectedOnlySpeech;
   }
