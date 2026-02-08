@@ -20,6 +20,7 @@ import {
 } from './SelectionPersistence';
 import { loadSelectedOnlySpeechEnabled, storeSelectedOnlySpeechEnabled } from './SpeechPreferences';
 import { resolveWeatherProfile, WeatherProfile } from './WeatherProfile';
+import { CameraPace, loadCameraPace, storeCameraPace } from './CameraPacePreference';
 import {
   classifyAgentLod,
   computeSpeechBubbleAlpha,
@@ -31,7 +32,6 @@ import {
 import { overlayQualityProfileForFps } from './OverlayQuality';
 
 type SceneUiMode = 'spectator' | 'story' | 'debug';
-type CameraPace = 'smooth' | 'snappy';
 
 export interface DebugOverlayState {
   pathEnabled: boolean;
@@ -147,6 +147,7 @@ export class TownScene extends Phaser.Scene {
     this.directorBookmarkAgentIds = loadDirectorBookmarkIds(typeof window !== 'undefined' ? window.localStorage : null);
     this.directorBookmarkIndex = 0;
     this.selectedOnlySpeech = loadSelectedOnlySpeechEnabled(typeof window !== 'undefined' ? window.localStorage : null);
+    this.cameraPace = loadCameraPace(typeof window !== 'undefined' ? window.localStorage : null);
     this.preferredSelectedAgentId = loadPreferredSelectedAgentId(
       typeof window !== 'undefined' ? window.localStorage : null,
     );
@@ -328,6 +329,7 @@ export class TownScene extends Phaser.Scene {
 
   toggleCameraPace(): CameraPace {
     this.cameraPace = this.cameraPace === 'smooth' ? 'snappy' : 'smooth';
+    storeCameraPace(this.cameraPace, typeof window !== 'undefined' ? window.localStorage : null);
     this.updateInfoText();
     return this.cameraPace;
   }

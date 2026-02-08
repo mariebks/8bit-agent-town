@@ -616,7 +616,20 @@ test.describe('8-bit Agent Town fullstack', () => {
   test('preserves manual zoom when toggling director and follow states', async ({ page }) => {
     await page.goto('/');
     await waitForTownScene(page);
+    await page.evaluate(() => {
+      localStorage.removeItem('agent-town.camera.pace');
+    });
+    await page.reload();
+    await waitForTownScene(page);
     await setUiMode(page, 'Debug');
+
+    const cameraPaceButton = page.locator('.time-controls .ui-btn', { hasText: 'Camera Pace (Z)' });
+    await expect(cameraPaceButton).toContainText('Smooth');
+    await cameraPaceButton.click();
+    await expect(cameraPaceButton).toContainText('Snappy');
+    await page.reload();
+    await waitForTownScene(page);
+    await expect(page.locator('.time-controls .ui-btn', { hasText: 'Camera Pace (Z)' })).toContainText('Snappy');
 
     await page.evaluate(() => {
       const scene = window.__agentTownGame?.scene.getScene('TownScene') as { cameras: { main: { setZoom: (value: number) => void } } };
