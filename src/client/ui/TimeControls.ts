@@ -143,7 +143,7 @@ export class TimeControls implements UIPanel {
     }
 
     if (options.onAddBookmark) {
-      const bookmarkButton = this.createButton('Bookmark Agent', () => {
+      const bookmarkButton = this.createButton('Bookmark Agent (K)', () => {
         const bookmarked = options.onAddBookmark?.();
         this.status.setTransient(bookmarked ? `bookmarked ${bookmarked}` : 'select an agent to bookmark');
       });
@@ -151,7 +151,7 @@ export class TimeControls implements UIPanel {
     }
 
     if (options.onJumpToBookmark) {
-      const jumpBookmarkButton = this.createButton('Next Bookmark', () => {
+      const jumpBookmarkButton = this.createButton('Next Bookmark (G)', () => {
         const focused = options.onJumpToBookmark?.();
         this.status.setTransient(focused ? `focused bookmark ${focused}` : 'no bookmarks available');
       });

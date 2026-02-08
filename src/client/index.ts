@@ -223,6 +223,30 @@ function jumpToInterestingAgent(): string | null {
   return focused;
 }
 
+function addBookmarkForSelectedAgent(): string | null {
+  const bookmarked = getTownScene()?.addBookmarkForSelectedAgent() ?? null;
+  if (bookmarked) {
+    uiState.events = [
+      ...uiState.events,
+      {
+        type: 'log',
+        level: 'info',
+        message: `director bookmark saved: ${bookmarked}`,
+      },
+    ];
+  }
+  return bookmarked;
+}
+
+function jumpToBookmarkAgent(): string | null {
+  const focused = getTownScene()?.focusNextDirectorBookmark() ?? null;
+  if (focused) {
+    uiState.lastJumpedAgentId = focused;
+    void audioController.playCue('jump');
+  }
+  return focused;
+}
+
 const timeControls = new TimeControls({
   onControl: (action, value) => simulationSocket.sendControl(action, value),
   onToggleFollowSelected: () => getTownScene()?.toggleFollowSelectedAgent() ?? false,
@@ -231,28 +255,8 @@ const timeControls = new TimeControls({
   onToggleHeatmap: () => uiManager.togglePanel('relationship-heatmap-panel'),
   onToggleFocusUi: () => toggleFocusUi(),
   onToggleSelectedOnlySpeech: () => getTownScene()?.toggleSelectedOnlySpeech() ?? false,
-  onAddBookmark: () => {
-    const bookmarked = getTownScene()?.addBookmarkForSelectedAgent() ?? null;
-    if (bookmarked) {
-      uiState.events = [
-        ...uiState.events,
-        {
-          type: 'log',
-          level: 'info',
-          message: `director bookmark saved: ${bookmarked}`,
-        },
-      ];
-    }
-    return bookmarked;
-  },
-  onJumpToBookmark: () => {
-    const focused = getTownScene()?.focusNextDirectorBookmark() ?? null;
-    if (focused) {
-      uiState.lastJumpedAgentId = focused;
-      void audioController.playCue('jump');
-    }
-    return focused;
-  },
+  onAddBookmark: () => addBookmarkForSelectedAgent(),
+  onJumpToBookmark: () => jumpToBookmarkAgent(),
   getFollowSelectedEnabled: () => getTownScene()?.isFollowingSelectedAgent() ?? false,
   getAutoDirectorEnabled: () => getTownScene()?.isAutoDirectorEnabled() ?? false,
   getAudioEnabled: () => audioController.isEnabled(),
@@ -436,6 +440,14 @@ window.addEventListener('keydown', (event: KeyboardEvent) => {
   }
   if (utilityShortcut === 'jump-interesting-agent') {
     jumpToInterestingAgent();
+    return;
+  }
+  if (utilityShortcut === 'add-bookmark') {
+    addBookmarkForSelectedAgent();
+    return;
+  }
+  if (utilityShortcut === 'jump-bookmark') {
+    jumpToBookmarkAgent();
     return;
   }
   if (utilityShortcut === 'clear-selected-agent') {

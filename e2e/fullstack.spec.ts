@@ -412,6 +412,8 @@ test.describe('8-bit Agent Town fullstack', () => {
         intervals: [100, 200, 400],
       })
       .not.toBe(initialSelectedSpeechLabel);
+    await expect(page.locator('.time-controls .ui-btn', { hasText: 'Bookmark Agent (K)' })).toBeVisible();
+    await expect(page.locator('.time-controls .ui-btn', { hasText: 'Next Bookmark (G)' })).toBeVisible();
 
     await page.keyboard.press('d');
     await page.keyboard.press('d');

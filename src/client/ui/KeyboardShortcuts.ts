@@ -12,6 +12,8 @@ export type UtilityShortcutTarget =
   | 'toggle-focus-ui'
   | 'focus-agent-finder'
   | 'jump-interesting-agent'
+  | 'add-bookmark'
+  | 'jump-bookmark'
   | 'clear-selected-agent'
   | 'toggle-selected-only-speech'
   | 'toggle-shortcuts-panel';
@@ -114,6 +116,12 @@ export function resolveUtilityShortcut(input: ShortcutInput): UtilityShortcutTar
   }
   if (key === 'j' && !isEditableTarget(input.targetTagName, input.targetIsContentEditable)) {
     return 'jump-interesting-agent';
+  }
+  if (key === 'k' && !isEditableTarget(input.targetTagName, input.targetIsContentEditable)) {
+    return 'add-bookmark';
+  }
+  if (key === 'g' && !isEditableTarget(input.targetTagName, input.targetIsContentEditable)) {
+    return 'jump-bookmark';
   }
   if (key === 'b' && !isEditableTarget(input.targetTagName, input.targetIsContentEditable)) {
     return 'toggle-selected-only-speech';
