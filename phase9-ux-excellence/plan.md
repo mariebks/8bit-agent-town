@@ -151,3 +151,4 @@ Ship eight UX upgrades that make the town readable, cinematic, and fun to observ
 - [x] 64. Panel continuity polish: persist per-panel visibility toggles (`D/I/P/L/T/C/H`) across reloads to keep user declutter choices.
 - [x] 65. Layout recoverability polish: add `Reset Panels` control in View Mode to quickly restore hidden UI panels.
 - [x] 66. Selection context polish: include selected agent identity in Time Controls status so observers keep context while navigating.
+- [x] 67. Focus workflow polish: auto-open Inspector when jumping to agents from timeline/digest/highlights/finder/heatmap.

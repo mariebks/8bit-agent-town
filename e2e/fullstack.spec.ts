@@ -599,8 +599,11 @@ test.describe('8-bit Agent Town fullstack', () => {
     const targetAgentId = (await focusableCard.getAttribute('data-agent-id')) ?? '';
     expect(targetAgentId.length).toBeGreaterThan(0);
 
+    await page.keyboard.press('i');
+    await expect(page.locator('.inspector-panel')).toBeHidden();
     await focusableCard.click();
     await expect(page.locator('.timeline-panel .panel-footer')).toContainText('focused');
+    await expect(page.locator('.inspector-panel')).toBeVisible();
     await expect
       .poll(
         async () =>

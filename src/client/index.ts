@@ -142,57 +142,33 @@ const debugPanel = new DebugPanel({
 const promptViewer = new PromptViewer({
   getSelectedAgentId: () => getTownScene()?.getSelectedAgentId() ?? null,
 });
+
+function focusAgentFromPanel(agentId: string): boolean {
+  const focused = getTownScene()?.focusAgentById(agentId) ?? false;
+  if (focused) {
+    uiState.lastJumpedAgentId = agentId;
+    uiManager.setPanelVisible('inspector-panel', true);
+    void audioController.playCue('jump');
+  }
+  return focused;
+}
+
 const timelinePanel = new TimelinePanel({
-  onFocusAgent: (agentId) => {
-    const focused = getTownScene()?.focusAgentById(agentId) ?? false;
-    if (focused) {
-      uiState.lastJumpedAgentId = agentId;
-      void audioController.playCue('jump');
-    }
-    return focused;
-  },
+  onFocusAgent: (agentId) => focusAgentFromPanel(agentId),
 });
 const storyDigestPanel = new StoryDigestPanel({
-  onFocusAgent: (agentId) => {
-    const focused = getTownScene()?.focusAgentById(agentId) ?? false;
-    if (focused) {
-      uiState.lastJumpedAgentId = agentId;
-      void audioController.playCue('jump');
-    }
-    return focused;
-  },
+  onFocusAgent: (agentId) => focusAgentFromPanel(agentId),
 });
 const highlightsReelPanel = new HighlightsReelPanel({
-  onFocusAgent: (agentId) => {
-    const focused = getTownScene()?.focusAgentById(agentId) ?? false;
-    if (focused) {
-      uiState.lastJumpedAgentId = agentId;
-      void audioController.playCue('jump');
-    }
-    return focused;
-  },
+  onFocusAgent: (agentId) => focusAgentFromPanel(agentId),
 });
 const weatherStatusPanel = new WeatherStatusPanel();
 const agentFinderPanel = new AgentFinderPanel({
-  onFocusAgent: (agentId) => {
-    const focused = getTownScene()?.focusAgentById(agentId) ?? false;
-    if (focused) {
-      uiState.lastJumpedAgentId = agentId;
-      void audioController.playCue('jump');
-    }
-    return focused;
-  },
+  onFocusAgent: (agentId) => focusAgentFromPanel(agentId),
 });
 const relationshipHeatmapPanel = new RelationshipHeatmapPanel({
   getSelectedAgentId: () => getTownScene()?.getSelectedAgentId() ?? null,
-  onFocusAgent: (agentId) => {
-    const focused = getTownScene()?.focusAgentById(agentId) ?? false;
-    if (focused) {
-      uiState.lastJumpedAgentId = agentId;
-      void audioController.playCue('jump');
-    }
-    return focused;
-  },
+  onFocusAgent: (agentId) => focusAgentFromPanel(agentId),
 });
 const shortcutCheatsheetPanel = new ShortcutCheatsheetPanel();
 const onboardingPanel = new OnboardingPanel({
