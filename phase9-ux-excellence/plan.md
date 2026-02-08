@@ -148,3 +148,4 @@ Ship eight UX upgrades that make the town readable, cinematic, and fun to observ
 - [x] 61. Sprite readability polish: adaptive ground shadows for selected/zoomed-out agents so silhouettes remain trackable in busy scenes.
 - [x] 62. Timeline continuity polish: persist timeline filter chips across reloads so observers keep their chosen story lens.
 - [x] 63. Camera continuity polish: persist Smooth/Snappy camera pace preference across reloads for stable spectator behavior.
+- [x] 64. Panel continuity polish: persist per-panel visibility toggles (`D/I/P/L/T/C/H`) across reloads to keep user declutter choices.

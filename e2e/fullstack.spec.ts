@@ -826,4 +826,29 @@ test.describe('8-bit Agent Town fullstack', () => {
     });
     expect(selectedName).toBe(expectedName);
   });
+
+  test('persists panel visibility toggles across reloads', async ({ page }) => {
+    await page.goto('/');
+    await waitForTownScene(page);
+    await page.evaluate(() => {
+      localStorage.removeItem('agent-town.ui.panels.visible');
+    });
+    await page.reload();
+    await waitForTownScene(page);
+    await setUiMode(page, 'Debug');
+
+    const debugPanel = page.locator('.debug-panel');
+    await expect(debugPanel).toBeVisible();
+
+    await page.keyboard.press('d');
+    await expect(debugPanel).toBeHidden();
+
+    await page.reload();
+    await waitForTownScene(page);
+    await setUiMode(page, 'Debug');
+    await expect(page.locator('.debug-panel')).toBeHidden();
+
+    await page.keyboard.press('d');
+    await expect(page.locator('.debug-panel')).toBeVisible();
+  });
 });

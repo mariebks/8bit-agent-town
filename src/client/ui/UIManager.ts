@@ -2,6 +2,7 @@ import { UIEventBus } from './UIEventBus';
 import { UIPanel, UISimulationState } from './types';
 import { DEFAULT_UI_DENSITY, UiDensity, loadStoredUiDensity, storeUiDensity } from './UiDensity';
 import { DEFAULT_UI_MODE, UiMode, loadStoredUiMode, storeUiMode } from './UiMode';
+import { loadPanelVisibilityMap, storePanelVisibilityMap } from './PanelVisibilityPreference';
 
 interface PanelRegistration {
   panel: UIPanel;
@@ -19,6 +20,7 @@ const ALL_MODES: UiMode[] = ['spectator', 'story', 'debug'];
 export class UIManager {
   private readonly panels = new Map<string, PanelRegistration>();
   private readonly panelVisibility = new Map<string, boolean>();
+  private readonly storage: Storage | null;
   private readonly container: HTMLElement;
   private readonly eventBus: UIEventBus;
   private updatePass = 0;
@@ -27,13 +29,18 @@ export class UIManager {
 
   constructor(eventBus: UIEventBus) {
     this.eventBus = eventBus;
+    this.storage = resolveStorage();
     this.container = document.createElement('div');
     this.container.id = 'ui-overlay';
     this.container.className = 'ui-overlay';
     document.body.appendChild(this.container);
 
-    this.mode = loadStoredUiMode(resolveStorage());
-    this.density = loadStoredUiDensity(resolveStorage());
+    this.mode = loadStoredUiMode(this.storage);
+    this.density = loadStoredUiDensity(this.storage);
+    const storedVisibility = loadPanelVisibilityMap(this.storage);
+    for (const [panelId, visible] of Object.entries(storedVisibility)) {
+      this.panelVisibility.set(panelId, visible);
+    }
     this.applyModeDataset();
     this.applyDensityDataset();
   }
@@ -51,7 +58,9 @@ export class UIManager {
       visibleIn,
       updateEvery,
     });
-    this.panelVisibility.set(panel.id, true);
+    if (!this.panelVisibility.has(panel.id)) {
+      this.panelVisibility.set(panel.id, true);
+    }
     this.container.appendChild(panel.element);
     this.applyPanelVisibility(panel.id);
   }
@@ -75,7 +84,7 @@ export class UIManager {
 
     this.mode = mode;
     this.applyModeDataset();
-    storeUiMode(mode, resolveStorage());
+    storeUiMode(mode, this.storage);
 
     for (const panelId of this.panels.keys()) {
       this.applyPanelVisibility(panelId);
@@ -91,7 +100,7 @@ export class UIManager {
 
     this.density = density;
     this.applyDensityDataset();
-    storeUiDensity(density, resolveStorage());
+    storeUiDensity(density, this.storage);
     this.eventBus.emit('ui:densityChanged', density);
   }
 
@@ -119,6 +128,7 @@ export class UIManager {
     }
 
     this.panelVisibility.set(panelId, visible);
+    this.persistPanelVisibility();
     this.applyPanelVisibility(panelId);
   }
 
@@ -161,6 +171,14 @@ export class UIManager {
 
   private applyDensityDataset(): void {
     document.body.dataset.uiDensity = this.density;
+  }
+
+  private persistPanelVisibility(): void {
+    const serialized: Record<string, boolean> = {};
+    for (const [panelId, visible] of this.panelVisibility.entries()) {
+      serialized[panelId] = visible;
+    }
+    storePanelVisibilityMap(serialized, this.storage);
   }
 }
 
