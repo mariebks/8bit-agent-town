@@ -13,9 +13,9 @@ interface ModeSwitcherPanelOptions {
 }
 
 const MODE_LABELS: Record<UiMode, string> = {
-  spectator: 'Spectator',
-  story: 'Story',
-  debug: 'Debug',
+  spectator: 'Spectator (M)',
+  story: 'Story (M)',
+  debug: 'Debug (M)',
 };
 
 export class ModeSwitcherPanel implements UIPanel {
@@ -63,7 +63,7 @@ export class ModeSwitcherPanel implements UIPanel {
     densityRow.className = 'time-controls-row';
     const densityLabel = document.createElement('span');
     densityLabel.className = 'panel-subheader';
-    densityLabel.textContent = 'UI Density';
+    densityLabel.textContent = 'UI Density (N)';
     densityRow.append(densityLabel);
 
     for (const density of ['full', 'compact'] as const) {

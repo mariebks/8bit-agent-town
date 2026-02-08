@@ -156,3 +156,4 @@ Ship eight UX upgrades that make the town readable, cinematic, and fun to observ
 - [x] 69. Timeline render micro-perf: build per-render `agentsById` index to avoid repeated `find` scans for each visible timeline card.
 - [x] 70. Inspector correctness polish: clear stale identity portrait immediately when selection is removed.
 - [x] 71. Keyboard follow polish: add `F` shortcut for follow-selected toggle and surface hinting in controls/shortcuts help.
+- [x] 72. Mode discoverability polish: include `M/N` shortcut cues directly in View Mode labels.
