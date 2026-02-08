@@ -143,6 +143,17 @@ export class UIManager {
     return userVisible && modeVisible;
   }
 
+  resetPanelVisibility(visible = true): void {
+    if (this.panels.size === 0) {
+      return;
+    }
+    for (const panelId of this.panels.keys()) {
+      this.panelVisibility.set(panelId, visible);
+      this.applyPanelVisibility(panelId);
+    }
+    this.persistPanelVisibility();
+  }
+
   destroy(): void {
     for (const registration of this.panels.values()) {
       registration.panel.destroy();

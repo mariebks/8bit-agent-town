@@ -7,6 +7,7 @@ interface ModeSwitcherPanelOptions {
   getDensity: () => UiDensity;
   onModeChange: (mode: UiMode) => void;
   onDensityChange: (density: UiDensity) => void;
+  onResetPanels?: () => void;
   onToggleShortcutHelp?: () => boolean;
   getShortcutHelpVisible?: () => boolean;
 }
@@ -91,6 +92,18 @@ export class ModeSwitcherPanel implements UIPanel {
       });
       this.shortcutHelpButton = shortcutButton;
       utilityRow.append(shortcutButton);
+    }
+
+    if (options.onResetPanels) {
+      const resetPanelsButton = document.createElement('button');
+      resetPanelsButton.type = 'button';
+      resetPanelsButton.className = 'ui-btn ui-btn-ghost';
+      resetPanelsButton.textContent = 'Reset Panels';
+      resetPanelsButton.addEventListener('click', () => {
+        options.onResetPanels?.();
+        this.renderShortcutHelpState();
+      });
+      utilityRow.append(resetPanelsButton);
     }
 
     this.statusElement = document.createElement('div');

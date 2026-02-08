@@ -848,6 +848,12 @@ test.describe('8-bit Agent Town fullstack', () => {
     await setUiMode(page, 'Debug');
     await expect(page.locator('.debug-panel')).toBeHidden();
 
+    await page.locator('.mode-switcher-panel .ui-btn', { hasText: 'Reset Panels' }).click();
+    await expect(page.locator('.debug-panel')).toBeVisible();
+
+    await page.keyboard.press('d');
+    await expect(page.locator('.debug-panel')).toBeHidden();
+
     await page.keyboard.press('d');
     await expect(page.locator('.debug-panel')).toBeVisible();
   });
