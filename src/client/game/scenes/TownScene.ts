@@ -22,6 +22,7 @@ import { loadSelectedOnlySpeechEnabled, storeSelectedOnlySpeechEnabled } from '.
 import { resolveWeatherProfile, WeatherProfile } from './WeatherProfile';
 import {
   classifyAgentLod,
+  computeSpeechBubbleAlpha,
   movementUpdateInterval,
   selectVisibleSpeechBubbleAgentIds,
   shouldRenderBubble,
@@ -50,6 +51,7 @@ export interface ScenePerfSummary {
 interface SpeechBubbleState {
   container: Phaser.GameObjects.Container;
   remainingMs: number;
+  durationMs: number;
   width: number;
   height: number;
   preferredOffsetY: number;
@@ -1000,7 +1002,20 @@ export class TownScene extends Phaser.Scene {
     const visibleAgentIds = selectVisibleSpeechBubbleAgentIds(visibilityCandidates, maxBackgroundVisible);
     for (const candidate of visibilityCandidates) {
       const bubble = this.speechBubbles.get(candidate.agentId);
-      bubble?.container.setVisible(visibleAgentIds.has(candidate.agentId));
+      const visible = visibleAgentIds.has(candidate.agentId);
+      bubble?.container.setVisible(visible);
+      if (!bubble || !visible) {
+        continue;
+      }
+      bubble.container.setAlpha(
+        computeSpeechBubbleAlpha(
+          candidate.selected,
+          candidate.distanceToCamera,
+          bubble.remainingMs,
+          bubble.durationMs,
+          this.uiMode,
+        ),
+      );
     }
     for (const entry of layoutEntries) {
       if (!visibleAgentIds.has(entry.agentId)) {
@@ -1102,6 +1117,7 @@ export class TownScene extends Phaser.Scene {
     this.speechBubbles.set(agentId, {
       container,
       remainingMs: durationMs,
+      durationMs,
       width,
       height,
       preferredOffsetY: -16,

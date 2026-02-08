@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import {
   classifyAgentLod,
+  computeSpeechBubbleAlpha,
   DEFAULT_CULLING_CONFIG,
   movementUpdateInterval,
   selectVisibleSpeechBubbleAgentIds,
@@ -55,5 +56,23 @@ describe('CullingMath', () => {
     expect(visible.has('d')).toBe(true);
     expect(visible.has('a')).toBe(false);
     expect(visible.has('e')).toBe(false);
+  });
+
+  test('scales non-selected speech bubble alpha by distance, age, and mode', () => {
+    const nearFresh = computeSpeechBubbleAlpha(false, 20, 2000, 2000, 'story');
+    const farStale = computeSpeechBubbleAlpha(
+      false,
+      DEFAULT_CULLING_CONFIG.bubbleCullDistancePx,
+      200,
+      2000,
+      'spectator',
+    );
+    const debugNearFresh = computeSpeechBubbleAlpha(false, 20, 2000, 2000, 'debug');
+    const selected = computeSpeechBubbleAlpha(false, 20, 2000, 2000, 'story');
+
+    expect(nearFresh).toBeGreaterThan(farStale);
+    expect(debugNearFresh).toBeGreaterThan(nearFresh);
+    expect(selected).toBeLessThan(1);
+    expect(computeSpeechBubbleAlpha(true, 400, 100, 2000, 'spectator')).toBe(1);
   });
 });

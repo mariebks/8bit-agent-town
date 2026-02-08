@@ -16,6 +16,8 @@ export interface SpeechBubbleVisibilityCandidate {
   distanceToCamera: number;
 }
 
+export type SpeechBubbleAlphaMode = 'spectator' | 'story' | 'debug';
+
 export const DEFAULT_CULLING_CONFIG: CullingConfig = {
   nearDistancePx: 280,
   farDistancePx: 420,
@@ -116,4 +118,26 @@ export function selectVisibleSpeechBubbleAgentIds(
   }
 
   return visible;
+}
+
+export function computeSpeechBubbleAlpha(
+  selected: boolean,
+  distanceToCamera: number,
+  remainingMs: number,
+  durationMs: number,
+  mode: SpeechBubbleAlphaMode,
+): number {
+  if (selected) {
+    return 1;
+  }
+
+  const modeBase = mode === 'debug' ? 0.97 : mode === 'story' ? 0.92 : 0.86;
+  const normalizedDistance = Math.max(0, Math.min(1, distanceToCamera / DEFAULT_CULLING_CONFIG.bubbleCullDistancePx));
+  const distanceFactor = 1 - normalizedDistance * 0.45;
+  const safeDurationMs = durationMs > 0 ? durationMs : 1;
+  const remainingRatio = Math.max(0, Math.min(1, remainingMs / safeDurationMs));
+  const lifeProgress = 1 - remainingRatio;
+  const ageFactor = 1 - lifeProgress * 0.3;
+
+  return Math.max(0.3, Math.min(1, modeBase * distanceFactor * ageFactor));
 }
