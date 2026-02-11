@@ -1,21 +1,31 @@
 import Phaser from 'phaser';
 import { MAP_HEIGHT_TILES, MAP_WIDTH_TILES, TILE_SIZE } from '@shared/Constants';
 import { DeltaEvent, SnapshotEvent } from '@shared/Events';
+import { AmbientAudioController } from './audio/AmbientAudioController';
 import { BootScene } from './game/scenes/BootScene';
 import { TownScene } from './game/scenes/TownScene';
 import { SimulationSocket } from './network/SimulationSocket';
+import { AgentFinderPanel } from './ui/AgentFinderPanel';
 import { DebugPanel } from './ui/DebugPanel';
+import { HighlightsReelPanel } from './ui/HighlightsReelPanel';
 import { InspectorPanel } from './ui/InspectorPanel';
 import { LogPanel } from './ui/LogPanel';
 import { ModeSwitcherPanel } from './ui/ModeSwitcherPanel';
 import { OnboardingPanel } from './ui/OnboardingPanel';
 import { PromptViewer } from './ui/PromptViewer';
+import { RelationshipHeatmapPanel } from './ui/RelationshipHeatmapPanel';
+import { ShortcutCheatsheetPanel } from './ui/ShortcutCheatsheetPanel';
+import { StoryDigestPanel } from './ui/StoryDigestPanel';
 import { TimelinePanel } from './ui/TimelinePanel';
+import { pickFocusableInterestingAgent } from './ui/InterestingAgentJump';
 import { UIEventBus } from './ui/UIEventBus';
 import { UIManager } from './ui/UIManager';
-import { resolveModeShortcut, resolveOverlayShortcut, resolvePanelShortcut } from './ui/KeyboardShortcuts';
+import { WeatherStatusPanel } from './ui/WeatherStatusPanel';
+import { applyFocusUiDataset, loadFocusUiEnabled, storeFocusUiEnabled } from './ui/FocusUi';
+import { resolveModeShortcut, resolveOverlayShortcut, resolvePanelShortcut, resolveUtilityShortcut } from './ui/KeyboardShortcuts';
 import { TimeControls } from './ui/TimeControls';
 import { UISimulationState } from './ui/types';
+import { nextUiDensity } from './ui/UiDensity';
 import { nextUiMode } from './ui/UiMode';
 import './ui/styles/base.css';
 
@@ -46,10 +56,44 @@ const game = new Phaser.Game(config);
 const simulationSocket = new SimulationSocket();
 const uiEventBus = new UIEventBus();
 const uiManager = new UIManager(uiEventBus);
+const audioController = new AmbientAudioController();
+
+const uiState: UISimulationState = {
+  connected: false,
+  tickId: 0,
+  gameTime: null,
+  metrics: null,
+  agents: [],
+  events: [],
+  uiMode: uiManager.getMode(),
+  uiDensity: uiManager.getDensity(),
+  selectedAgentId: null,
+  manualSelectionMade: false,
+  followSelected: false,
+  autoDirectorEnabled: true,
+  audioEnabled: false,
+  lastJumpedAgentId: null,
+};
+
+let focusUiEnabled = loadFocusUiEnabled(typeof window !== 'undefined' ? window.localStorage : null);
+applyFocusUiDataset(focusUiEnabled, typeof document !== 'undefined' ? document.body.dataset : undefined);
+
+function toggleFocusUi(): boolean {
+  focusUiEnabled = !focusUiEnabled;
+  applyFocusUiDataset(focusUiEnabled, typeof document !== 'undefined' ? document.body.dataset : undefined);
+  storeFocusUiEnabled(focusUiEnabled, typeof window !== 'undefined' ? window.localStorage : null);
+  return focusUiEnabled;
+}
+
+if (typeof window !== 'undefined') {
+  audioController.bindUnlockGestures(window);
+}
 
 const logPanel = new LogPanel();
 const inspectorPanel = new InspectorPanel({
   getSelectedAgentId: () => getTownScene()?.getSelectedAgentId() ?? null,
+  onToggleFollowSelected: () => getTownScene()?.toggleFollowSelectedAgent() ?? false,
+  getFollowSelectedEnabled: () => getTownScene()?.isFollowingSelectedAgent() ?? false,
 });
 const debugPanel = new DebugPanel({
   getSelectedAgentId: () => getTownScene()?.getSelectedAgentId() ?? null,
@@ -60,6 +104,13 @@ const debugPanel = new DebugPanel({
       updateStride: 1,
       pathSampleStep: 1,
       perceptionSuppressed: false,
+    },
+  getPerfSummary: () =>
+    getTownScene()?.getPerfSummary() ?? {
+      totalAgents: uiState.agents.length,
+      visibleAgents: uiState.agents.length,
+      visibleSpeechBubbles: 0,
+      queuedSpeechMessages: 0,
     },
   onTogglePathOverlay: () => {
     const enabled = getTownScene()?.togglePathOverlay();
@@ -93,47 +144,175 @@ const debugPanel = new DebugPanel({
 const promptViewer = new PromptViewer({
   getSelectedAgentId: () => getTownScene()?.getSelectedAgentId() ?? null,
 });
-const timelinePanel = new TimelinePanel();
-const onboardingPanel = new OnboardingPanel();
+
+function focusAgentFromPanel(agentId: string): boolean {
+  const focused = getTownScene()?.focusAgentById(agentId) ?? false;
+  if (focused) {
+    uiState.lastJumpedAgentId = agentId;
+    uiManager.setPanelVisible('inspector-panel', true);
+    void audioController.playCue('jump');
+  }
+  return focused;
+}
+
+const timelinePanel = new TimelinePanel({
+  onFocusAgent: (agentId) => focusAgentFromPanel(agentId),
+});
+const storyDigestPanel = new StoryDigestPanel({
+  onFocusAgent: (agentId) => focusAgentFromPanel(agentId),
+});
+const highlightsReelPanel = new HighlightsReelPanel({
+  onFocusAgent: (agentId) => focusAgentFromPanel(agentId),
+});
+const weatherStatusPanel = new WeatherStatusPanel();
+const agentFinderPanel = new AgentFinderPanel({
+  onFocusAgent: (agentId) => focusAgentFromPanel(agentId),
+});
+const relationshipHeatmapPanel = new RelationshipHeatmapPanel({
+  getSelectedAgentId: () => getTownScene()?.getSelectedAgentId() ?? null,
+  onFocusAgent: (agentId) => focusAgentFromPanel(agentId),
+});
+const shortcutCheatsheetPanel = new ShortcutCheatsheetPanel();
+const onboardingPanel = new OnboardingPanel({
+  getProgress: () => ({
+    selectedAgent: Boolean(uiState.manualSelectionMade),
+    followEnabled: Boolean(uiState.followSelected),
+    jumpedToEvent: Boolean(uiState.lastJumpedAgentId),
+  }),
+  getDensity: () => uiManager.getDensity(),
+  onToggleDensity: () => {
+    const density = nextUiDensity(uiManager.getDensity());
+    uiManager.setDensity(density);
+    return density;
+  },
+  onResetProgress: () => {
+    uiState.lastJumpedAgentId = null;
+  },
+});
+
+function jumpToInterestingAgent(): string | null {
+  const scene = getTownScene();
+  if (!scene) {
+    return null;
+  }
+
+  const focused = pickFocusableInterestingAgent(
+    () => timelinePanel.nextInterestingAgentId(),
+    timelinePanel.interestingAgentCount(),
+    (agentId) => scene.focusAgentById(agentId),
+  );
+  uiState.lastJumpedAgentId = focused;
+  if (focused) {
+    void audioController.playCue('jump');
+  }
+  return focused;
+}
+
+function addBookmarkForSelectedAgent(): string | null {
+  const bookmarked = getTownScene()?.addBookmarkForSelectedAgent() ?? null;
+  if (bookmarked) {
+    uiState.events = [
+      ...uiState.events,
+      {
+        type: 'log',
+        level: 'info',
+        message: `director bookmark saved: ${bookmarked}`,
+      },
+    ];
+  }
+  return bookmarked;
+}
+
+function jumpToBookmarkAgent(): string | null {
+  const focused = getTownScene()?.focusNextDirectorBookmark() ?? null;
+  if (focused) {
+    uiState.lastJumpedAgentId = focused;
+    void audioController.playCue('jump');
+  }
+  return focused;
+}
+
+function getBookmarkAgents(): Array<{ id: string; name: string }> {
+  const ids = getTownScene()?.getDirectorBookmarkAgentIds() ?? [];
+  return ids.map((id) => ({
+    id,
+    name: uiState.agents.find((agent) => agent.id === id)?.name ?? id,
+  }));
+}
+
 const timeControls = new TimeControls({
   onControl: (action, value) => simulationSocket.sendControl(action, value),
   onToggleFollowSelected: () => getTownScene()?.toggleFollowSelectedAgent() ?? false,
+  onToggleAutoDirector: () => getTownScene()?.toggleAutoDirector() ?? false,
+  onToggleAudio: () => audioController.toggleEnabled(),
+  onToggleHeatmap: () => uiManager.togglePanel('relationship-heatmap-panel'),
+  onToggleFocusUi: () => toggleFocusUi(),
+  onToggleSelectedOnlySpeech: () => getTownScene()?.toggleSelectedOnlySpeech() ?? false,
+  onToggleCameraPace: () => getTownScene()?.toggleCameraPace() ?? 'smooth',
+  onAddBookmark: () => addBookmarkForSelectedAgent(),
+  onJumpToBookmark: () => jumpToBookmarkAgent(),
+  onRemoveBookmark: (agentId) => getTownScene()?.removeDirectorBookmark(agentId) ?? false,
   getFollowSelectedEnabled: () => getTownScene()?.isFollowingSelectedAgent() ?? false,
-  onJumpToInteresting: () => {
-    const nextAgentId = timelinePanel.nextInterestingAgentId();
-    if (!nextAgentId) {
-      return null;
-    }
-
-    return getTownScene()?.focusAgentById(nextAgentId) ? nextAgentId : null;
-  },
+  getAutoDirectorEnabled: () => getTownScene()?.isAutoDirectorEnabled() ?? false,
+  getAudioEnabled: () => audioController.isEnabled(),
+  getHeatmapVisible: () => uiManager.isPanelVisible('relationship-heatmap-panel'),
+  getFocusUiEnabled: () => focusUiEnabled,
+  getSelectedOnlySpeechEnabled: () => getTownScene()?.isSelectedOnlySpeech() ?? false,
+  getCameraPace: () => getTownScene()?.getCameraPace() ?? 'smooth',
+  getBookmarks: () => getBookmarkAgents(),
+  onJumpToInteresting: () => jumpToInterestingAgent(),
 });
 const modeSwitcherPanel = new ModeSwitcherPanel({
   getMode: () => uiManager.getMode(),
+  getDensity: () => uiManager.getDensity(),
   onModeChange: (mode) => {
     uiManager.setMode(mode);
   },
+  onDensityChange: (density) => {
+    uiManager.setDensity(density);
+  },
+  onResetPanels: () => {
+    uiManager.resetPanelVisibility(true);
+    uiManager.setPanelVisible('shortcut-cheatsheet-panel', false);
+  },
+  onToggleShortcutHelp: () => uiManager.togglePanel('shortcut-cheatsheet-panel'),
+  getShortcutHelpVisible: () => uiManager.isPanelVisible('shortcut-cheatsheet-panel'),
 });
 
 uiManager.registerPanel(modeSwitcherPanel, {
-  visibleIn: ['cinematic', 'story', 'debug'],
+  visibleIn: ['spectator', 'story', 'debug'],
 });
 uiManager.registerPanel(onboardingPanel, {
-  visibleIn: ['cinematic', 'story', 'debug'],
+  visibleIn: ['spectator', 'story', 'debug'],
+});
+uiManager.registerPanel(storyDigestPanel, {
+  visibleIn: ['spectator', 'story'],
+});
+uiManager.registerPanel(weatherStatusPanel, {
+  visibleIn: ['spectator', 'story'],
+});
+uiManager.registerPanel(highlightsReelPanel, {
+  visibleIn: ['spectator', 'story'],
+});
+uiManager.registerPanel(agentFinderPanel, {
+  visibleIn: ['spectator', 'story', 'debug'],
 });
 uiManager.registerPanel(timelinePanel, {
-  visibleIn: ['cinematic', 'story', 'debug'],
+  visibleIn: ['spectator', 'story', 'debug'],
 });
 uiManager.registerPanel(timeControls, {
-  visibleIn: ['story', 'debug'],
+  visibleIn: ['spectator', 'story', 'debug'],
 });
 uiManager.registerPanel(inspectorPanel, {
+  visibleIn: ['story', 'debug'],
+});
+uiManager.registerPanel(relationshipHeatmapPanel, {
   visibleIn: ['story', 'debug'],
 });
 uiManager.registerPanel(debugPanel, {
   visibleIn: ['debug'],
   updateEvery: {
-    cinematic: 2,
+    spectator: 2,
     story: 2,
     debug: 1,
   },
@@ -141,7 +320,7 @@ uiManager.registerPanel(debugPanel, {
 uiManager.registerPanel(promptViewer, {
   visibleIn: ['debug'],
   updateEvery: {
-    cinematic: 2,
+    spectator: 2,
     story: 2,
     debug: 1,
   },
@@ -149,16 +328,11 @@ uiManager.registerPanel(promptViewer, {
 uiManager.registerPanel(logPanel, {
   visibleIn: ['debug'],
 });
-
-const uiState: UISimulationState = {
-  connected: false,
-  tickId: 0,
-  gameTime: null,
-  metrics: null,
-  agents: [],
-  events: [],
-  uiMode: uiManager.getMode(),
-};
+uiManager.registerPanel(shortcutCheatsheetPanel, {
+  visibleIn: ['spectator', 'story', 'debug'],
+});
+uiManager.setPanelVisible('shortcut-cheatsheet-panel', false);
+applyPanelShortcutHints();
 
 simulationSocket.onConnection((connected) => {
   uiState.connected = connected;
@@ -202,12 +376,26 @@ uiEventBus.on('ui:modeChanged', (mode) => {
   ];
 });
 
+uiEventBus.on('ui:densityChanged', (density) => {
+  uiState.uiDensity = density as UISimulationState['uiDensity'];
+  uiState.events = [
+    ...uiState.events,
+    {
+      type: 'log',
+      level: 'info',
+      message: `ui density: ${uiState.uiDensity}`,
+    },
+  ];
+});
+
 simulationSocket.onSnapshot((event) => {
   applyServerEvent(event);
   const scene = getTownScene();
   scene?.setServerConnectionState(true);
   scene?.applyServerSnapshot(event.agents, event.gameTime);
   scene?.applyServerEvents(event.events ?? []);
+  void audioController.setDayPart(event.gameTime);
+  queueAudioCuesFromEvents(event.events ?? []);
 });
 
 simulationSocket.onDelta((event) => {
@@ -216,6 +404,8 @@ simulationSocket.onDelta((event) => {
   scene?.setServerConnectionState(true);
   scene?.applyServerDelta(event.agents, event.gameTime);
   scene?.applyServerEvents(event.events ?? []);
+  void audioController.setDayPart(event.gameTime);
+  queueAudioCuesFromEvents(event.events ?? []);
 });
 
 simulationSocket.connect();
@@ -227,20 +417,114 @@ window.addEventListener('keydown', (event: KeyboardEvent) => {
     ctrlKey: event.ctrlKey,
     metaKey: event.metaKey,
     altKey: event.altKey,
+    shiftKey: event.shiftKey,
     targetTagName: target?.tagName,
     targetIsContentEditable: target?.isContentEditable,
   };
   const panelShortcut = resolvePanelShortcut(shortcutInput);
   const overlayShortcut = resolveOverlayShortcut(shortcutInput);
   const modeShortcut = resolveModeShortcut(shortcutInput);
+  const utilityShortcut = resolveUtilityShortcut(shortcutInput);
 
-  if (!panelShortcut && !overlayShortcut && !modeShortcut) {
+  if (!panelShortcut && !overlayShortcut && !modeShortcut && !utilityShortcut) {
     return;
   }
 
   event.preventDefault();
+  if (utilityShortcut === 'focus-agent-finder') {
+    agentFinderPanel.focusQueryInput();
+    return;
+  }
+
+  if (utilityShortcut === 'toggle-focus-ui') {
+    toggleFocusUi();
+    return;
+  }
+  if (utilityShortcut === 'toggle-follow-selected') {
+    const enabled = getTownScene()?.toggleFollowSelectedAgent() ?? false;
+    uiState.events = [
+      ...uiState.events,
+      {
+        type: 'log',
+        level: 'info',
+        message: `follow selected ${enabled ? 'enabled' : 'disabled'}`,
+      },
+    ];
+    return;
+  }
+  if (utilityShortcut === 'jump-interesting-agent') {
+    jumpToInterestingAgent();
+    return;
+  }
+  if (utilityShortcut === 'add-bookmark') {
+    addBookmarkForSelectedAgent();
+    return;
+  }
+  if (utilityShortcut === 'jump-bookmark') {
+    jumpToBookmarkAgent();
+    return;
+  }
+  if (utilityShortcut === 'toggle-camera-pace') {
+    const pace = getTownScene()?.toggleCameraPace() ?? 'smooth';
+    uiState.events = [
+      ...uiState.events,
+      {
+        type: 'log',
+        level: 'info',
+        message: `camera pace ${pace}`,
+      },
+    ];
+    return;
+  }
+  if (utilityShortcut === 'clear-selected-agent') {
+    if (uiManager.isPanelVisible('shortcut-cheatsheet-panel')) {
+      uiManager.setPanelVisible('shortcut-cheatsheet-panel', false);
+    }
+    const cleared = getTownScene()?.clearSelectedAgent() ?? false;
+    if (cleared) {
+      uiState.events = [
+        ...uiState.events,
+        {
+          type: 'log',
+          level: 'info',
+          message: 'cleared selected agent',
+        },
+      ];
+    }
+    return;
+  }
+  if (utilityShortcut === 'toggle-selected-only-speech') {
+    const enabled = getTownScene()?.toggleSelectedOnlySpeech() ?? false;
+    uiState.events = [
+      ...uiState.events,
+      {
+        type: 'log',
+        level: 'info',
+        message: `selected speech ${enabled ? 'enabled' : 'disabled'}`,
+      },
+    ];
+    return;
+  }
+  if (utilityShortcut === 'toggle-shortcuts-panel') {
+    const visible = uiManager.togglePanel('shortcut-cheatsheet-panel');
+    uiState.events = [
+      ...uiState.events,
+      {
+        type: 'log',
+        level: 'info',
+        message: `shortcut help ${visible ? 'shown' : 'hidden'}`,
+      },
+    ];
+    return;
+  }
+
   if (modeShortcut === 'cycle-ui-mode') {
     uiManager.setMode(nextUiMode(uiManager.getMode()));
+    return;
+  }
+
+  if (modeShortcut === 'cycle-ui-density') {
+    uiManager.setDensity(nextUiDensity(uiManager.getDensity()));
     return;
   }
 
@@ -288,7 +572,13 @@ window.addEventListener('keydown', (event: KeyboardEvent) => {
 
 // Decouple DOM panel updates from render frames.
 window.setInterval(() => {
-  getTownScene()?.setUiMode(uiState.uiMode);
+  const scene = getTownScene();
+  scene?.setUiMode(uiState.uiMode);
+  uiState.selectedAgentId = scene?.getSelectedAgentId() ?? null;
+  uiState.manualSelectionMade = scene?.hasManualSelectionMade() ?? false;
+  uiState.followSelected = scene?.isFollowingSelectedAgent() ?? false;
+  uiState.autoDirectorEnabled = scene?.isAutoDirectorEnabled() ?? false;
+  uiState.audioEnabled = audioController.isEnabled();
   uiManager.updateAll(uiState);
   uiState.events = [];
 }, 120);
@@ -313,6 +603,27 @@ function applyServerEvent(event: SnapshotEvent | DeltaEvent): void {
   uiState.events = [...uiState.events, ...(event.events ?? [])];
 }
 
+function queueAudioCuesFromEvents(events: unknown[]): void {
+  for (const event of events) {
+    if (!event || typeof event !== 'object') {
+      continue;
+    }
+
+    const typed = event as Record<string, unknown>;
+    if (typed.type === 'relationshipShift') {
+      void audioController.playCue('relationship');
+      continue;
+    }
+    if (typed.type === 'conversationStart') {
+      void audioController.playCue('conversation');
+      continue;
+    }
+    if (typed.type === 'topicSpread') {
+      void audioController.playCue('topic');
+    }
+  }
+}
+
 function getTownScene(): TownScene | null {
   try {
     const scene = game.scene.getScene('TownScene');
@@ -324,4 +635,30 @@ function getTownScene(): TownScene | null {
   }
 
   return null;
+}
+
+function applyPanelShortcutHints(): void {
+  const hints: Array<{ panelId: string; hint: string }> = [
+    { panelId: 'debug-panel', hint: 'D' },
+    { panelId: 'inspector-panel', hint: 'I' },
+    { panelId: 'prompt-viewer', hint: 'P' },
+    { panelId: 'log-panel', hint: 'L' },
+    { panelId: 'timeline-panel', hint: 'T' },
+    { panelId: 'time-controls', hint: 'C' },
+    { panelId: 'relationship-heatmap-panel', hint: 'H' },
+  ];
+
+  for (const { panelId, hint } of hints) {
+    const header = document.querySelector<HTMLElement>(`.${panelId} .panel-header`);
+    if (!header) {
+      continue;
+    }
+    if (header.querySelector('.panel-shortcut-hint')) {
+      continue;
+    }
+    const badge = document.createElement('span');
+    badge.className = 'panel-shortcut-hint';
+    badge.textContent = hint;
+    header.append(badge);
+  }
 }

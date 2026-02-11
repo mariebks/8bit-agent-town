@@ -232,4 +232,33 @@ describe('Simulation', () => {
       true,
     );
   });
+
+  test('keeps strongest rival edges when truncating relationship payloads', () => {
+    const simulation = new Simulation(createMap(20, 20), { seed: 31, agentCount: 14, llmEnabled: false });
+    const internals = simulation as unknown as {
+      relationships: {
+        applyConversationDelta: (sourceId: string, targetId: string, delta: number, gameTime: number) => void;
+      };
+    };
+
+    const ids = simulation.agentManager.getAll().map((agent) => agent.id);
+    const sourceId = ids[0];
+    const positiveTargets = ids.slice(1, 13);
+    const strongRivalTarget = ids[13];
+    const gameMinute = simulation.timeManager.getGameTime().totalMinutes;
+
+    for (const targetId of positiveTargets) {
+      internals.relationships.applyConversationDelta(sourceId, targetId, 10, gameMinute);
+    }
+    internals.relationships.applyConversationDelta(sourceId, strongRivalTarget, -90, gameMinute);
+
+    const snapshot = simulation.createSnapshotEvent(1);
+    const sourceAgent = snapshot.agents.find((agent) => agent.id === sourceId);
+
+    expect(sourceAgent).toBeDefined();
+    expect(sourceAgent?.relationshipEdges).toHaveLength(12);
+    expect(sourceAgent?.relationshipEdges?.[0]?.targetId).toBe(strongRivalTarget);
+    expect(sourceAgent?.relationshipEdges?.some((edge) => edge.targetId === strongRivalTarget)).toBe(true);
+    expect(sourceAgent?.relationshipEdges?.filter((edge) => edge.weight > 0)).toHaveLength(11);
+  });
 });

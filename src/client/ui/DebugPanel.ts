@@ -8,9 +8,17 @@ interface DebugOverlayState {
   perceptionSuppressed: boolean;
 }
 
+interface DebugPerfSummary {
+  totalAgents: number;
+  visibleAgents: number;
+  visibleSpeechBubbles: number;
+  queuedSpeechMessages: number;
+}
+
 interface DebugPanelOptions {
   getSelectedAgentId: () => string | null;
   getOverlayState: () => DebugOverlayState;
+  getPerfSummary?: () => DebugPerfSummary;
   onTogglePathOverlay: () => void;
   onTogglePerceptionOverlay: () => void;
 }
@@ -22,12 +30,14 @@ export class DebugPanel implements UIPanel {
   private readonly contentElement: HTMLElement;
   private readonly getSelectedAgentId: () => string | null;
   private readonly getOverlayState: () => DebugOverlayState;
+  private readonly getPerfSummary: (() => DebugPerfSummary) | null;
   private readonly pathToggleButton: HTMLButtonElement;
   private readonly perceptionToggleButton: HTMLButtonElement;
 
   constructor(options: DebugPanelOptions) {
     this.getSelectedAgentId = options.getSelectedAgentId;
     this.getOverlayState = options.getOverlayState;
+    this.getPerfSummary = options.getPerfSummary ?? null;
 
     this.element = document.createElement('section');
     this.element.className = 'ui-panel debug-panel';
@@ -70,35 +80,63 @@ export class DebugPanel implements UIPanel {
     const selectedAgentId = this.getSelectedAgentId();
     const selectedAgent = selectedAgentId ? state.agents.find((agent) => agent.id === selectedAgentId) : null;
     const overlayState = this.getOverlayState();
+    const perfSummary = this.getPerfSummary?.() ?? {
+      totalAgents: state.agents.length,
+      visibleAgents: state.agents.length,
+      visibleSpeechBubbles: 0,
+      queuedSpeechMessages: 0,
+    };
     this.pathToggleButton.textContent = `Path: ${overlayState.pathEnabled ? 'On' : 'Off'}`;
     this.perceptionToggleButton.textContent = `Perception: ${overlayState.perceptionEnabled ? 'On' : 'Off'}`;
 
-    if (!metrics) {
-      this.contentElement.textContent = [
-        'No metrics yet',
-        `selected: ${selectedAgentId ?? 'none'}`,
-        `overlay stride/sample: x${overlayState.updateStride} / ${overlayState.pathSampleStep}`,
-      ].join('\n');
-      return;
-    }
-
-    this.contentElement.textContent = [
-      `tick p50/p95/p99: ${metrics.tickDurationMsP50.toFixed(2)} / ${metrics.tickDurationMsP95.toFixed(2)} / ${metrics.tickDurationMsP99.toFixed(2)} ms`,
-      `llm queue depth: ${metrics.queueDepth}`,
-      `llm queue max depth: ${metrics.llmQueueMaxDepth ?? 'n/a'}`,
-      `llm queue dropped: ${metrics.queueDropped}`,
-      `llm queue wait/process avg: ${metrics.llmQueueAvgWaitMs?.toFixed(1) ?? 'n/a'} / ${metrics.llmQueueAvgProcessMs?.toFixed(1) ?? 'n/a'} ms`,
-      `llm queue pressure/health: ${metrics.llmQueueBackpressure ?? 'n/a'} / ${(metrics.llmQueueHealthy ?? true) ? 'ok' : 'degraded'}`,
-      `llm fallback rate: ${(metrics.llmFallbackRate * 100).toFixed(1)}%`,
-      `path cache size/hit rate: ${metrics.pathCacheSize ?? 'n/a'} / ${metrics.pathCacheHitRate !== undefined ? `${(metrics.pathCacheHitRate * 100).toFixed(1)}%` : 'n/a'}`,
-      `overlay stride/sample: x${overlayState.updateStride} / ${overlayState.pathSampleStep}`,
-      `overlay perception suppressed: ${overlayState.perceptionSuppressed ? 'yes' : 'no'}`,
-      `selected agent: ${selectedAgentId ?? 'none'}`,
-      `selected llm outcome: ${selectedAgent?.llmTrace?.lastOutcome ?? 'n/a'}`,
-    ].join('\n');
+    this.contentElement.textContent = formatDebugPanelLines({
+      metrics,
+      selectedAgentId,
+      selectedAgentLlmOutcome: selectedAgent?.llmTrace?.lastOutcome,
+      overlayState,
+      perfSummary,
+    }).join('\n');
   }
 
   destroy(): void {
     this.element.remove();
   }
+}
+
+interface FormatDebugPanelLinesOptions {
+  metrics: UISimulationState['metrics'];
+  selectedAgentId: string | null;
+  selectedAgentLlmOutcome?: string;
+  overlayState: DebugOverlayState;
+  perfSummary: DebugPerfSummary;
+}
+
+export function formatDebugPanelLines(options: FormatDebugPanelLinesOptions): string[] {
+  const { metrics, selectedAgentId, selectedAgentLlmOutcome, overlayState, perfSummary } = options;
+  if (!metrics) {
+    return [
+      'No metrics yet',
+      `selected: ${selectedAgentId ?? 'none'}`,
+      `agents visible/total: ${perfSummary.visibleAgents}/${perfSummary.totalAgents}`,
+      `speech bubbles visible/queued: ${perfSummary.visibleSpeechBubbles}/${perfSummary.queuedSpeechMessages}`,
+      `overlay stride/sample: x${overlayState.updateStride} / ${overlayState.pathSampleStep}`,
+    ];
+  }
+
+  return [
+    `tick p50/p95/p99: ${metrics.tickDurationMsP50.toFixed(2)} / ${metrics.tickDurationMsP95.toFixed(2)} / ${metrics.tickDurationMsP99.toFixed(2)} ms`,
+    `llm queue depth: ${metrics.queueDepth}`,
+    `llm queue max depth: ${metrics.llmQueueMaxDepth ?? 'n/a'}`,
+    `llm queue dropped: ${metrics.queueDropped}`,
+    `llm queue wait/process avg: ${metrics.llmQueueAvgWaitMs?.toFixed(1) ?? 'n/a'} / ${metrics.llmQueueAvgProcessMs?.toFixed(1) ?? 'n/a'} ms`,
+    `llm queue pressure/health: ${metrics.llmQueueBackpressure ?? 'n/a'} / ${(metrics.llmQueueHealthy ?? true) ? 'ok' : 'degraded'}`,
+    `llm fallback rate: ${(metrics.llmFallbackRate * 100).toFixed(1)}%`,
+    `path cache size/hit rate: ${metrics.pathCacheSize ?? 'n/a'} / ${metrics.pathCacheHitRate !== undefined ? `${(metrics.pathCacheHitRate * 100).toFixed(1)}%` : 'n/a'}`,
+    `agents visible/total: ${perfSummary.visibleAgents}/${perfSummary.totalAgents}`,
+    `speech bubbles visible/queued: ${perfSummary.visibleSpeechBubbles}/${perfSummary.queuedSpeechMessages}`,
+    `overlay stride/sample: x${overlayState.updateStride} / ${overlayState.pathSampleStep}`,
+    `overlay perception suppressed: ${overlayState.perceptionSuppressed ? 'yes' : 'no'}`,
+    `selected agent: ${selectedAgentId ?? 'none'}`,
+    `selected llm outcome: ${selectedAgentLlmOutcome ?? 'n/a'}`,
+  ];
 }

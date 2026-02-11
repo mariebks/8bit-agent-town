@@ -27,6 +27,11 @@ import { SeededRng } from '../util/SeededRng';
 import { NavGrid, TiledMapData } from '../world/NavGrid';
 import { Pathfinding } from '../world/Pathfinding';
 import { Town } from '../world/Town';
+import {
+  pickRewriteCandidate,
+  rewriteFallbackCandidates,
+  shouldRewriteCandidate,
+} from './ConversationRewrite';
 import { TimeManager } from './TimeManager';
 
 interface SimulationConfig {
@@ -592,18 +597,17 @@ export class Simulation {
   }
 
   private rewriteIfWeakOrRepetitive(candidate: string, state: ConversationState): { line: string; rewritten: boolean } {
-    const normalizedCandidate = normalizeDialogue(candidate);
-    const duplicate = state.lastLines.some((line) => similarity(normalizeDialogue(line), normalizedCandidate) >= 0.84);
-    const weak = normalizedCandidate.length < 24 || !normalizedCandidate.includes(normalizeDialogue(state.topic));
-    if (!duplicate && !weak) {
+    if (!shouldRewriteCandidate(candidate, state.topic, state.lastLines)) {
       return { line: candidate.slice(0, 120), rewritten: false };
     }
 
-    const fallback = this.rng.pick([
-      `New angle: ${state.topic} could change tomorrow.`,
-      `Let us revisit ${state.topic} after we gather more details.`,
-      `I do not want to loop on ${state.topic}; we can test a small step first.`,
-    ]);
+    const fallbacks = rewriteFallbackCandidates({
+      topic: state.topic,
+      intent: state.intent,
+      turnGoal: state.turnGoal,
+    });
+    const startIndex = Math.floor(this.rng.next() * Math.max(1, fallbacks.length));
+    const fallback = pickRewriteCandidate(fallbacks, state.lastLines, startIndex);
     return { line: fallback.slice(0, 120), rewritten: true };
   }
 
@@ -1020,6 +1024,16 @@ export class Simulation {
       const planPreview = memory ? this.planningSystem.getPlanPreview(memory, currentGameTime, 3) : [];
       const lastReflection = memory ? this.reflectionSystem.getLatestReflection(memory) : null;
       const relationshipSummary = this.relationships.getSummary(agent.id);
+      const relationshipEdges = this.relationships
+        .getEdges(agent.id)
+        .sort((left, right) => {
+          const magnitudeDelta = Math.abs(right.weight) - Math.abs(left.weight);
+          if (magnitudeDelta !== 0) {
+            return magnitudeDelta;
+          }
+          return right.weight - left.weight;
+        })
+        .slice(0, 12);
       const llmTrace = this.decisionMaker.getLlmTrace(agent.id);
 
       return {
@@ -1029,6 +1043,7 @@ export class Simulation {
         currentPlan: planPreview.length > 0 ? planPreview : undefined,
         lastReflection: lastReflection ?? undefined,
         relationshipSummary,
+        relationshipEdges,
         llmTrace,
       };
     });
@@ -1092,26 +1107,6 @@ function extractTopics(text: string): string[] {
     .filter((token) => !STOPWORDS.has(token));
 
   return [...new Set(tokens)].slice(0, 6);
-}
-
-function normalizeDialogue(text: string): string {
-  return text.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
-}
-
-function similarity(left: string, right: string): number {
-  if (!left || !right) {
-    return 0;
-  }
-
-  if (left === right) {
-    return 1;
-  }
-
-  const leftSet = new Set(left.split(' '));
-  const rightSet = new Set(right.split(' '));
-  const intersection = [...leftSet].filter((word) => rightSet.has(word)).length;
-  const union = new Set([...leftSet, ...rightSet]).size;
-  return union === 0 ? 0 : intersection / union;
 }
 
 const STOPWORDS = new Set([

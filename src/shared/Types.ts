@@ -30,6 +30,7 @@ export interface AgentLlmTrace {
 export interface AgentData {
   id: AgentId;
   name: string;
+  occupation?: string;
   position: Position;
   tilePosition: TilePosition;
   state: AgentState;
@@ -44,6 +45,7 @@ export interface AgentData {
   currentPlan?: string[];
   lastReflection?: string;
   relationshipSummary?: RelationshipSummary;
+  relationshipEdges?: RelationshipEdge[];
   llmTrace?: AgentLlmTrace;
 }
 

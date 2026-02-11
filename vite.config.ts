@@ -17,7 +17,20 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    assetsDir: 'assets'
+    assetsDir: 'assets',
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes('node_modules')) {
+            return undefined;
+          }
+          if (id.includes('/phaser/')) {
+            return 'phaser';
+          }
+          return 'vendor';
+        },
+      },
+    },
   },
   test: {
     include: ['src/**/*.test.ts'],

@@ -1,8 +1,11 @@
 import { describe, expect, test } from 'vitest';
 import {
   classifyAgentLod,
+  computeSpeechBubbleAlpha,
   DEFAULT_CULLING_CONFIG,
   movementUpdateInterval,
+  selectVisibleSpeechBubbleAgentIds,
+  shouldShowSpeechBubble,
   shouldRenderBubble,
 } from './CullingMath';
 
@@ -27,5 +30,49 @@ describe('CullingMath', () => {
     const centerY = 150;
     expect(shouldRenderBubble(centerX, centerY, centerX, centerY)).toBe(true);
     expect(shouldRenderBubble(centerX + DEFAULT_CULLING_CONFIG.bubbleCullDistancePx + 1, centerY, centerX, centerY)).toBe(false);
+  });
+
+  test('hides non-selected bubbles when selected-only mode is enabled', () => {
+    expect(shouldShowSpeechBubble(true, true, false, false)).toBe(true);
+    expect(shouldShowSpeechBubble(false, true, true, true)).toBe(false);
+    expect(shouldShowSpeechBubble(false, false, true, true)).toBe(true);
+    expect(shouldShowSpeechBubble(false, false, false, true)).toBe(false);
+  });
+
+  test('prioritizes selected and nearest background bubbles within cap', () => {
+    const visible = selectVisibleSpeechBubbleAgentIds(
+      [
+        { agentId: 'a', selected: false, baseVisible: true, distanceToCamera: 240 },
+        { agentId: 'b', selected: true, baseVisible: true, distanceToCamera: 260 },
+        { agentId: 'c', selected: false, baseVisible: true, distanceToCamera: 90 },
+        { agentId: 'd', selected: false, baseVisible: true, distanceToCamera: 180 },
+        { agentId: 'e', selected: false, baseVisible: false, distanceToCamera: 10 },
+      ],
+      2,
+    );
+
+    expect(visible.has('b')).toBe(true);
+    expect(visible.has('c')).toBe(true);
+    expect(visible.has('d')).toBe(true);
+    expect(visible.has('a')).toBe(false);
+    expect(visible.has('e')).toBe(false);
+  });
+
+  test('scales non-selected speech bubble alpha by distance, age, and mode', () => {
+    const nearFresh = computeSpeechBubbleAlpha(false, 20, 2000, 2000, 'story');
+    const farStale = computeSpeechBubbleAlpha(
+      false,
+      DEFAULT_CULLING_CONFIG.bubbleCullDistancePx,
+      200,
+      2000,
+      'spectator',
+    );
+    const debugNearFresh = computeSpeechBubbleAlpha(false, 20, 2000, 2000, 'debug');
+    const selected = computeSpeechBubbleAlpha(false, 20, 2000, 2000, 'story');
+
+    expect(nearFresh).toBeGreaterThan(farStale);
+    expect(debugNearFresh).toBeGreaterThan(nearFresh);
+    expect(selected).toBeLessThan(1);
+    expect(computeSpeechBubbleAlpha(true, 400, 100, 2000, 'spectator')).toBe(1);
   });
 });

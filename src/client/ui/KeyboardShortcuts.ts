@@ -4,15 +4,28 @@ export type PanelShortcutTarget =
   | 'prompt-viewer'
   | 'log-panel'
   | 'timeline-panel'
-  | 'time-controls';
+  | 'time-controls'
+  | 'relationship-heatmap-panel';
 export type OverlayShortcutTarget = 'path-overlay' | 'perception-overlay';
-export type ModeShortcutTarget = 'cycle-ui-mode';
+export type ModeShortcutTarget = 'cycle-ui-mode' | 'cycle-ui-density';
+export type UtilityShortcutTarget =
+  | 'toggle-follow-selected'
+  | 'toggle-focus-ui'
+  | 'focus-agent-finder'
+  | 'jump-interesting-agent'
+  | 'add-bookmark'
+  | 'jump-bookmark'
+  | 'toggle-camera-pace'
+  | 'clear-selected-agent'
+  | 'toggle-selected-only-speech'
+  | 'toggle-shortcuts-panel';
 
 export interface ShortcutInput {
   key: string;
   ctrlKey?: boolean;
   metaKey?: boolean;
   altKey?: boolean;
+  shiftKey?: boolean;
   targetTagName?: string | null;
   targetIsContentEditable?: boolean;
 }
@@ -44,6 +57,9 @@ export function resolvePanelShortcut(input: ShortcutInput): PanelShortcutTarget 
   }
   if (key === 'c') {
     return 'time-controls';
+  }
+  if (key === 'h') {
+    return 'relationship-heatmap-panel';
   }
   return null;
 }
@@ -78,6 +94,48 @@ export function resolveModeShortcut(input: ShortcutInput): ModeShortcutTarget | 
 
   if (input.key.toLowerCase() === 'm') {
     return 'cycle-ui-mode';
+  }
+  if (input.key.toLowerCase() === 'n') {
+    return 'cycle-ui-density';
+  }
+  return null;
+}
+
+export function resolveUtilityShortcut(input: ShortcutInput): UtilityShortcutTarget | null {
+  if (input.ctrlKey || input.metaKey || input.altKey) {
+    return null;
+  }
+
+  const key = input.key.toLowerCase();
+  if (key === '/' && !isEditableTarget(input.targetTagName, input.targetIsContentEditable)) {
+    return 'focus-agent-finder';
+  }
+  if (key === '?' && !isEditableTarget(input.targetTagName, input.targetIsContentEditable)) {
+    return 'toggle-shortcuts-panel';
+  }
+  if (key === 'f' && input.shiftKey && !isEditableTarget(input.targetTagName, input.targetIsContentEditable)) {
+    return 'toggle-focus-ui';
+  }
+  if (key === 'f' && !input.shiftKey && !isEditableTarget(input.targetTagName, input.targetIsContentEditable)) {
+    return 'toggle-follow-selected';
+  }
+  if (key === 'j' && !isEditableTarget(input.targetTagName, input.targetIsContentEditable)) {
+    return 'jump-interesting-agent';
+  }
+  if (key === 'k' && !isEditableTarget(input.targetTagName, input.targetIsContentEditable)) {
+    return 'add-bookmark';
+  }
+  if (key === 'g' && !isEditableTarget(input.targetTagName, input.targetIsContentEditable)) {
+    return 'jump-bookmark';
+  }
+  if (key === 'z' && !isEditableTarget(input.targetTagName, input.targetIsContentEditable)) {
+    return 'toggle-camera-pace';
+  }
+  if (key === 'b' && !isEditableTarget(input.targetTagName, input.targetIsContentEditable)) {
+    return 'toggle-selected-only-speech';
+  }
+  if (key === 'escape' && !isEditableTarget(input.targetTagName, input.targetIsContentEditable)) {
+    return 'clear-selected-agent';
   }
   return null;
 }

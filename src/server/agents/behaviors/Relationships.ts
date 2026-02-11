@@ -54,6 +54,15 @@ export class RelationshipManager {
     };
   }
 
+  getEdges(agentId: AgentId): RelationshipEdge[] {
+    const edges = this.graph.get(agentId);
+    if (!edges) {
+      return [];
+    }
+
+    return [...edges.values()].sort((left, right) => right.weight - left.weight);
+  }
+
   applyConversationDelta(sourceId: AgentId, targetId: AgentId, delta: number, gameTime: number): RelationshipShift[] {
     const sourceEdge = this.ensureEdge(sourceId, targetId, gameTime);
     const targetEdge = this.ensureEdge(targetId, sourceId, gameTime);

@@ -12,26 +12,13 @@ export default defineConfig({
     baseURL: 'http://127.0.0.1:3000',
     trace: 'on-first-retry',
   },
-  webServer: [
-    {
-      command: 'npm run dev:client -- --host 127.0.0.1 --port 3000',
-      env: {
-        PLAYWRIGHT: '1',
-      },
-      url: 'http://127.0.0.1:3000',
-      timeout: 60_000,
-      reuseExistingServer: true,
-    },
-    {
-      command: 'npm run dev:server',
-      env: {
-        SIM_LLM_ENABLED: '0',
-      },
-      url: 'http://127.0.0.1:4000/health',
-      timeout: 60_000,
-      reuseExistingServer: true,
-    },
-  ],
+  webServer: {
+    command:
+      'PLAYWRIGHT=1 npx concurrently --kill-others-on-fail --success first "npm run dev:client -- --host 127.0.0.1 --port 3000" "SIM_LLM_ENABLED=0 npm run dev:server"',
+    url: 'http://127.0.0.1:3000',
+    timeout: 90_000,
+    reuseExistingServer: false,
+  },
   projects: [
     {
       name: 'chromium',

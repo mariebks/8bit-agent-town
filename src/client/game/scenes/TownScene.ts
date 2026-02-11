@@ -5,10 +5,33 @@ import { AgentData, AgentState, GameTime } from '@shared/Types';
 import { CameraController } from '../camera/CameraController';
 import { AStar } from '../pathfinding/AStar';
 import { AgentSprite } from '../sprites/AgentSprite';
-import { classifyAgentLod, movementUpdateInterval, shouldRenderBubble } from './CullingMath';
+import { inferConversationTags } from './ConversationTags';
+import { addDirectorBookmark, nextDirectorBookmark, pruneDirectorBookmarks } from './DirectorBookmarks';
+import { loadDirectorBookmarkIds, storeDirectorBookmarkIds } from './DirectorBookmarkPersistence';
+import { nextDirectorZoom } from './DirectorZoom';
+import { dequeueDirectorCue, DirectorCue, enqueueDirectorCue as pushDirectorCue } from './DirectorQueue';
+import { enqueueSpeech } from './SpeechQueue';
+import { layoutSpeechBubbleOffsets } from './SpeechBubbleLayout';
+import { formatSpeechBubbleText } from './SpeechBubbleText';
+import {
+  loadPreferredSelectedAgentId,
+  resolveSelectedAgentId,
+  storePreferredSelectedAgentId,
+} from './SelectionPersistence';
+import { loadSelectedOnlySpeechEnabled, storeSelectedOnlySpeechEnabled } from './SpeechPreferences';
+import { resolveWeatherProfile, WeatherProfile } from './WeatherProfile';
+import { CameraPace, loadCameraPace, storeCameraPace } from './CameraPacePreference';
+import {
+  classifyAgentLod,
+  computeSpeechBubbleAlpha,
+  movementUpdateInterval,
+  selectVisibleSpeechBubbleAgentIds,
+  shouldRenderBubble,
+  shouldShowSpeechBubble,
+} from './CullingMath';
 import { overlayQualityProfileForFps } from './OverlayQuality';
 
-type SceneUiMode = 'cinematic' | 'story' | 'debug';
+type SceneUiMode = 'spectator' | 'story' | 'debug';
 
 export interface DebugOverlayState {
   pathEnabled: boolean;
@@ -16,6 +39,24 @@ export interface DebugOverlayState {
   updateStride: number;
   pathSampleStep: number;
   perceptionSuppressed: boolean;
+}
+
+export interface ScenePerfSummary {
+  totalAgents: number;
+  visibleAgents: number;
+  visibleSpeechBubbles: number;
+  queuedSpeechMessages: number;
+}
+
+interface SpeechBubbleState {
+  container: Phaser.GameObjects.Container;
+  remainingMs: number;
+  durationMs: number;
+  width: number;
+  height: number;
+  preferredOffsetY: number;
+  message: string;
+  expanded: boolean;
 }
 
 export class TownScene extends Phaser.Scene {
@@ -28,8 +69,12 @@ export class TownScene extends Phaser.Scene {
   private blockedMarkerTimerMs = 0;
   private dayTintOverlay!: Phaser.GameObjects.Rectangle;
   private dayTintTimerMs = 0;
+  private rainUpdateTimerMs = 0;
   private landmarkGuideTimerMs = 0;
+  private landmarkAccentPulseMs = 0;
   private routeGraphics!: Phaser.GameObjects.Graphics;
+  private terrainVarianceGraphics!: Phaser.GameObjects.Graphics;
+  private rainGraphics!: Phaser.GameObjects.Graphics;
 
   private readonly agents: AgentSprite[] = [];
   private readonly agentsById = new Map<string, AgentSprite>();
@@ -45,8 +90,13 @@ export class TownScene extends Phaser.Scene {
   private serverConnected = false;
   private serverSelectionInitialized = false;
   private serverGameTime: GameTime | null = null;
+  private serverAverageMood: number | null = null;
+  private weatherProfile: WeatherProfile = resolveWeatherProfile(null, []);
+  private readonly recentTopicTrail: string[] = [];
   private manualSelectionMade = false;
-  private readonly speechBubbles = new Map<string, { container: Phaser.GameObjects.Container; remainingMs: number }>();
+  private preferredSelectedAgentId: string | null = null;
+  private readonly speechBubbles = new Map<string, SpeechBubbleState>();
+  private readonly pendingSpeechByAgent = new Map<string, Array<{ message: string; durationMs: number }>>();
   private frameCounter = 0;
   private pathOverlayEnabled = true;
   private perceptionOverlayEnabled = true;
@@ -54,12 +104,25 @@ export class TownScene extends Phaser.Scene {
   private overlayPathSampleStep = 1;
   private overlayPerceptionSuppressed = false;
   private followSelectedAgent = false;
-  private uiMode: SceneUiMode = 'cinematic';
+  private selectedOnlySpeech = false;
+  private uiMode: SceneUiMode = 'spectator';
+  private autoDirectorEnabled = true;
+  private directorBookmarkAgentIds: string[] = [];
+  private directorBookmarkIndex = 0;
+  private directorCooldownMs = 0;
+  private directorFocusMs = 0;
+  private directorCurrentAgentId: string | null = null;
+  private directorFocusQueue: DirectorCue[] = [];
+  private modeBaseZoom = 1;
+  private modeFocusZoom = 1.06;
+  private cameraPace: CameraPace = 'smooth';
   private readonly ambientParticles: Array<{ dot: Phaser.GameObjects.Arc; vx: number; vy: number }> = [];
   private readonly landmarkGuides: Array<{
     locationId: string;
     marker: Phaser.GameObjects.Rectangle;
     label: Phaser.GameObjects.Text;
+    accent: Phaser.GameObjects.Arc;
+    accentRadius: number;
     centerX: number;
     centerY: number;
   }> = [];
@@ -81,8 +144,15 @@ export class TownScene extends Phaser.Scene {
     this.createOverlays();
     this.createAmbientParticles();
     this.createLandmarkGuides();
+    this.directorBookmarkAgentIds = loadDirectorBookmarkIds(typeof window !== 'undefined' ? window.localStorage : null);
+    this.directorBookmarkIndex = 0;
+    this.selectedOnlySpeech = loadSelectedOnlySpeechEnabled(typeof window !== 'undefined' ? window.localStorage : null);
+    this.cameraPace = loadCameraPace(typeof window !== 'undefined' ? window.localStorage : null);
+    this.preferredSelectedAgentId = loadPreferredSelectedAgentId(
+      typeof window !== 'undefined' ? window.localStorage : null,
+    );
 
-    this.selectAgent(this.agents[0] ?? null);
+    this.selectAgent(this.agents[0] ?? null, false);
 
     this.cameraController = new CameraController(this, this.map.widthInPixels, this.map.heightInPixels);
     this.cameras.main.centerOn(this.map.widthInPixels / 2, this.map.heightInPixels / 2);
@@ -90,6 +160,7 @@ export class TownScene extends Phaser.Scene {
     this.scale.on('resize', this.syncScreenOverlayBounds, this);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scale.off('resize', this.syncScreenOverlayBounds, this));
     this.syncScreenOverlayBounds();
+    this.applyModePreset();
     this.applySceneUiMode();
 
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
@@ -134,7 +205,9 @@ export class TownScene extends Phaser.Scene {
     this.updateAgentCullingAndMovement(delta);
     this.updateAmbientParticles(delta);
     this.updateDayTint(delta);
+    this.updateWeatherEffects(delta);
     this.updateLandmarkGuides(delta);
+    this.updateDirectorCamera(delta);
 
     this.renderDebugOverlays();
     this.updateBlockedMarker(delta);
@@ -159,6 +232,8 @@ export class TownScene extends Phaser.Scene {
   applyServerSnapshot(agents: AgentData[], gameTime: GameTime): void {
     this.serverAuthoritative = true;
     this.serverGameTime = gameTime;
+    this.serverAverageMood = computeAverageMood(agents);
+    this.weatherProfile = resolveWeatherProfile(this.serverAverageMood, this.recentTopicTrail);
     this.syncServerAgents(agents);
     this.updateInfoText();
   }
@@ -166,6 +241,8 @@ export class TownScene extends Phaser.Scene {
   applyServerDelta(agents: AgentData[], gameTime: GameTime): void {
     this.serverAuthoritative = true;
     this.serverGameTime = gameTime;
+    this.serverAverageMood = computeAverageMood(agents);
+    this.weatherProfile = resolveWeatherProfile(this.serverAverageMood, this.recentTopicTrail);
     this.syncServerAgents(agents);
     this.updateInfoText();
   }
@@ -174,8 +251,25 @@ export class TownScene extends Phaser.Scene {
     return this.selectedAgent?.agentId ?? null;
   }
 
+  clearSelectedAgent(): boolean {
+    const hadSelection = this.selectedAgent !== null;
+    const hadFollowEnabled = this.followSelectedAgent;
+    if (!hadSelection && !hadFollowEnabled) {
+      return false;
+    }
+
+    this.manualSelectionMade = true;
+    this.followSelectedAgent = false;
+    this.selectAgent(null);
+    return true;
+  }
+
   setUiMode(mode: SceneUiMode): void {
+    if (this.uiMode === mode) {
+      return;
+    }
     this.uiMode = mode;
+    this.applyModePreset();
     this.applySceneUiMode();
   }
 
@@ -193,6 +287,10 @@ export class TownScene extends Phaser.Scene {
 
   toggleFollowSelectedAgent(): boolean {
     this.followSelectedAgent = !this.followSelectedAgent;
+    if (this.followSelectedAgent) {
+      this.directorCurrentAgentId = null;
+      this.directorFocusMs = 0;
+    }
     if (this.followSelectedAgent && this.selectedAgent) {
       this.centerCameraOn(this.selectedAgent, 0.25);
     }
@@ -200,8 +298,102 @@ export class TownScene extends Phaser.Scene {
     return this.followSelectedAgent;
   }
 
+  toggleAutoDirector(): boolean {
+    this.autoDirectorEnabled = !this.autoDirectorEnabled;
+    if (!this.autoDirectorEnabled) {
+      this.directorCurrentAgentId = null;
+      this.directorFocusMs = 0;
+    }
+    this.updateInfoText();
+    return this.autoDirectorEnabled;
+  }
+
+  toggleSelectedOnlySpeech(): boolean {
+    this.selectedOnlySpeech = !this.selectedOnlySpeech;
+    storeSelectedOnlySpeechEnabled(this.selectedOnlySpeech, typeof window !== 'undefined' ? window.localStorage : null);
+    this.updateInfoText();
+    return this.selectedOnlySpeech;
+  }
+
   isFollowingSelectedAgent(): boolean {
     return this.followSelectedAgent;
+  }
+
+  isAutoDirectorEnabled(): boolean {
+    return this.autoDirectorEnabled;
+  }
+
+  isSelectedOnlySpeech(): boolean {
+    return this.selectedOnlySpeech;
+  }
+
+  toggleCameraPace(): CameraPace {
+    this.cameraPace = this.cameraPace === 'smooth' ? 'snappy' : 'smooth';
+    storeCameraPace(this.cameraPace, typeof window !== 'undefined' ? window.localStorage : null);
+    this.updateInfoText();
+    return this.cameraPace;
+  }
+
+  getCameraPace(): CameraPace {
+    return this.cameraPace;
+  }
+
+  addBookmarkForSelectedAgent(): string | null {
+    const selectedAgentId = this.selectedAgent?.agentId ?? null;
+    if (!selectedAgentId) {
+      return null;
+    }
+
+    const next = addDirectorBookmark(
+      {
+        bookmarkAgentIds: this.directorBookmarkAgentIds,
+        nextIndex: this.directorBookmarkIndex,
+      },
+      selectedAgentId,
+      10,
+    );
+    this.directorBookmarkAgentIds = next.bookmarkAgentIds;
+    this.directorBookmarkIndex = next.nextIndex;
+    this.persistDirectorBookmarks();
+    return selectedAgentId;
+  }
+
+  getDirectorBookmarkAgentIds(): string[] {
+    return [...this.directorBookmarkAgentIds];
+  }
+
+  removeDirectorBookmark(agentId: string): boolean {
+    const before = this.directorBookmarkAgentIds.length;
+    this.directorBookmarkAgentIds = this.directorBookmarkAgentIds.filter((id) => id !== agentId);
+    if (this.directorBookmarkAgentIds.length === before) {
+      return false;
+    }
+    this.directorBookmarkIndex = 0;
+    this.persistDirectorBookmarks();
+    return true;
+  }
+
+  focusNextDirectorBookmark(): string | null {
+    const next = nextDirectorBookmark({
+      bookmarkAgentIds: this.directorBookmarkAgentIds,
+      nextIndex: this.directorBookmarkIndex,
+    });
+    this.directorBookmarkIndex = next.state.nextIndex;
+    if (!next.agentId) {
+      return null;
+    }
+
+    if (!this.focusAgentById(next.agentId)) {
+      this.directorBookmarkAgentIds = this.directorBookmarkAgentIds.filter((id) => id !== next.agentId);
+      this.directorBookmarkIndex = 0;
+      this.persistDirectorBookmarks();
+      return null;
+    }
+    return next.agentId;
+  }
+
+  hasManualSelectionMade(): boolean {
+    return this.manualSelectionMade;
   }
 
   togglePathOverlay(): boolean {
@@ -226,6 +418,27 @@ export class TownScene extends Phaser.Scene {
     };
   }
 
+  getPerfSummary(): ScenePerfSummary {
+    let visibleSpeechBubbles = 0;
+    for (const bubble of this.speechBubbles.values()) {
+      if (bubble.container.visible) {
+        visibleSpeechBubbles += 1;
+      }
+    }
+
+    let queuedSpeechMessages = 0;
+    for (const queue of this.pendingSpeechByAgent.values()) {
+      queuedSpeechMessages += queue.length;
+    }
+
+    return {
+      totalAgents: this.agents.length,
+      visibleAgents: this.agents.filter((agent) => agent.visible).length,
+      visibleSpeechBubbles,
+      queuedSpeechMessages,
+    };
+  }
+
   applyServerEvents(events: unknown[]): void {
     for (const event of events) {
       if (!event || typeof event !== 'object') {
@@ -233,17 +446,41 @@ export class TownScene extends Phaser.Scene {
       }
 
       const typed = event as Record<string, unknown>;
-      if (typed.type !== 'speechBubble') {
+      if (typed.type === 'speechBubble') {
+        if (typeof typed.agentId !== 'string' || typeof typed.message !== 'string') {
+          continue;
+        }
+
+        const durationTicks = typeof typed.durationTicks === 'number' ? typed.durationTicks : 8;
+        const durationMs = Math.max(400, Math.round(durationTicks * TICK_INTERVAL_MS));
+        this.enqueueSpeechBubble(typed.agentId, typed.message, durationMs);
         continue;
       }
 
-      if (typeof typed.agentId !== 'string' || typeof typed.message !== 'string') {
+      if (typed.type === 'conversationStart') {
+        const participants = Array.isArray(typed.participants) ? typed.participants : [];
+        const primary = typeof participants[0] === 'string' ? participants[0] : null;
+        if (primary) {
+          this.enqueueDirectorCue(primary, 'conversation', 1);
+        }
         continue;
       }
 
-      const durationTicks = typeof typed.durationTicks === 'number' ? typed.durationTicks : 8;
-      const durationMs = Math.max(400, Math.round(durationTicks * TICK_INTERVAL_MS));
-      this.showSpeechBubble(typed.agentId, typed.message, durationMs);
+      if (typed.type === 'relationshipShift' && typeof typed.sourceId === 'string') {
+        this.enqueueDirectorCue(typed.sourceId, 'relationship', 2);
+        continue;
+      }
+
+      if (typed.type === 'topicSpread' && typeof typed.targetId === 'string') {
+        if (typeof typed.topic === 'string') {
+          this.recentTopicTrail.push(typed.topic);
+          if (this.recentTopicTrail.length > 28) {
+            this.recentTopicTrail.splice(0, this.recentTopicTrail.length - 28);
+          }
+          this.weatherProfile = resolveWeatherProfile(this.serverAverageMood, this.recentTopicTrail);
+        }
+        this.enqueueDirectorCue(typed.targetId, 'topic', 1);
+      }
     }
   }
 
@@ -265,11 +502,32 @@ export class TownScene extends Phaser.Scene {
     aboveLayer?.setDepth(100);
     collisionLayer?.setVisible(false);
 
+    this.createTerrainVariance();
+
     if (!collisionLayer) {
       throw new Error('Map is missing required collision layer');
     }
 
     this.astar = AStar.fromTilemapLayer(collisionLayer.layer);
+  }
+
+  private createTerrainVariance(): void {
+    this.terrainVarianceGraphics = this.add.graphics();
+    this.terrainVarianceGraphics.setDepth(1);
+
+    const palette = [0x4f7f4c, 0x5b8a52, 0x496f43];
+    for (let tileY = 0; tileY < this.map.height; tileY += 1) {
+      for (let tileX = 0; tileX < this.map.width; tileX += 1) {
+        const seed = this.terrainSeed(tileX, tileY);
+        if (seed % 11 !== 0) {
+          continue;
+        }
+        const color = palette[seed % palette.length];
+        const alpha = 0.024 + (seed % 5) * 0.006;
+        this.terrainVarianceGraphics.fillStyle(color, alpha);
+        this.terrainVarianceGraphics.fillRect(tileX * TILE_SIZE, tileY * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+      }
+    }
   }
 
   private spawnDebugAgents(): void {
@@ -314,6 +572,9 @@ export class TownScene extends Phaser.Scene {
     this.dayTintOverlay.setScrollFactor(0);
     this.dayTintOverlay.setDepth(980);
 
+    this.rainGraphics = this.add.graphics();
+    this.rainGraphics.setDepth(981);
+
     this.updateInfoText();
   }
 
@@ -357,6 +618,10 @@ export class TownScene extends Phaser.Scene {
       marker.setStrokeStyle(1, 0xb9db90, 0.24);
       marker.setDepth(7);
 
+      const accentRadius = Math.max(6, Math.min(location.bounds.width, location.bounds.height) * TILE_SIZE * 0.5);
+      const accent = this.add.circle(centerX, centerY, accentRadius, 0xffe5a3, 0.03);
+      accent.setDepth(6);
+
       const label = this.add.text(centerX, centerY - location.bounds.height * TILE_SIZE * 0.5 - 2, location.name, {
         fontFamily: 'monospace',
         fontSize: '9px',
@@ -370,6 +635,8 @@ export class TownScene extends Phaser.Scene {
         locationId: location.id,
         marker,
         label,
+        accent,
+        accentRadius,
         centerX,
         centerY,
       });
@@ -395,14 +662,23 @@ export class TownScene extends Phaser.Scene {
   }
 
   private updateAmbientParticles(deltaMs: number): void {
-    const visible = this.uiMode === 'cinematic';
+    const visible = this.uiMode === 'spectator';
     const dt = deltaMs / 1000;
+    const weatherColor =
+      this.weatherProfile.kind === 'storm'
+        ? 0xa5c1de
+        : this.weatherProfile.kind === 'drizzle'
+          ? 0xb9d0e6
+          : this.weatherProfile.kind === 'cloudy'
+            ? 0xd5dfd2
+            : 0xe6f7bc;
 
     for (const particle of this.ambientParticles) {
       particle.dot.setVisible(visible);
       if (!visible) {
         continue;
       }
+      particle.dot.setFillStyle(weatherColor, this.weatherProfile.kind === 'clear' ? 0.12 : 0.08);
 
       particle.dot.x += particle.vx * dt;
       particle.dot.y += particle.vy * dt;
@@ -430,29 +706,63 @@ export class TownScene extends Phaser.Scene {
 
     const time = this.serverGameTime;
     if (!time) {
-      this.dayTintOverlay.setFillStyle(0x1f2937, this.uiMode === 'cinematic' ? 0.03 : 0);
+      this.dayTintOverlay.setFillStyle(0x1f2937, (this.uiMode === 'spectator' ? 0.03 : 0) + this.weatherProfile.tintAlphaBoost);
       return;
     }
 
+    let tintColor = 0xffffff;
+    let tintAlpha = 0;
     if (time.hour >= 6 && time.hour < 9) {
-      this.dayTintOverlay.setFillStyle(0xf59e0b, this.uiMode === 'cinematic' ? 0.05 : 0.02);
+      tintColor = 0xf59e0b;
+      tintAlpha = this.uiMode === 'spectator' ? 0.05 : 0.02;
+    } else if (time.hour >= 9 && time.hour < 18) {
+      tintColor = 0xffffff;
+      tintAlpha = 0;
+    } else if (time.hour >= 18 && time.hour < 21) {
+      tintColor = 0xff8b3d;
+      tintAlpha = this.uiMode === 'spectator' ? 0.08 : 0.04;
+    } else {
+      tintColor = 0x0f172a;
+      tintAlpha = this.uiMode === 'spectator' ? 0.13 : 0.08;
+    }
+
+    if (this.weatherProfile.kind !== 'clear') {
+      tintColor = this.weatherProfile.tintColor;
+      tintAlpha += this.weatherProfile.tintAlphaBoost;
+    }
+    this.dayTintOverlay.setFillStyle(tintColor, Math.min(0.25, tintAlpha));
+  }
+
+  private updateWeatherEffects(deltaMs: number): void {
+    this.rainUpdateTimerMs += deltaMs;
+    if (this.rainUpdateTimerMs < 80) {
+      return;
+    }
+    this.rainUpdateTimerMs = 0;
+
+    this.rainGraphics.clear();
+    if (this.weatherProfile.rainIntensity <= 0) {
       return;
     }
 
-    if (time.hour >= 9 && time.hour < 18) {
-      this.dayTintOverlay.setFillStyle(0xffffff, 0);
-      return;
+    const camera = this.cameras.main;
+    const view = camera.worldView;
+    const drops = Math.round(38 * this.weatherProfile.rainIntensity);
+    const alpha = this.weatherProfile.kind === 'storm' ? 0.42 : 0.32;
+    this.rainGraphics.lineStyle(1, 0xb9d8f2, alpha);
+    for (let index = 0; index < drops; index += 1) {
+      const x = view.x + Math.random() * view.width;
+      const y = view.y + Math.random() * view.height;
+      const length = this.weatherProfile.kind === 'storm' ? 11 : 8;
+      this.rainGraphics.beginPath();
+      this.rainGraphics.moveTo(x, y);
+      this.rainGraphics.lineTo(x - 3, y + length);
+      this.rainGraphics.strokePath();
     }
-
-    if (time.hour >= 18 && time.hour < 21) {
-      this.dayTintOverlay.setFillStyle(0xff8b3d, this.uiMode === 'cinematic' ? 0.08 : 0.04);
-      return;
-    }
-
-    this.dayTintOverlay.setFillStyle(0x0f172a, this.uiMode === 'cinematic' ? 0.13 : 0.08);
   }
 
   private updateLandmarkGuides(deltaMs: number): void {
+    this.landmarkAccentPulseMs += deltaMs;
     this.landmarkGuideTimerMs += deltaMs;
     if (this.landmarkGuideTimerMs < 220) {
       return;
@@ -465,17 +775,25 @@ export class TownScene extends Phaser.Scene {
       for (const guide of this.landmarkGuides) {
         guide.marker.setVisible(false);
         guide.label.setVisible(false);
+        guide.accent.setVisible(false);
       }
       return;
     }
 
     const center = this.getCameraCenter();
-    const maxDistance = this.uiMode === 'cinematic' ? 220 : 320;
+    const maxDistance = this.uiMode === 'spectator' ? 220 : 320;
+    const accentAlpha = resolveLandmarkAccentAlpha(this.serverGameTime);
     for (const guide of this.landmarkGuides) {
       const distance = Math.hypot(guide.centerX - center.x, guide.centerY - center.y);
       const visible = distance <= maxDistance;
       guide.marker.setVisible(visible);
       guide.label.setVisible(visible);
+      guide.accent.setVisible(visible);
+      if (visible) {
+        const pulse = 0.78 + Math.sin(this.landmarkAccentPulseMs * 0.003 + guide.centerX * 0.01 + guide.centerY * 0.01) * 0.22;
+        guide.accent.setFillStyle(0xffe5a3, accentAlpha * pulse);
+        guide.accent.setRadius(guide.accentRadius * (0.88 + pulse * 0.16));
+      }
     }
   }
 
@@ -488,10 +806,14 @@ export class TownScene extends Phaser.Scene {
     this.dayTintOverlay.setSize(this.scale.width, this.scale.height);
   }
 
-  private selectAgent(agent: AgentSprite | null): void {
+  private selectAgent(agent: AgentSprite | null, persistPreference = true): void {
     this.selectedAgent?.setSelected(false);
     this.selectedAgent = agent;
     this.selectedAgent?.setSelected(true);
+    if (persistPreference) {
+      this.preferredSelectedAgentId = agent?.agentId ?? null;
+      storePreferredSelectedAgentId(this.preferredSelectedAgentId, typeof window !== 'undefined' ? window.localStorage : null);
+    }
     this.updateInfoText();
   }
 
@@ -502,9 +824,10 @@ export class TownScene extends Phaser.Scene {
       ? `Day ${this.serverGameTime.day} ${String(this.serverGameTime.hour).padStart(2, '0')}:${String(this.serverGameTime.minute).padStart(2, '0')}`
       : 'No sim time';
     const followText = this.followSelectedAgent ? 'On' : 'Off';
+    const directorText = this.autoDirectorEnabled ? 'On' : 'Off';
 
     this.infoText?.setText(
-      `Mode: ${mode} | ${timeText} | Selected: ${selected} | Follow: ${followText} | Click agent to select | Hold Space + Drag to pan`,
+      `Mode: ${mode} | ${timeText} | Selected: ${selected} | Follow: ${followText} | Director: ${directorText} | Click agent to select | Hold Space + Drag to pan`,
     );
   }
 
@@ -570,6 +893,20 @@ export class TownScene extends Phaser.Scene {
 
   private updateOverlayQuality(fps: number): void {
     const profile = overlayQualityProfileForFps(fps);
+    if (this.uiMode === 'spectator') {
+      this.overlayUpdateStride = Math.max(profile.updateStride, 2);
+      this.overlayPathSampleStep = Math.max(profile.pathSampleStep, 2);
+      this.overlayPerceptionSuppressed = true;
+      return;
+    }
+
+    if (this.uiMode === 'story') {
+      this.overlayUpdateStride = Math.max(profile.updateStride, 1);
+      this.overlayPathSampleStep = Math.max(profile.pathSampleStep, 1);
+      this.overlayPerceptionSuppressed = profile.suppressPerception;
+      return;
+    }
+
     this.overlayUpdateStride = profile.updateStride;
     this.overlayPathSampleStep = profile.pathSampleStep;
     this.overlayPerceptionSuppressed = profile.suppressPerception;
@@ -594,8 +931,25 @@ export class TownScene extends Phaser.Scene {
 
   private updateSpeechBubbles(deltaMs: number): void {
     const cameraCenter = this.getCameraCenter();
+    const visibilityCandidates: Array<{
+      agentId: string;
+      selected: boolean;
+      baseVisible: boolean;
+      distanceToCamera: number;
+    }> = [];
+    const layoutEntries: Array<{
+      agentId: string;
+      x: number;
+      y: number;
+      container: Phaser.GameObjects.Container;
+      width: number;
+      height: number;
+      preferredOffsetY: number;
+      selected: boolean;
+    }> = [];
 
-    for (const [agentId, bubble] of this.speechBubbles.entries()) {
+    for (const [agentId, existingBubble] of this.speechBubbles.entries()) {
+      let bubble = existingBubble;
       const sprite = this.agentsById.get(agentId);
       if (!sprite) {
         bubble.container.destroy();
@@ -603,10 +957,40 @@ export class TownScene extends Phaser.Scene {
         continue;
       }
 
-      bubble.container.setPosition(sprite.x, sprite.y - 14);
       const selected = this.selectedAgent?.agentId === sprite.agentId;
-      const bubbleVisible = selected || (sprite.visible && shouldRenderBubble(sprite.x, sprite.y, cameraCenter.x, cameraCenter.y));
-      bubble.container.setVisible(bubbleVisible);
+      if (bubble.expanded !== selected) {
+        this.showSpeechBubble(agentId, bubble.message, bubble.remainingMs, selected);
+        const refreshed = this.speechBubbles.get(agentId);
+        if (!refreshed) {
+          continue;
+        }
+        bubble = refreshed;
+      }
+
+      const bubbleVisible = shouldShowSpeechBubble(
+        selected,
+        this.selectedOnlySpeech,
+        sprite.visible,
+        shouldRenderBubble(sprite.x, sprite.y, cameraCenter.x, cameraCenter.y),
+      );
+      visibilityCandidates.push({
+        agentId,
+        selected,
+        baseVisible: bubbleVisible,
+        distanceToCamera: Math.hypot(sprite.x - cameraCenter.x, sprite.y - cameraCenter.y),
+      });
+      if (bubbleVisible) {
+        layoutEntries.push({
+          agentId,
+          x: sprite.x,
+          y: sprite.y,
+          container: bubble.container,
+          width: bubble.width,
+          height: bubble.height,
+          preferredOffsetY: bubble.preferredOffsetY,
+          selected,
+        });
+      }
 
       bubble.remainingMs -= deltaMs;
       if (bubble.remainingMs <= 0) {
@@ -614,9 +998,57 @@ export class TownScene extends Phaser.Scene {
         this.speechBubbles.delete(agentId);
       }
     }
+
+    const maxBackgroundVisible =
+      this.uiMode === 'spectator' ? 4 : this.uiMode === 'story' ? 7 : Number.POSITIVE_INFINITY;
+    const visibleAgentIds = selectVisibleSpeechBubbleAgentIds(visibilityCandidates, maxBackgroundVisible);
+    for (const candidate of visibilityCandidates) {
+      const bubble = this.speechBubbles.get(candidate.agentId);
+      const visible = visibleAgentIds.has(candidate.agentId);
+      bubble?.container.setVisible(visible);
+      if (!bubble || !visible) {
+        continue;
+      }
+      bubble.container.setAlpha(
+        computeSpeechBubbleAlpha(
+          candidate.selected,
+          candidate.distanceToCamera,
+          bubble.remainingMs,
+          bubble.durationMs,
+          this.uiMode,
+        ),
+      );
+    }
+    for (const entry of layoutEntries) {
+      if (!visibleAgentIds.has(entry.agentId)) {
+        entry.container.setVisible(false);
+      }
+    }
+    const visibleLayoutEntries = layoutEntries.filter((entry) => visibleAgentIds.has(entry.agentId));
+
+    for (const [agentId, queue] of this.pendingSpeechByAgent.entries()) {
+      if (queue.length === 0 || this.speechBubbles.has(agentId)) {
+        continue;
+      }
+
+      const next = queue.shift();
+      if (!next) {
+        continue;
+      }
+
+      this.showSpeechBubble(agentId, next.message, next.durationMs);
+      if (queue.length === 0) {
+        this.pendingSpeechByAgent.delete(agentId);
+      }
+    }
+
+    const offsets = layoutSpeechBubbleOffsets(visibleLayoutEntries, { minGapPx: 6, maxLiftPx: 52 });
+    for (const entry of visibleLayoutEntries) {
+      entry.container.setPosition(entry.x, entry.y + (offsets.get(entry.agentId) ?? entry.preferredOffsetY));
+    }
   }
 
-  private showSpeechBubble(agentId: string, message: string, durationMs: number): void {
+  private showSpeechBubble(agentId: string, message: string, durationMs: number, expandedOverride?: boolean): void {
     const sprite = this.agentsById.get(agentId);
     if (!sprite) {
       return;
@@ -628,28 +1060,82 @@ export class TownScene extends Phaser.Scene {
       this.speechBubbles.delete(agentId);
     }
 
-    const text = this.add.text(0, 0, message.slice(0, 120), {
+    const wrapWidth = Math.max(120, Math.min(180, Math.round(this.scale.width * 0.24)));
+    const maxTagCount = this.scale.width <= 900 ? 2 : 3;
+    const tags = inferConversationTags(message)
+      .slice(0, maxTagCount)
+      .map((tag) => `#${tag}`)
+      .join(' ');
+    const selected = expandedOverride ?? this.selectedAgent?.agentId === agentId;
+    const formatted = formatSpeechBubbleText(message, 120, selected, 220);
+    const headerText = this.add.text(0, 0, `${sprite.agentName} ${tags}`.trim(), {
+      fontFamily: 'monospace',
+      fontSize: '9px',
+      color: '#12311d',
+      align: 'center',
+      wordWrap: { width: wrapWidth, useAdvancedWrap: false },
+    });
+    headerText.setOrigin(0.5);
+
+    const text = this.add.text(0, 0, formatted.body, {
       fontFamily: 'monospace',
       fontSize: '10px',
       color: '#04121f',
       align: 'center',
-      wordWrap: { width: 180, useAdvancedWrap: false },
+      wordWrap: { width: wrapWidth, useAdvancedWrap: false },
     });
     text.setOrigin(0.5);
 
+    const hintText = formatted.hint
+      ? this.add.text(0, 0, formatted.hint, {
+          fontFamily: 'monospace',
+          fontSize: '8px',
+          color: '#345043',
+          align: 'center',
+          wordWrap: { width: wrapWidth, useAdvancedWrap: false },
+        })
+      : null;
+    hintText?.setOrigin(0.5);
+
+    const headerBounds = headerText.getBounds();
     const bounds = text.getBounds();
+    const hintBounds = hintText?.getBounds() ?? null;
     const padding = 4;
-    const bubble = this.add.rectangle(0, 0, bounds.width + padding * 2, bounds.height + padding * 2, 0xf8fafc, 0.92);
+    const width = Math.max(headerBounds.width, bounds.width, hintBounds?.width ?? 0) + padding * 2;
+    const height = headerBounds.height + bounds.height + (hintBounds?.height ?? 0) + padding * (hintBounds ? 4 : 3);
+    const bubble = this.add.rectangle(0, 0, width, height, 0xf8fafc, 0.92);
     bubble.setStrokeStyle(1, 0x0f172a, 0.55);
     bubble.setOrigin(0.5);
+    headerText.setY(-height / 2 + headerBounds.height / 2 + padding);
+    text.setY(headerText.y + headerBounds.height / 2 + bounds.height / 2 + padding + (hintBounds ? 1 : 0));
+    if (hintText) {
+      hintText.setY(text.y + bounds.height / 2 + hintBounds!.height / 2 + 2);
+    }
 
-    const container = this.add.container(sprite.x, sprite.y - 14, [bubble, text]);
+    const children: Phaser.GameObjects.GameObject[] = hintText ? [bubble, headerText, text, hintText] : [bubble, headerText, text];
+    const container = this.add.container(sprite.x, sprite.y - 16, children);
     container.setDepth(1100);
 
     this.speechBubbles.set(agentId, {
       container,
       remainingMs: durationMs,
+      durationMs,
+      width,
+      height,
+      preferredOffsetY: -16,
+      message,
+      expanded: selected,
     });
+  }
+
+  private enqueueSpeechBubble(agentId: string, message: string, durationMs: number): void {
+    const pending = this.pendingSpeechByAgent.get(agentId) ?? [];
+    if (this.speechBubbles.has(agentId) || pending.length > 0) {
+      this.pendingSpeechByAgent.set(agentId, enqueueSpeech(pending, { message, durationMs }, 2));
+      return;
+    }
+
+    this.showSpeechBubble(agentId, message, durationMs);
   }
 
   private updateAgentCullingAndMovement(deltaMs: number): void {
@@ -665,6 +1151,7 @@ export class TownScene extends Phaser.Scene {
       }
 
       agent.setVisible(selected || lod !== 'culled');
+      agent.tickVisuals(deltaMs);
     }
   }
 
@@ -680,9 +1167,55 @@ export class TownScene extends Phaser.Scene {
     this.centerCameraOn(this.selectedAgent, 0.18);
   }
 
+  private updateDirectorCamera(deltaMs: number): void {
+    this.directorCooldownMs = Math.max(0, this.directorCooldownMs - deltaMs);
+    this.directorFocusMs = Math.max(0, this.directorFocusMs - deltaMs);
+
+    if (!this.autoDirectorEnabled) {
+      this.directorCurrentAgentId = null;
+      this.directorFocusMs = 0;
+      return;
+    }
+
+    if (this.followSelectedAgent || this.cameraController.isPanModifierPressed()) {
+      this.directorCurrentAgentId = null;
+      this.directorFocusMs = 0;
+      return;
+    }
+
+    if (!this.directorCurrentAgentId && this.directorCooldownMs <= 0 && this.directorFocusQueue.length > 0) {
+      const { cue: next, nextQueue } = dequeueDirectorCue(this.directorFocusQueue);
+      this.directorFocusQueue = nextQueue;
+      if (next && this.agentsById.has(next.agentId)) {
+        this.directorCurrentAgentId = next.agentId;
+        this.directorFocusMs = this.uiMode === 'spectator' ? 1850 : 1250;
+        this.directorCooldownMs = this.uiMode === 'spectator' ? 1900 : 1600;
+      }
+    }
+
+    if (!this.directorCurrentAgentId) {
+      this.cameras.main.setZoom(nextDirectorZoom(this.cameras.main.zoom, this.modeBaseZoom, 0.07));
+      return;
+    }
+
+    const target = this.agentsById.get(this.directorCurrentAgentId);
+    if (!target) {
+      this.directorCurrentAgentId = null;
+      return;
+    }
+
+    this.centerCameraOn(target, this.uiMode === 'spectator' ? 0.14 : 0.1);
+    this.cameras.main.setZoom(nextDirectorZoom(this.cameras.main.zoom, this.modeFocusZoom, 0.08));
+    if (this.directorFocusMs <= 0) {
+      this.directorCurrentAgentId = null;
+      this.cameras.main.setZoom(nextDirectorZoom(this.cameras.main.zoom, this.modeBaseZoom, 0.15));
+    }
+  }
+
   private centerCameraOn(agent: AgentSprite, lerpAmount: number): void {
     const camera = this.cameras.main;
-    const clampedLerp = Math.max(0, Math.min(1, lerpAmount));
+    const paceBias = this.cameraPace === 'snappy' ? 0.18 : 0;
+    const clampedLerp = Math.max(0, Math.min(1, lerpAmount + paceBias));
     const targetX = agent.x - camera.width / 2;
     const targetY = agent.y - camera.height / 2;
     const maxScrollX = Math.max(0, this.map.widthInPixels - camera.width);
@@ -700,6 +1233,36 @@ export class TownScene extends Phaser.Scene {
     this.renderDebugOverlays(true);
     this.updateLandmarkGuides(220);
     this.updateInfoText();
+  }
+
+  private applyModePreset(): void {
+    if (this.uiMode === 'spectator') {
+      this.autoDirectorEnabled = true;
+      this.modeBaseZoom = 1.02;
+      this.modeFocusZoom = 1.1;
+    } else if (this.uiMode === 'story') {
+      this.autoDirectorEnabled = true;
+      this.modeBaseZoom = 1;
+      this.modeFocusZoom = 1.05;
+    } else {
+      this.autoDirectorEnabled = false;
+      this.modeBaseZoom = 1;
+      this.modeFocusZoom = 1.02;
+    }
+
+    this.directorFocusQueue.length = 0;
+    this.directorCurrentAgentId = null;
+    this.directorFocusMs = 0;
+    this.directorCooldownMs = 0;
+    this.cameras.main.setZoom(this.modeBaseZoom);
+  }
+
+  private enqueueDirectorCue(agentId: string, reason: string, priority: number): void {
+    if (!this.autoDirectorEnabled) {
+      return;
+    }
+
+    this.directorFocusQueue = pushDirectorCue(this.directorFocusQueue, { agentId, reason, priority }, 8);
   }
 
   private getCameraCenter(): { x: number; y: number } {
@@ -731,15 +1294,41 @@ export class TownScene extends Phaser.Scene {
       }
     }
 
-    if (this.selectedAgent && !this.agentsById.has(this.selectedAgent.agentId)) {
-      this.selectedAgent = null;
+    const bookmarkState = pruneDirectorBookmarks(
+      {
+        bookmarkAgentIds: this.directorBookmarkAgentIds,
+        nextIndex: this.directorBookmarkIndex,
+      },
+      activeIds,
+    );
+    if (
+      bookmarkState.nextIndex !== this.directorBookmarkIndex ||
+      bookmarkState.bookmarkAgentIds.length !== this.directorBookmarkAgentIds.length
+    ) {
+      this.directorBookmarkAgentIds = bookmarkState.bookmarkAgentIds;
+      this.directorBookmarkIndex = bookmarkState.nextIndex;
+      this.persistDirectorBookmarks();
+    }
+
+    const selectedAgentId = this.selectedAgent?.agentId ?? null;
+    const mostActiveAgentId = this.pickMostActiveServerAgent(agents)?.agentId ?? null;
+    const firstAgentId = this.agents[0]?.agentId ?? null;
+    const nextSelectedAgentId = resolveSelectedAgentId({
+      currentSelectedAgentId: selectedAgentId,
+      preferredSelectedAgentId: this.preferredSelectedAgentId,
+      activeAgentIds: activeIds,
+      serverSelectionInitialized: this.serverSelectionInitialized,
+      manualSelectionMade: this.manualSelectionMade,
+      mostActiveAgentId,
+      firstAgentId,
+    });
+
+    if (selectedAgentId !== nextSelectedAgentId) {
+      const nextSelectedAgent = nextSelectedAgentId ? this.agentsById.get(nextSelectedAgentId) ?? null : null;
+      this.selectAgent(nextSelectedAgent, nextSelectedAgentId !== null);
     }
 
     if (!this.serverSelectionInitialized) {
-      if (!this.selectedAgent) {
-        const defaultSelection = this.manualSelectionMade ? this.agents[0] ?? null : this.pickMostActiveServerAgent(agents);
-        this.selectAgent(defaultSelection);
-      }
       this.serverSelectionInitialized = true;
     }
   }
@@ -793,6 +1382,13 @@ export class TownScene extends Phaser.Scene {
     return min + Math.random() * (max - min);
   }
 
+  private terrainSeed(tileX: number, tileY: number): number {
+    let n = Math.imul(tileX + 1, 374761393) ^ Math.imul(tileY + 1, 668265263);
+    n = (n ^ (n >>> 13)) >>> 0;
+    n = Math.imul(n, 1274126177) >>> 0;
+    return n ^ (n >>> 16);
+  }
+
   private createAgentData(
     id: string,
     name: string,
@@ -812,4 +1408,36 @@ export class TownScene extends Phaser.Scene {
       position: { x, y },
     };
   }
+
+  private persistDirectorBookmarks(): void {
+    storeDirectorBookmarkIds(this.directorBookmarkAgentIds, typeof window !== 'undefined' ? window.localStorage : null);
+  }
+}
+
+function resolveLandmarkAccentAlpha(gameTime: GameTime | null): number {
+  if (!gameTime) {
+    return 0.05;
+  }
+
+  if (gameTime.hour >= 19 || gameTime.hour < 6) {
+    return 0.14;
+  }
+
+  if (gameTime.hour >= 17 && gameTime.hour < 19) {
+    return 0.1;
+  }
+
+  if (gameTime.hour >= 6 && gameTime.hour < 8) {
+    return 0.08;
+  }
+
+  return 0.04;
+}
+
+function computeAverageMood(agents: AgentData[]): number | null {
+  const moods = agents.map((agent) => agent.mood).filter((mood): mood is number => typeof mood === 'number');
+  if (moods.length === 0) {
+    return null;
+  }
+  return moods.reduce((sum, mood) => sum + mood, 0) / moods.length;
 }

@@ -8,3 +8,5 @@ test-results/
 output/playwright/
 output/stress/
 output/quality/
+error.log
+.claude-home/

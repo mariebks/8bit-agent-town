@@ -165,6 +165,7 @@ export class Agent {
     return {
       id: this.profile.id,
       name: this.profile.name,
+      occupation: this.profile.occupation.id,
       color: this.profile.color,
       state: this.state,
       position: { ...this.position },

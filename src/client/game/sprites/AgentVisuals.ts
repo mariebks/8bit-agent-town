@@ -9,6 +9,15 @@ export interface AgentPalette {
   accent: number;
 }
 
+export interface OccupationSpriteTraits {
+  headwear: 'none' | 'cap' | 'bandana' | 'wideHat';
+  accessory: 'none' | 'apron' | 'satchel' | 'robe';
+  hairStyle: 'short' | 'tuft' | 'bun';
+  bodyType: 'slim' | 'balanced' | 'broad';
+  outfitPattern: 'plain' | 'stripe' | 'trim';
+  badge: boolean;
+}
+
 const SKIN_TONES = [0xf5d5b5, 0xe8be96, 0xd0996c, 0xaf7b4f];
 const HAIR_TONES = [0x2b1f18, 0x4b3628, 0x6e4d2d, 0x4d4d4d];
 
@@ -36,10 +45,10 @@ export function frameIndexFor(direction: FacingDirection, stepping: boolean): nu
   return stepping ? frames.step : frames.idle;
 }
 
-export function deriveAgentPalette(baseColor: number, agentId: string): AgentPalette {
-  const seed = hashString(`${agentId}:${baseColor.toString(16)}`);
+export function deriveAgentPalette(baseColor: number, agentId: string, occupation?: string): AgentPalette {
+  const seed = hashString(`${agentId}:${baseColor.toString(16)}:${occupation ?? ''}`);
   const skin = SKIN_TONES[seed % SKIN_TONES.length];
-  const hair = HAIR_TONES[(seed >> 3) % HAIR_TONES.length];
+  const hair = HAIR_TONES[(seed >>> 3) % HAIR_TONES.length];
   const outfit = mix(baseColor, 0x2f473b, 0.14);
   const outfitDark = shade(outfit, 0.66);
   const accent = mix(baseColor, 0xd6f0ad, 0.32);
@@ -54,9 +63,191 @@ export function deriveAgentPalette(baseColor: number, agentId: string): AgentPal
   };
 }
 
-export function spriteTextureKeyForAgent(agentId: string, baseColor: number): string {
-  const seed = hashString(`${agentId}:${baseColor.toString(16)}`);
+export function spriteTextureKeyForAgent(agentId: string, baseColor: number, occupation?: string): string {
+  const seed = hashString(`${agentId}:${baseColor.toString(16)}:${occupation ?? ''}`);
   return `agent-sprite-${seed.toString(36)}`;
+}
+
+export function resolveOccupationSpriteTraits(occupation?: string, agentId = ''): OccupationSpriteTraits {
+  const normalized = (occupation ?? '').trim().toLowerCase();
+  const seed = hashString(`${agentId}:${normalized}`);
+  const fallback: OccupationSpriteTraits[] = [
+    {
+      headwear: 'cap',
+      accessory: 'none',
+      hairStyle: 'short',
+      bodyType: 'balanced',
+      outfitPattern: 'stripe',
+      badge: false,
+    },
+    {
+      headwear: 'bandana',
+      accessory: 'satchel',
+      hairStyle: 'tuft',
+      bodyType: 'slim',
+      outfitPattern: 'trim',
+      badge: false,
+    },
+    {
+      headwear: 'none',
+      accessory: 'apron',
+      hairStyle: 'short',
+      bodyType: 'broad',
+      outfitPattern: 'plain',
+      badge: false,
+    },
+    {
+      headwear: 'wideHat',
+      accessory: 'robe',
+      hairStyle: 'bun',
+      bodyType: 'balanced',
+      outfitPattern: 'trim',
+      badge: false,
+    },
+  ];
+
+  if (matchesAny(normalized, ['farmer', 'gardener', 'rancher', 'orchard'])) {
+    return {
+      headwear: 'wideHat',
+      accessory: 'apron',
+      hairStyle: 'tuft',
+      bodyType: 'broad',
+      outfitPattern: 'plain',
+      badge: false,
+    };
+  }
+  if (matchesAny(normalized, ['librarian', 'scholar', 'teacher', 'scribe'])) {
+    return {
+      headwear: 'none',
+      accessory: 'robe',
+      hairStyle: 'bun',
+      bodyType: 'slim',
+      outfitPattern: 'trim',
+      badge: false,
+    };
+  }
+  if (matchesAny(normalized, ['barista', 'baker', 'cook', 'chef'])) {
+    return {
+      headwear: 'cap',
+      accessory: 'apron',
+      hairStyle: 'short',
+      bodyType: 'balanced',
+      outfitPattern: 'stripe',
+      badge: false,
+    };
+  }
+  if (matchesAny(normalized, ['clerk', 'administrator', 'civil servant', 'town hall'])) {
+    return {
+      headwear: 'none',
+      accessory: 'robe',
+      hairStyle: 'short',
+      bodyType: 'balanced',
+      outfitPattern: 'trim',
+      badge: true,
+    };
+  }
+  if (matchesAny(normalized, ['merchant', 'shopkeeper', 'vendor', 'trader'])) {
+    return {
+      headwear: 'cap',
+      accessory: 'satchel',
+      hairStyle: 'short',
+      bodyType: 'balanced',
+      outfitPattern: 'stripe',
+      badge: false,
+    };
+  }
+  if (matchesAny(normalized, ['fisher', 'sailor', 'mariner'])) {
+    return {
+      headwear: 'bandana',
+      accessory: 'apron',
+      hairStyle: 'tuft',
+      bodyType: 'balanced',
+      outfitPattern: 'stripe',
+      badge: false,
+    };
+  }
+  if (matchesAny(normalized, ['guard', 'captain', 'watch', 'warden'])) {
+    return {
+      headwear: 'cap',
+      accessory: 'none',
+      hairStyle: 'short',
+      bodyType: 'broad',
+      outfitPattern: 'trim',
+      badge: true,
+    };
+  }
+  if (matchesAny(normalized, ['healer', 'medic', 'doctor', 'nurse'])) {
+    return {
+      headwear: 'none',
+      accessory: 'apron',
+      hairStyle: 'bun',
+      bodyType: 'slim',
+      outfitPattern: 'trim',
+      badge: true,
+    };
+  }
+  if (matchesAny(normalized, ['blacksmith', 'miner', 'mason', 'forge'])) {
+    return {
+      headwear: 'bandana',
+      accessory: 'apron',
+      hairStyle: 'short',
+      bodyType: 'broad',
+      outfitPattern: 'plain',
+      badge: false,
+    };
+  }
+  if (matchesAny(normalized, ['courier', 'messenger', 'post', 'runner'])) {
+    return {
+      headwear: 'cap',
+      accessory: 'satchel',
+      hairStyle: 'tuft',
+      bodyType: 'balanced',
+      outfitPattern: 'trim',
+      badge: false,
+    };
+  }
+  if (matchesAny(normalized, ['artist', 'painter', 'musician', 'bard'])) {
+    return {
+      headwear: 'bandana',
+      accessory: 'satchel',
+      hairStyle: 'bun',
+      bodyType: 'slim',
+      outfitPattern: 'stripe',
+      badge: false,
+    };
+  }
+  if (matchesAny(normalized, ['student', 'apprentice', 'intern'])) {
+    return {
+      headwear: 'cap',
+      accessory: 'satchel',
+      hairStyle: 'tuft',
+      bodyType: 'slim',
+      outfitPattern: 'stripe',
+      badge: false,
+    };
+  }
+  if (matchesAny(normalized, ['retired', 'elder', 'pensioner'])) {
+    return {
+      headwear: 'wideHat',
+      accessory: 'robe',
+      hairStyle: 'bun',
+      bodyType: 'balanced',
+      outfitPattern: 'plain',
+      badge: false,
+    };
+  }
+  if (matchesAny(normalized, ['trainer', 'coach', 'instructor'])) {
+    return {
+      headwear: 'bandana',
+      accessory: 'satchel',
+      hairStyle: 'short',
+      bodyType: 'balanced',
+      outfitPattern: 'trim',
+      badge: false,
+    };
+  }
+
+  return fallback[seed % fallback.length];
 }
 
 function hashString(value: string): number {
@@ -66,6 +257,15 @@ function hashString(value: string): number {
     hash = Math.imul(hash, 16777619);
   }
   return hash >>> 0;
+}
+
+function matchesAny(value: string, keywords: string[]): boolean {
+  for (const keyword of keywords) {
+    if (value.includes(keyword)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function shade(color: number, factor: number): number {

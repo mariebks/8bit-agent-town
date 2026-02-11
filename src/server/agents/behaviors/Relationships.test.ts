@@ -47,4 +47,17 @@ describe('RelationshipManager', () => {
     expect(graph.a2).toHaveLength(2);
     expect(graph.a3).toHaveLength(2);
   });
+
+  test('returns sorted edge list for a selected agent', () => {
+    const manager = new RelationshipManager();
+    manager.initialize(['a1', 'a2', 'a3'], 0);
+    manager.applyConversationDelta('a1', 'a2', 20, 1);
+    manager.applyConversationDelta('a1', 'a3', -10, 2);
+
+    const edges = manager.getEdges('a1');
+    expect(edges).toHaveLength(2);
+    expect(edges[0].targetId).toBe('a2');
+    expect(edges[1].targetId).toBe('a3');
+    expect(edges[0].weight).toBeGreaterThan(edges[1].weight);
+  });
 });
